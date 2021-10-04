@@ -2,7 +2,6 @@ package trie
 
 import (
 	"bytes"
-	"fmt"
 	"io"
 	"math/big"
 	"sync"
@@ -11,6 +10,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/rlp"
+	"github.com/miha-stopar/mpt/oracle"
 )
 
 // rawNode is a simple binary blob used to differentiate between collapsed trie
@@ -34,8 +34,11 @@ type Database struct {
 
 func NewDatabase(header types.Header) Database {
 	triedb := Database{BlockNumber: header.Number, Root: header.Root}
-	// witness.PrefetchAccount(header.Number, common.Address{}, nil)
+	//triedb.preimages = make(map[common.Hash][]byte)
+	//fmt.Println("init database")
+	oracle.PrefetchAccount(header.Number, common.Address{}, nil)
 
+	//panic("preseed")
 	return triedb
 }
 
@@ -48,13 +51,10 @@ func (db *Database) Node(hash common.Hash) ([]byte, error) {
 // node retrieves a cached trie node from memory, or returns nil if none can be
 // found in the memory cache.
 func (db *Database) node(hash common.Hash) node {
-	fmt.Println("?????????????????????????????????????????///")
-	fmt.Println("node", hash)
-	/*
-		if val := oracle.Preimage(hash); val != nil {
-			return mustDecodeNode(hash[:], val)
-		}
-	*/
+	//fmt.Println("node", hash)
+	if val := oracle.Preimage(hash); val != nil {
+		return mustDecodeNode(hash[:], val)
+	}
 	return nil
 }
 

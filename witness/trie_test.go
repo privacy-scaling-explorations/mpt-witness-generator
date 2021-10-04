@@ -8,11 +8,6 @@ import (
 
 func TestTrie(t *testing.T) {
 	t.Run("", func(t *testing.T) {
-		witness.GetBlocks()
+		witness.GetProof()
 	})
-	/*
-		t.Run("", func(t *testing.T) {
-			witness.Accounts()
-		})
-	*/
 }
