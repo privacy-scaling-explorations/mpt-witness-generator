@@ -1,4 +1,4 @@
-package trie
+package oracle
 
 import (
 	"fmt"
@@ -39,7 +39,7 @@ func (kw PreimageKeyValueWriter) Put(key []byte, value []byte) error {
 		panic("bad preimage value write")
 	}
 	preimages[hash] = common.CopyBytes(value)
-	//fmt.Println("tx preimage", hash, common.Bytes2Hex(value))
+	// fmt.Println("tx preimage", hash, common.Bytes2Hex(value))
 	return nil
 }
 

@@ -1,22 +1,17 @@
 package witness
 
 import (
-	"bytes"
-	"encoding/hex"
-	"encoding/json"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"math/big"
-	"net/http"
 	"os"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
-	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/rlp"
-	"github.com/miha-stopar/mpt/trie"
+	"github.com/ethereum/go-ethereum/core/rawdb"
+	"github.com/ethereum/go-ethereum/core/state"
+	"github.com/ethereum/go-ethereum/trie"
+	"github.com/miha-stopar/mpt/oracle"
 )
 
 var nodeUrl = "https://mainnet.infura.io/v3/9aa3d95b3bc440fa88ea12eaa4456161"
@@ -55,9 +50,9 @@ type jsonrespi struct {
 }
 
 type jsonrespt struct {
-	Jsonrpc string       `json:"jsonrpc"`
-	Id      uint64       `json:"id"`
-	Result  types.Header `json:"result"`
+	Jsonrpc string        `json:"jsonrpc"`
+	Id      uint64        `json:"id"`
+	Result  oracle.Header `json:"result"`
 }
 
 // Result structs for GetProof
@@ -98,108 +93,58 @@ func cacheWrite(key string, value []byte) {
 	ioutil.WriteFile(toFilename(key), value, 0644)
 }
 
-func GetBlock() {
-	blockNumber := big.NewInt(int64(13284470))
-	r := jsonreq{Jsonrpc: "2.0", Method: "eth_getBlockByNumber", Id: 1}
-	r.Params = make([]interface{}, 2)
-	r.Params[0] = fmt.Sprintf("0x%x", blockNumber.Int64())
-	r.Params[1] = true
-	jsonData, _ := json.Marshal(r)
+func GetBlocks() {
+	blockNum := 13284470
+	blockNumberParent := big.NewInt(int64(blockNum))
+	blockNumber := big.NewInt(int64(blockNum + 1))
 
-	fmt.Println(jsonData)
+	pkw := oracle.PreimageKeyValueWriter{}
+	pkwtrie := trie.NewStackTrie(pkw)
 
-	jr := jsonrespt{}
-	err := json.NewDecoder(getAPI(jsonData)).Decode(&jr)
-	fmt.Println(err)
-	blockHeader := types.Header(jr.Result)
+	blockHeaderParent := oracle.PrefetchBlock(blockNumberParent, true, nil)
+	blockHeader := oracle.PrefetchBlock(blockNumber, false, pkwtrie)
 
-	blockHeaderRlp, _ := rlp.EncodeToBytes(blockHeader)
-	// hash := crypto.Keccak256Hash(blockHeaderRlp)
-	// preimages[hash] = blockHeaderRlp
+	fmt.Println(blockHeaderParent.Root)
+	fmt.Println(blockHeader)
 
-	fmt.Println("================")
-	fmt.Println(blockHeaderRlp)
+	addr := common.HexToAddress("0xA0c68C638235ee32657e8f720a23ceC1bFc77C77")
+	fmt.Println(addr)
 
-	triedb := trie.NewDatabase(blockHeader)
-	tt, _ := trie.New(blockHeader.TxHash, &triedb)
-
-	// statedb, _ := state.New(blockHeader.Root, database, nil)
-
-	fmt.Println("================")
-	fmt.Println(tt)
-
-}
-
-func Accounts() {
-	blockNumber := big.NewInt(int64(13284470))
-	r := jsonreq{Jsonrpc: "2.0", Method: "eth_getBlockByNumber", Id: 1}
-	r.Params = make([]interface{}, 2)
-	r.Params[0] = fmt.Sprintf("0x%x", blockNumber.Int64())
-	r.Params[1] = true
-	jsonData, _ := json.Marshal(r)
-
-	fmt.Println(jsonData)
-
-	jr := jsonrespt{}
-	err := json.NewDecoder(getAPI(jsonData)).Decode(&jr)
-	fmt.Println(err)
-	blockHeader := types.Header(jr.Result)
-
-	PrefetchAccount(blockHeader.Number, common.Address{}, nil)
-}
-
-func PrefetchAccount(blockNumber *big.Int, addr common.Address, postProcess func(map[common.Hash][]byte)) {
-	key := fmt.Sprintf("proof_%d_%s", blockNumber, addr)
-	if cached[key] {
-		return
-	}
-	cached[key] = true
-
-	ap := getProofAccount(blockNumber, addr, common.Hash{}, false)
-	newPreimages := make(map[common.Hash][]byte)
-	for _, s := range ap {
-		ret, _ := hex.DecodeString(s[2:])
-		hash := crypto.Keccak256Hash(ret)
-		newPreimages[hash] = ret
+	db := rawdb.NewMemoryDatabase()
+	// statedb, err := state.New(common.Hash{}, state.NewDatabase(db), nil)
+	dbb := state.NewDatabase(db)
+	statedb, err := state.New(blockHeaderParent.Root, dbb, nil)
+	if err != nil {
+		panic(err)
 	}
 
-	if postProcess != nil {
-		postProcess(newPreimages)
-	}
+	statedb.AddBalance(addr, big.NewInt(int64(17)))
+	k := common.BigToHash(big.NewInt(int64(13)))
+	v := common.BigToHash(big.NewInt(int64(300)))
+	statedb.SetState(addr, k, v)
 
-	for hash, val := range newPreimages {
-		trie.Preimages()[hash] = val
-	}
-}
+	statedb.Commit(false)
+	fmt.Println("====================")
+	/*
+		for key, value := range account.Storage {
+			statedb.SetState(addr, key, value)
+		}
+	*/
 
-func getProofAccount(blockNumber *big.Int, addr common.Address, skey common.Hash, storage bool) []string {
-	addrHash := crypto.Keccak256Hash(addr[:])
-	unhashMap[addrHash] = addr
+	/*
+		db := trie.NewDatabase(memorydb.New())
+		trie, _ := trie.New(blockHeader.Root, db)
 
-	r := jsonreq{Jsonrpc: "2.0", Method: "eth_getProof", Id: 1}
-	r.Params = make([]interface{}, 3)
-	r.Params[0] = addr
-	r.Params[1] = [1]common.Hash{skey}
-	r.Params[2] = fmt.Sprintf("0x%x", blockNumber.Int64())
-	jsonData, _ := json.Marshal(r)
-	jr := jsonresp{}
-	json.NewDecoder(getAPI(jsonData)).Decode(&jr)
+		// accountProof := oracle.PrefetchAccount(blockNumberParent, common.Address{}, nil)
+		accountProof := oracle.PrefetchAccount(blockNumberParent, addr, nil)
 
-	if storage {
-		return jr.Result.StorageProof[0].Proof
-	} else {
-		return jr.Result.AccountProof
-	}
-}
+		for key, element := range oracle.Preimages() {
+			k := key.Bytes()
+			trie.TryUpdate(k, element)
+		}
 
-func getAPI(jsonData []byte) io.Reader {
-	key := hexutil.Encode(crypto.Keccak256(jsonData))
-	if cacheExists(key) {
-		return bytes.NewReader(cacheRead(key))
-	}
-	resp, _ := http.Post(nodeUrl, "application/json", bytes.NewBuffer(jsonData))
-	defer resp.Body.Close()
-	ret, _ := ioutil.ReadAll(resp.Body)
-	cacheWrite(key, ret)
-	return bytes.NewReader(ret)
+		fmt.Println(accountProof)
+
+		fmt.Println(trie)
+	*/
 }

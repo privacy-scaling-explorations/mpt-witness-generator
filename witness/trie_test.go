@@ -7,12 +7,12 @@ import (
 )
 
 func TestTrie(t *testing.T) {
+	t.Run("", func(t *testing.T) {
+		witness.GetBlocks()
+	})
 	/*
 		t.Run("", func(t *testing.T) {
-			witness.GetBlock()
+			witness.Accounts()
 		})
 	*/
-	t.Run("", func(t *testing.T) {
-		witness.Accounts()
-	})
 }
