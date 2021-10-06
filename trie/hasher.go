@@ -63,9 +63,9 @@ func returnHasherToPool(h *hasher) {
 	hasherPool.Put(h)
 }
 
-// hash collapses a node down into a hash node, also returning a copy of the
-// original node initialized with the computed hash to replace the original one.
-func (h *hasher) hash(n Node, force bool) (hashed Node, cached Node) {
+// Hash collapses a node down into a Hash node, also returning a copy of the
+// original node initialized with the computed Hash to replace the original one.
+func (h *hasher) Hash(n Node, force bool) (hashed Node, cached Node) {
 	// Return the cached hash if it's available
 	if hash, _ := n.cache(); hash != nil {
 		return hash, n
@@ -111,7 +111,7 @@ func (h *hasher) hashShortNodeChildren(n *ShortNode) (collapsed, cached *ShortNo
 	// Unless the child is a valuenode or hashnode, hash it
 	switch n.Val.(type) {
 	case *FullNode, *ShortNode:
-		collapsed.Val, cached.Val = h.hash(n.Val, false)
+		collapsed.Val, cached.Val = h.Hash(n.Val, false)
 	}
 	return collapsed, cached
 }
@@ -127,7 +127,7 @@ func (h *hasher) hashFullNodeChildren(n *FullNode) (collapsed *FullNode, cached 
 			go func(i int) {
 				hasher := NewHasher(false)
 				if child := n.Children[i]; child != nil {
-					collapsed.Children[i], cached.Children[i] = hasher.hash(child, false)
+					collapsed.Children[i], cached.Children[i] = hasher.Hash(child, false)
 				} else {
 					collapsed.Children[i] = nilValueNode
 				}
@@ -139,7 +139,7 @@ func (h *hasher) hashFullNodeChildren(n *FullNode) (collapsed *FullNode, cached 
 	} else {
 		for i := 0; i < 16; i++ {
 			if child := n.Children[i]; child != nil {
-				collapsed.Children[i], cached.Children[i] = h.hash(child, false)
+				collapsed.Children[i], cached.Children[i] = h.Hash(child, false)
 			} else {
 				collapsed.Children[i] = nilValueNode
 			}

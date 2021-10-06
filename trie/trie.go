@@ -571,7 +571,7 @@ func (t *Trie) hashRoot() (Node, Node, error) {
 	// If the number of changes is below 100, we let one thread handle it
 	h := NewHasher(t.unhashed >= 100)
 	defer returnHasherToPool(h)
-	hashed, cached := h.hash(t.root, true)
+	hashed, cached := h.Hash(t.root, true)
 	t.unhashed = 0
 	return hashed, cached, nil
 }

@@ -9,6 +9,6 @@ import (
 func TestTrie(t *testing.T) {
 	t.Run("", func(t *testing.T) {
 		// witness.GetProof()
-		witness.CheckOneLevel()
+		witness.CheckStorageOneLevel()
 	})
 }
