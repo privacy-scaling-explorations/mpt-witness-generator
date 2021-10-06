@@ -59,6 +59,10 @@ func newHasher(parallel bool) *hasher {
 	return h
 }
 
+func NewHasher(parallel bool) *hasher {
+	return newHasher(parallel)
+}
+
 func returnHasherToPool(h *hasher) {
 	hasherPool.Put(h)
 }
@@ -186,6 +190,10 @@ func (h *hasher) hashData(data []byte) hashNode {
 	h.sha.Write(data)
 	h.sha.Read(n)
 	return n
+}
+
+func (h *hasher) HashData(data []byte) hashNode {
+	return h.hashData(data)
 }
 
 // proofHash is used to construct trie proofs, and returns the 'collapsed'

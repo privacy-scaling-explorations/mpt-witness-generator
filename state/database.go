@@ -1,6 +1,7 @@
 package state
 
 import (
+	"fmt"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -40,8 +41,14 @@ func (db *Database) ContractCodeSize(addrHash common.Hash, codeHash common.Hash)
 	return len(code), nil
 }
 
-func (db *Database) CopyTrie(trie Trie) Trie {
-	panic("don't copy tries")
+func (db *Database) CopyTrie(t Trie) Trie {
+	// panic("don't copy tries") // <- from cannon
+	switch t := t.(type) {
+	case *trie.SecureTrie:
+		return t.Copy()
+	default:
+		panic(fmt.Errorf("unknown trie type %T", t))
+	}
 }
 
 // OpenTrie opens the main account trie at a specific root hash.

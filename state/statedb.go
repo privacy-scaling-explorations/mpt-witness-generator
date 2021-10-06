@@ -18,6 +18,7 @@
 package state
 
 import (
+	"errors"
 	"fmt"
 	"math/big"
 	"sort"
@@ -185,6 +186,10 @@ func (s *StateDB) Logs() []*types.Log {
 	return logs
 }
 
+func (s *StateDB) GetTrie() Trie {
+	return s.trie
+}
+
 // AddPreimage records a SHA3 preimage seen by the VM.
 func (s *StateDB) AddPreimage(hash common.Hash, preimage []byte) {
 	if _, ok := s.preimages[hash]; !ok {
@@ -295,7 +300,6 @@ func (s *StateDB) GetProofByHash(addrHash common.Hash) ([][]byte, error) {
 	return proof, err
 }
 
-/*
 // GetStorageProof returns the Merkle proof for given storage slot.
 func (s *StateDB) GetStorageProof(a common.Address, key common.Hash) ([][]byte, error) {
 	var proof proofList
@@ -305,7 +309,7 @@ func (s *StateDB) GetStorageProof(a common.Address, key common.Hash) ([][]byte, 
 	}
 	err := trie.Prove(crypto.Keccak256(key.Bytes()), 0, &proof)
 	return proof, err
-}*/
+}
 
 // GetCommittedState retrieves a value from the given account's committed storage trie.
 func (s *StateDB) GetCommittedState(addr common.Address, hash common.Hash) common.Hash {

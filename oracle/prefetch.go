@@ -120,10 +120,11 @@ func unhash(addrHash common.Hash) common.Address {
 
 var cached = make(map[string]bool)
 
-func PrefetchStorage(blockNumber *big.Int, addr common.Address, skey common.Hash, postProcess func(map[common.Hash][]byte)) {
+func PrefetchStorage(blockNumber *big.Int, addr common.Address, skey common.Hash, postProcess func(map[common.Hash][]byte)) []string {
 	key := fmt.Sprintf("proof_%d_%s_%s", blockNumber, addr, skey)
+	// TODO: should return proof anyway
 	if cached[key] {
-		return
+		return nil
 	}
 	cached[key] = true
 
@@ -144,6 +145,8 @@ func PrefetchStorage(blockNumber *big.Int, addr common.Address, skey common.Hash
 	for hash, val := range newPreimages {
 		preimages[hash] = val
 	}
+
+	return ap
 }
 
 func PrefetchAccount(blockNumber *big.Int, addr common.Address, postProcess func(map[common.Hash][]byte)) []string {
@@ -160,6 +163,7 @@ func PrefetchAccount(blockNumber *big.Int, addr common.Address, postProcess func
 		hash := crypto.Keccak256Hash(ret)
 		newPreimages[hash] = ret
 
+		// just for debugging:
 		elems, _, err := rlp.SplitList(ret)
 		if err != nil {
 			fmt.Println("decode error", err)

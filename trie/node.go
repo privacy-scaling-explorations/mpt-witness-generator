@@ -134,6 +134,10 @@ func decodeNode(hash, buf []byte) (node, error) {
 	}
 }
 
+func DecodeNode(hash, buf []byte) (node, error) {
+	return decodeNode(hash, buf)
+}
+
 func decodeShort(hash, elems []byte) (node, error) {
 	kbuf, rest, err := rlp.SplitString(elems)
 	if err != nil {
