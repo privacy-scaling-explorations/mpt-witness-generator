@@ -18,6 +18,82 @@ func check(err error) {
 	}
 }
 
+func CheckOneLevel() {
+	blockNum := 13284469
+	blockNumberParent := big.NewInt(int64(blockNum))
+	blockNumber := big.NewInt(int64(blockNum + 1))
+
+	pkw := oracle.PreimageKeyValueWriter{}
+	pkwtrie := trie.NewStackTrie(pkw)
+
+	blockHeaderParent := oracle.PrefetchBlock(blockNumberParent, true, nil)
+	blockHeader := oracle.PrefetchBlock(blockNumber, false, pkwtrie)
+
+	fmt.Println(blockHeaderParent.Root)
+	fmt.Println(blockHeader)
+
+	database := state.NewDatabase(blockHeaderParent)
+	statedb, _ := state.New(blockHeaderParent.Root, database, nil)
+
+	addr := common.HexToAddress("0x50efbf12580138bc263c95757826df4e24eb81c9")
+
+	ks := [...]common.Hash{common.HexToHash("0x11"), common.HexToHash("0x12"), common.HexToHash("0x21")}
+	for i := 0; i < len(ks); i++ {
+		// k := common.BigToHash(big.NewInt(int64(i)))
+
+		k := ks[i]
+		v := common.BigToHash(big.NewInt(int64(i + 1))) // don't put 0 value because otherwise nothing will be set (if 0 is prev value), see state_object.go line 279
+
+		fmt.Println("----------------")
+		fmt.Println(k)
+		statedb.SetState(addr, k, v)
+	}
+
+	sp, err := statedb.GetStorageProof(addr, ks[1])
+	// there are two elements in sp: root node and leaf node of ks[1]
+	fmt.Println(err)
+	fmt.Println(sp)
+
+	hasher := trie.NewHasher(false)
+
+	kh := crypto.Keccak256(ks[1].Bytes())
+	khh := trie.KeybytesToHex(kh)
+	fmt.Println(khh)
+
+	h := hasher.HashData(sp[0])
+	d, err := trie.DecodeNode(h, sp[0])
+	fmt.Println(err)
+	fmt.Println(d)
+
+	h2 := hasher.HashData(sp[1])
+	d2, err := trie.DecodeNode(h2, sp[1])
+	fmt.Println(err)
+	fmt.Println(d2)
+
+	fmt.Println("==============================")
+	// fmt.Println(d.Children[11])
+
+	// l := d2[khh]
+	// fmt.Println(l)
+	switch n := (d2).(type) {
+	case nil:
+		fmt.Println("nil")
+	case *trie.ValueNode:
+		fmt.Println("ValueNode")
+	case *trie.ShortNode:
+		fmt.Println("ShortNode")
+	case *trie.FullNode:
+		fmt.Println("FullNode")
+		c := n.Children[11]
+		fmt.Println(c)
+	case trie.HashNode:
+		fmt.Println("hashNode")
+	}
+
+	fmt.Println("==============================")
+
+}
+
 func GetProof() {
 	blockNum := 13284469
 	blockNumberParent := big.NewInt(int64(blockNum))

@@ -191,7 +191,7 @@ const (
 
 // TryUpdate inserts a (key, value) pair into the stack trie
 func (st *StackTrie) TryUpdate(key, value []byte) error {
-	k := keybytesToHex(key)
+	k := KeybytesToHex(key)
 	if len(value) == 0 {
 		panic("deletion not supported")
 	}
@@ -386,7 +386,7 @@ func (st *StackTrie) hash() {
 
 	switch st.nodeType {
 	case branchNode:
-		var nodes [17]node
+		var nodes [17]Node
 		for i, child := range st.children {
 			if child == nil {
 				nodes[i] = nilValueNode
@@ -396,13 +396,13 @@ func (st *StackTrie) hash() {
 			if len(child.val) < 32 {
 				nodes[i] = rawNode(child.val)
 			} else {
-				nodes[i] = hashNode(child.val)
+				nodes[i] = HashNode(child.val)
 			}
 			st.children[i] = nil // Reclaim mem from subtree
 			returnToPool(child)
 		}
 		nodes[16] = nilValueNode
-		h = newHasher(false)
+		h = NewHasher(false)
 		defer returnHasherToPool(h)
 		h.tmp.Reset()
 		if err := rlp.Encode(&h.tmp, nodes); err != nil {
@@ -410,18 +410,18 @@ func (st *StackTrie) hash() {
 		}
 	case extNode:
 		st.children[0].hash()
-		h = newHasher(false)
+		h = NewHasher(false)
 		defer returnHasherToPool(h)
 		h.tmp.Reset()
-		var valuenode node
+		var valuenode Node
 		if len(st.children[0].val) < 32 {
 			valuenode = rawNode(st.children[0].val)
 		} else {
-			valuenode = hashNode(st.children[0].val)
+			valuenode = HashNode(st.children[0].val)
 		}
 		n := struct {
 			Key []byte
-			Val node
+			Val Node
 		}{
 			Key: hexToCompact(st.key),
 			Val: valuenode,
@@ -432,7 +432,7 @@ func (st *StackTrie) hash() {
 		returnToPool(st.children[0])
 		st.children[0] = nil // Reclaim mem from subtree
 	case leafNode:
-		h = newHasher(false)
+		h = NewHasher(false)
 		defer returnHasherToPool(h)
 		h.tmp.Reset()
 		st.key = append(st.key, byte(16))
@@ -476,7 +476,7 @@ func (st *StackTrie) Hash() (h common.Hash) {
 		// be hashed, and instead contain the  rlp-encoding of the
 		// node. For the top level node, we need to force the hashing.
 		ret := make([]byte, 32)
-		h := newHasher(false)
+		h := NewHasher(false)
 		defer returnHasherToPool(h)
 		h.sha.Reset()
 		h.sha.Write(st.val)
@@ -503,7 +503,7 @@ func (st *StackTrie) Commit() (common.Hash, error) {
 		// be hashed (and committed), and instead contain the  rlp-encoding of the
 		// node. For the top level node, we need to force the hashing+commit.
 		ret := make([]byte, 32)
-		h := newHasher(false)
+		h := NewHasher(false)
 		defer returnHasherToPool(h)
 		h.sha.Reset()
 		h.sha.Write(st.val)

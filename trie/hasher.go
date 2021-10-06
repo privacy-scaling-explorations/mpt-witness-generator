@@ -53,14 +53,10 @@ var hasherPool = sync.Pool{
 	},
 }
 
-func newHasher(parallel bool) *hasher {
+func NewHasher(parallel bool) *hasher {
 	h := hasherPool.Get().(*hasher)
 	h.parallel = parallel
 	return h
-}
-
-func NewHasher(parallel bool) *hasher {
-	return newHasher(parallel)
 }
 
 func returnHasherToPool(h *hasher) {
@@ -69,28 +65,28 @@ func returnHasherToPool(h *hasher) {
 
 // hash collapses a node down into a hash node, also returning a copy of the
 // original node initialized with the computed hash to replace the original one.
-func (h *hasher) hash(n node, force bool) (hashed node, cached node) {
+func (h *hasher) hash(n Node, force bool) (hashed Node, cached Node) {
 	// Return the cached hash if it's available
 	if hash, _ := n.cache(); hash != nil {
 		return hash, n
 	}
 	// Trie not processed yet, walk the children
 	switch n := n.(type) {
-	case *shortNode:
+	case *ShortNode:
 		collapsed, cached := h.hashShortNodeChildren(n)
 		hashed := h.shortnodeToHash(collapsed, force)
 		// We need to retain the possibly _not_ hashed node, in case it was too
 		// small to be hashed
-		if hn, ok := hashed.(hashNode); ok {
+		if hn, ok := hashed.(HashNode); ok {
 			cached.flags.hash = hn
 		} else {
 			cached.flags.hash = nil
 		}
 		return hashed, cached
-	case *fullNode:
+	case *FullNode:
 		collapsed, cached := h.hashFullNodeChildren(n)
 		hashed = h.fullnodeToHash(collapsed, force)
-		if hn, ok := hashed.(hashNode); ok {
+		if hn, ok := hashed.(HashNode); ok {
 			cached.flags.hash = hn
 		} else {
 			cached.flags.hash = nil
@@ -105,7 +101,7 @@ func (h *hasher) hash(n node, force bool) (hashed node, cached node) {
 // hashShortNodeChildren collapses the short node. The returned collapsed node
 // holds a live reference to the Key, and must not be modified.
 // The cached
-func (h *hasher) hashShortNodeChildren(n *shortNode) (collapsed, cached *shortNode) {
+func (h *hasher) hashShortNodeChildren(n *ShortNode) (collapsed, cached *ShortNode) {
 	// Hash the short node's child, caching the newly hashed subtree
 	collapsed, cached = n.copy(), n.copy()
 	// Previously, we did copy this one. We don't seem to need to actually
@@ -114,13 +110,13 @@ func (h *hasher) hashShortNodeChildren(n *shortNode) (collapsed, cached *shortNo
 	collapsed.Key = hexToCompact(n.Key)
 	// Unless the child is a valuenode or hashnode, hash it
 	switch n.Val.(type) {
-	case *fullNode, *shortNode:
+	case *FullNode, *ShortNode:
 		collapsed.Val, cached.Val = h.hash(n.Val, false)
 	}
 	return collapsed, cached
 }
 
-func (h *hasher) hashFullNodeChildren(n *fullNode) (collapsed *fullNode, cached *fullNode) {
+func (h *hasher) hashFullNodeChildren(n *FullNode) (collapsed *FullNode, cached *FullNode) {
 	// Hash the full node's children, caching the newly hashed subtrees
 	cached = n.copy()
 	collapsed = n.copy()
@@ -129,7 +125,7 @@ func (h *hasher) hashFullNodeChildren(n *fullNode) (collapsed *fullNode, cached 
 		wg.Add(16)
 		for i := 0; i < 16; i++ {
 			go func(i int) {
-				hasher := newHasher(false)
+				hasher := NewHasher(false)
 				if child := n.Children[i]; child != nil {
 					collapsed.Children[i], cached.Children[i] = hasher.hash(child, false)
 				} else {
@@ -156,7 +152,7 @@ func (h *hasher) hashFullNodeChildren(n *fullNode) (collapsed *fullNode, cached 
 // should have hex-type Key, which will be converted (without modification)
 // into compact form for RLP encoding.
 // If the rlp data is smaller than 32 bytes, `nil` is returned.
-func (h *hasher) shortnodeToHash(n *shortNode, force bool) node {
+func (h *hasher) shortnodeToHash(n *ShortNode, force bool) Node {
 	h.tmp.Reset()
 	if err := rlp.Encode(&h.tmp, n); err != nil {
 		panic("encode error: " + err.Error())
@@ -165,12 +161,12 @@ func (h *hasher) shortnodeToHash(n *shortNode, force bool) node {
 	if len(h.tmp) < 32 && !force {
 		return n // Nodes smaller than 32 bytes are stored inside their parent
 	}
-	return h.hashData(h.tmp)
+	return h.HashData(h.tmp)
 }
 
 // shortnodeToHash is used to creates a hashNode from a set of hashNodes, (which
 // may contain nil values)
-func (h *hasher) fullnodeToHash(n *fullNode, force bool) node {
+func (h *hasher) fullnodeToHash(n *FullNode, force bool) Node {
 	h.tmp.Reset()
 	// Generate the RLP encoding of the node
 	if err := n.EncodeRLP(&h.tmp); err != nil {
@@ -180,32 +176,28 @@ func (h *hasher) fullnodeToHash(n *fullNode, force bool) node {
 	if len(h.tmp) < 32 && !force {
 		return n // Nodes smaller than 32 bytes are stored inside their parent
 	}
-	return h.hashData(h.tmp)
+	return h.HashData(h.tmp)
 }
 
-// hashData hashes the provided data
-func (h *hasher) hashData(data []byte) hashNode {
-	n := make(hashNode, 32)
+// HashData hashes the provided data
+func (h *hasher) HashData(data []byte) HashNode {
+	n := make(HashNode, 32)
 	h.sha.Reset()
 	h.sha.Write(data)
 	h.sha.Read(n)
 	return n
 }
 
-func (h *hasher) HashData(data []byte) hashNode {
-	return h.hashData(data)
-}
-
 // proofHash is used to construct trie proofs, and returns the 'collapsed'
 // node (for later RLP encoding) aswell as the hashed node -- unless the
 // node is smaller than 32 bytes, in which case it will be returned as is.
 // This method does not do anything on value- or hash-nodes.
-func (h *hasher) proofHash(original node) (collapsed, hashed node) {
+func (h *hasher) proofHash(original Node) (collapsed, hashed Node) {
 	switch n := original.(type) {
-	case *shortNode:
+	case *ShortNode:
 		sn, _ := h.hashShortNodeChildren(n)
 		return sn, h.shortnodeToHash(sn, false)
-	case *fullNode:
+	case *FullNode:
 		fn, _ := h.hashFullNodeChildren(n)
 		return fn, h.fullnodeToHash(fn, false)
 	default:

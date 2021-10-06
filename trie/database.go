@@ -18,7 +18,7 @@ import (
 // in the same cache fields).
 type rawNode []byte
 
-func (n rawNode) cache() (hashNode, bool)   { panic("this should never end up in a live trie") }
+func (n rawNode) cache() (HashNode, bool)   { panic("this should never end up in a live trie") }
 func (n rawNode) fstring(ind string) string { panic("this should never end up in a live trie") }
 
 func (n rawNode) EncodeRLP(w io.Writer) error {
@@ -50,7 +50,7 @@ func (db *Database) Node(hash common.Hash) ([]byte, error) {
 
 // node retrieves a cached trie node from memory, or returns nil if none can be
 // found in the memory cache.
-func (db *Database) node(hash common.Hash) node {
+func (db *Database) node(hash common.Hash) Node {
 	//fmt.Println("node", hash)
 	if val := oracle.Preimage(hash); val != nil {
 		return mustDecodeNode(hash[:], val)
@@ -62,7 +62,7 @@ func (db *Database) node(hash common.Hash) node {
 // The blob size must be specified to allow proper size tracking.
 // All nodes inserted by this function will be reference tracked
 // and in theory should only used for **trie nodes** insertion.
-func (db *Database) insert(hash common.Hash, size int, node node) {
+func (db *Database) insert(hash common.Hash, size int, node Node) {
 	// can put things in the oracle here if we care
 	//fmt.Println("insert", hash, size)
 }
@@ -71,14 +71,14 @@ func GenPossibleShortNodePreimage(preimages map[common.Hash][]byte) {
 	newPreimages := make(map[common.Hash][]byte)
 
 	for _, val := range preimages {
-		node, err := decodeNode(nil, val)
+		node, err := DecodeNode(nil, val)
 		if err != nil {
 			continue
 		}
 
-		if node, ok := node.(*shortNode); ok {
+		if node, ok := node.(*ShortNode); ok {
 			for i := len(node.Key) - 1; i > 0; i-- {
-				n := shortNode{
+				n := ShortNode{
 					Key: hexToCompact(node.Key[i:]),
 					Val: node.Val,
 				}

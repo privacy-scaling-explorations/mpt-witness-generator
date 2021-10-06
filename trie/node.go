@@ -27,32 +27,32 @@ import (
 
 var indices = []string{"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f", "[17]"}
 
-type node interface {
+type Node interface {
 	fstring(string) string
-	cache() (hashNode, bool)
+	cache() (HashNode, bool)
 }
 
 type (
-	fullNode struct {
-		Children [17]node // Actual trie node data to encode/decode (needs custom encoder)
+	FullNode struct {
+		Children [17]Node // Actual trie node data to encode/decode (needs custom encoder)
 		flags    nodeFlag
 	}
-	shortNode struct {
+	ShortNode struct {
 		Key   []byte
-		Val   node
+		Val   Node
 		flags nodeFlag
 	}
-	hashNode  []byte
-	valueNode []byte
+	HashNode  []byte
+	ValueNode []byte
 )
 
 // nilValueNode is used when collapsing internal trie nodes for hashing, since
 // unset children need to serialize correctly.
-var nilValueNode = valueNode(nil)
+var nilValueNode = ValueNode(nil)
 
 // EncodeRLP encodes a full node into the consensus RLP format.
-func (n *fullNode) EncodeRLP(w io.Writer) error {
-	var nodes [17]node
+func (n *FullNode) EncodeRLP(w io.Writer) error {
+	var nodes [17]Node
 
 	for i, child := range &n.Children {
 		if child != nil {
@@ -64,27 +64,27 @@ func (n *fullNode) EncodeRLP(w io.Writer) error {
 	return rlp.Encode(w, nodes)
 }
 
-func (n *fullNode) copy() *fullNode   { copy := *n; return &copy }
-func (n *shortNode) copy() *shortNode { copy := *n; return &copy }
+func (n *FullNode) copy() *FullNode   { copy := *n; return &copy }
+func (n *ShortNode) copy() *ShortNode { copy := *n; return &copy }
 
 // nodeFlag contains caching-related metadata about a node.
 type nodeFlag struct {
-	hash  hashNode // cached hash of the node (may be nil)
+	hash  HashNode // cached hash of the node (may be nil)
 	dirty bool     // whether the node has changes that must be written to the database
 }
 
-func (n *fullNode) cache() (hashNode, bool)  { return n.flags.hash, n.flags.dirty }
-func (n *shortNode) cache() (hashNode, bool) { return n.flags.hash, n.flags.dirty }
-func (n hashNode) cache() (hashNode, bool)   { return nil, true }
-func (n valueNode) cache() (hashNode, bool)  { return nil, true }
+func (n *FullNode) cache() (HashNode, bool)  { return n.flags.hash, n.flags.dirty }
+func (n *ShortNode) cache() (HashNode, bool) { return n.flags.hash, n.flags.dirty }
+func (n HashNode) cache() (HashNode, bool)   { return nil, true }
+func (n ValueNode) cache() (HashNode, bool)  { return nil, true }
 
 // Pretty printing.
-func (n *fullNode) String() string  { return n.fstring("") }
-func (n *shortNode) String() string { return n.fstring("") }
-func (n hashNode) String() string   { return n.fstring("") }
-func (n valueNode) String() string  { return n.fstring("") }
+func (n *FullNode) String() string  { return n.fstring("") }
+func (n *ShortNode) String() string { return n.fstring("") }
+func (n HashNode) String() string   { return n.fstring("") }
+func (n ValueNode) String() string  { return n.fstring("") }
 
-func (n *fullNode) fstring(ind string) string {
+func (n *FullNode) fstring(ind string) string {
 	resp := fmt.Sprintf("[\n%s  ", ind)
 	for i, node := range &n.Children {
 		if node == nil {
@@ -95,26 +95,26 @@ func (n *fullNode) fstring(ind string) string {
 	}
 	return resp + fmt.Sprintf("\n%s] ", ind)
 }
-func (n *shortNode) fstring(ind string) string {
+func (n *ShortNode) fstring(ind string) string {
 	return fmt.Sprintf("{%x: %v} ", n.Key, n.Val.fstring(ind+"  "))
 }
-func (n hashNode) fstring(ind string) string {
+func (n HashNode) fstring(ind string) string {
 	return fmt.Sprintf("<%x> ", []byte(n))
 }
-func (n valueNode) fstring(ind string) string {
+func (n ValueNode) fstring(ind string) string {
 	return fmt.Sprintf("%x ", []byte(n))
 }
 
-func mustDecodeNode(hash, buf []byte) node {
-	n, err := decodeNode(hash, buf)
+func mustDecodeNode(hash, buf []byte) Node {
+	n, err := DecodeNode(hash, buf)
 	if err != nil {
 		panic(fmt.Sprintf("node %x: %v", hash, err))
 	}
 	return n
 }
 
-// decodeNode parses the RLP encoding of a trie node.
-func decodeNode(hash, buf []byte) (node, error) {
+// DecodeNode parses the RLP encoding of a trie node.
+func DecodeNode(hash, buf []byte) (Node, error) {
 	if len(buf) == 0 {
 		return nil, io.ErrUnexpectedEOF
 	}
@@ -134,11 +134,7 @@ func decodeNode(hash, buf []byte) (node, error) {
 	}
 }
 
-func DecodeNode(hash, buf []byte) (node, error) {
-	return decodeNode(hash, buf)
-}
-
-func decodeShort(hash, elems []byte) (node, error) {
+func decodeShort(hash, elems []byte) (Node, error) {
 	kbuf, rest, err := rlp.SplitString(elems)
 	if err != nil {
 		return nil, err
@@ -151,17 +147,17 @@ func decodeShort(hash, elems []byte) (node, error) {
 		if err != nil {
 			return nil, fmt.Errorf("invalid value node: %v", err)
 		}
-		return &shortNode{key, append(valueNode{}, val...), flag}, nil
+		return &ShortNode{key, append(ValueNode{}, val...), flag}, nil
 	}
 	r, _, err := decodeRef(rest)
 	if err != nil {
 		return nil, wrapError(err, "val")
 	}
-	return &shortNode{key, r, flag}, nil
+	return &ShortNode{key, r, flag}, nil
 }
 
-func decodeFull(hash, elems []byte) (*fullNode, error) {
-	n := &fullNode{flags: nodeFlag{hash: hash}}
+func decodeFull(hash, elems []byte) (*FullNode, error) {
+	n := &FullNode{flags: nodeFlag{hash: hash}}
 	for i := 0; i < 16; i++ {
 		cld, rest, err := decodeRef(elems)
 		if err != nil {
@@ -174,14 +170,14 @@ func decodeFull(hash, elems []byte) (*fullNode, error) {
 		return n, err
 	}
 	if len(val) > 0 {
-		n.Children[16] = append(valueNode{}, val...)
+		n.Children[16] = append(ValueNode{}, val...)
 	}
 	return n, nil
 }
 
 const hashLen = len(common.Hash{})
 
-func decodeRef(buf []byte) (node, []byte, error) {
+func decodeRef(buf []byte) (Node, []byte, error) {
 	kind, val, rest, err := rlp.Split(buf)
 	if err != nil {
 		return nil, buf, err
@@ -194,13 +190,13 @@ func decodeRef(buf []byte) (node, []byte, error) {
 			err := fmt.Errorf("oversized embedded node (size is %d bytes, want size < %d)", size, hashLen)
 			return nil, buf, err
 		}
-		n, err := decodeNode(nil, buf)
+		n, err := DecodeNode(nil, buf)
 		return n, rest, err
 	case kind == rlp.String && len(val) == 0:
 		// empty node
 		return nil, rest, nil
 	case kind == rlp.String && len(val) == 32:
-		return append(hashNode{}, val...), rest, nil
+		return append(HashNode{}, val...), rest, nil
 	default:
 		return nil, nil, fmt.Errorf("invalid RLP string size %d (want 0 or 32)", len(val))
 	}
