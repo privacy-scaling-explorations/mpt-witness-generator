@@ -1,7 +1,5 @@
 package main
 
-import "github.com/miha-stopar/mpt/witness"
-
 func main() {
-	witness.CheckStorageOneLevel()
+	// witness.CheckStorageOneLevel()
 }

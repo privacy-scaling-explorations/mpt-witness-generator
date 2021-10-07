@@ -163,19 +163,21 @@ func PrefetchAccount(blockNumber *big.Int, addr common.Address, postProcess func
 		hash := crypto.Keccak256Hash(ret)
 		newPreimages[hash] = ret
 
-		// just for debugging:
-		elems, _, err := rlp.SplitList(ret)
-		if err != nil {
-			fmt.Println("decode error", err)
-		}
-		switch c, _ := rlp.CountValues(elems); c {
-		case 2:
-			fmt.Println("2")
-		case 17:
-			fmt.Println("17")
-		default:
-			fmt.Println("invalid number of list elements")
-		}
+		/*
+			// just for debugging:
+			elems, _, err := rlp.SplitList(ret)
+			if err != nil {
+				fmt.Println("decode error", err)
+			}
+			switch c, _ := rlp.CountValues(elems); c {
+			case 2:
+				fmt.Println("2")
+			case 17:
+				fmt.Println("17")
+			default:
+				fmt.Println("invalid number of list elements")
+			}
+		*/
 	}
 
 	if postProcess != nil {
