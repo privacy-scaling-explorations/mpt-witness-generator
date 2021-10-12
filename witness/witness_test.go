@@ -111,6 +111,66 @@ func VerifyElementsInTwoBranches(b1, b2 *trie.FullNode, exceptPos byte) bool {
 	return true
 }
 
+func prepareBranchWitness(rows [][]byte, branch []byte, branchOffset int) {
+	offset := 2
+	layoutOffset := 2
+	rowInd := 0
+	colInd := layoutOffset
+	inside32Ind := -1
+	for i := 0; i < int(branch[1]); i++ { // TODO: length can occupy more than just one byte
+		if rowInd == 16 {
+			break
+		}
+		b := branch[offset+i]
+		if b == 160 && inside32Ind == -1 { // new child
+			inside32Ind = 0
+			colInd = 1 // TODO: length can ...
+			rows[rowInd][branchOffset+colInd] = b
+			colInd++
+			continue
+		}
+
+		if inside32Ind >= 0 {
+			rows[rowInd][branchOffset+colInd] = b
+			colInd++
+			inside32Ind++
+			fmt.Println(rows[rowInd])
+			if inside32Ind == 32 {
+				inside32Ind = -1
+				rowInd++
+				colInd = 0
+			}
+		} else {
+			// if we are not in a child, it can only be b = 128 which presents nil (no child
+			// at this position)
+			if b != 128 {
+				panic("not 128")
+			}
+			rows[rowInd][branchOffset+layoutOffset] = b
+			rowInd++
+			fmt.Println(rows[rowInd-1])
+		}
+	}
+}
+
+func prepareTwoBranchesWitness(branch1, branch2 []byte) [][]byte {
+	rows := make([][]byte, 16)
+	for i := 0; i < 16; i++ {
+		rows[i] = make([]byte, 2+32+2+32)
+	}
+
+	// TODO: length can occupy more than just one byte
+	rows[0][0] = branch1[0]
+	rows[0][1] = branch1[1]
+	rows[0][2+32] = branch2[0]
+	rows[0][2+32+1] = branch2[1]
+
+	prepareBranchWitness(rows, branch1, 0)
+	prepareBranchWitness(rows, branch2, 2+32)
+
+	return rows
+}
+
 func TestStorageUpdateOneLevel(t *testing.T) {
 	blockNum := 13284469
 	blockNumberParent := big.NewInt(int64(blockNum))
@@ -140,27 +200,9 @@ func TestStorageUpdateOneLevel(t *testing.T) {
 	// All other proofs (after modifications) will be generated internally by buildig the internal state.
 	storageProof, err := statedb.GetStorageProof(addr, toBeModified[0])
 	check(err)
-	hasher := trie.NewHasher(false)
 
 	kh := crypto.Keccak256(toBeModified[0].Bytes())
 	key := trie.KeybytesToHex(kh)
-
-	rootHash := hasher.HashData(storageProof[0])
-	root, err := trie.DecodeNode(rootHash, storageProof[0])
-	check(err)
-
-	nodeHash := hasher.HashData(storageProof[1])
-	leaf, err := trie.DecodeNode(nodeHash, storageProof[1])
-	check(err)
-
-	r := root.(*trie.FullNode)
-	c := r.Children[key[0]]
-	u, _ := hasher.Hash(leaf, false)
-
-	// Constraints for proof verification (only one because only one level):
-	if fmt.Sprintf("%b", u) != fmt.Sprintf("%b", c) {
-		panic("not the same")
-	}
 
 	/*
 		Modifying storage:
@@ -174,6 +216,26 @@ func TestStorageUpdateOneLevel(t *testing.T) {
 	statedb.IntermediateRoot(false)
 	storageProof1, err := statedb.GetStorageProof(addr, toBeModified[0])
 	check(err)
+
+	branch1 := storageProof[0]
+	branch2 := storageProof1[0]
+
+	rows := prepareTwoBranchesWitness(branch1, branch2)
+
+	// check
+	l := len(rows[0]) / 2
+	for i := 0; i < 16; i++ {
+		if i == int(key[0]) {
+			continue
+		}
+		for j := 0; j < l; j++ {
+			if rows[i][j] != rows[i][j+l] {
+				panic("witness not properly generated")
+			}
+		}
+	}
+
+	fmt.Println(rows)
 
 	if !VerifyTwoProofsAndPath(storageProof, storageProof1, key) {
 		panic("proof not valid")
