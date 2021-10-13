@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"math/big"
+	"strconv"
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -235,7 +236,23 @@ func TestStorageUpdateOneLevel(t *testing.T) {
 		}
 	}
 
-	fmt.Println(rows)
+	// Had some problems with json.Marshal, so I just prepare json manually.
+	json := "["
+	for i := 0; i < len(rows); i++ {
+		json += "["
+		for j := 0; j < len(rows[i]); j++ {
+			json += strconv.Itoa(int(rows[i][j]))
+			if j != len(rows[i])-1 {
+				json += ","
+			}
+		}
+		json += "]"
+		if i != len(rows)-1 {
+			json += ","
+		}
+	}
+	json += "]"
+	fmt.Println(json)
 
 	if !VerifyTwoProofsAndPath(storageProof, storageProof1, key) {
 		panic("proof not valid")
