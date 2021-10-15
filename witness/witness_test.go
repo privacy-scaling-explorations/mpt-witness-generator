@@ -15,6 +15,9 @@ import (
 	"github.com/miha-stopar/mpt/trie"
 )
 
+const branchRLPOffset = 2
+const branch2start = branchRLPOffset + 32
+
 func check(err error) {
 	if err != nil {
 		log.Fatal(err)
@@ -112,27 +115,25 @@ func VerifyElementsInTwoBranches(b1, b2 *trie.FullNode, exceptPos byte) bool {
 	return true
 }
 
-func prepareBranchWitness(rows [][]byte, branch []byte, branchOffset int) {
-	offset := 2
-	layoutOffset := 2
-	rowInd := 0
-	colInd := layoutOffset
+func prepareBranchWitness(rows [][]byte, branch []byte, branchStart int) {
+	rowInd := 1 // start with 1 because rows[0] contains some RLP data
+	colInd := branchRLPOffset
 	inside32Ind := -1
 	for i := 0; i < int(branch[1]); i++ { // TODO: length can occupy more than just one byte
-		if rowInd == 16 {
+		if rowInd == 17 {
 			break
 		}
-		b := branch[offset+i]
+		b := branch[branchRLPOffset+i]
 		if b == 160 && inside32Ind == -1 { // new child
 			inside32Ind = 0
-			colInd = 1 // TODO: length can ...
-			rows[rowInd][branchOffset+colInd] = b
+			colInd = branchRLPOffset - 1
+			rows[rowInd][branchStart+colInd] = b
 			colInd++
 			continue
 		}
 
 		if inside32Ind >= 0 {
-			rows[rowInd][branchOffset+colInd] = b
+			rows[rowInd][branchStart+colInd] = b
 			colInd++
 			inside32Ind++
 			fmt.Println(rows[rowInd])
@@ -147,25 +148,28 @@ func prepareBranchWitness(rows [][]byte, branch []byte, branchOffset int) {
 			if b != 128 {
 				panic("not 128")
 			}
-			rows[rowInd][branchOffset+layoutOffset] = b
+			rows[rowInd][branchStart+branchRLPOffset] = b
 			rowInd++
 			fmt.Println(rows[rowInd-1])
 		}
 	}
 }
 
-func prepareTwoBranchesWitness(branch1, branch2 []byte) [][]byte {
-	rows := make([][]byte, 16)
-	for i := 0; i < 16; i++ {
-		rows[i] = make([]byte, 2+32+2+32)
-	}
+func prepareTwoBranchesWitness(branch1, branch2, key []byte) [][]byte {
+	rows := make([][]byte, 17)
+	rows[0] = make([]byte, branch2start+branchRLPOffset+32)
 
-	// TODO: length can occupy more than just one byte
+	// Let's put in the 0-th row some RLP data (the length of the whole branch RLP)
+	// TODO: this can occupy more than two bytes
 	rows[0][0] = branch1[0]
 	rows[0][1] = branch1[1]
-	rows[0][2+32] = branch2[0]
-	rows[0][2+32+1] = branch2[1]
+	rows[0][2] = branch2[0]
+	rows[0][3] = branch2[1]
+	rows[0][4] = key[0]
 
+	for i := 1; i < 17; i++ {
+		rows[i] = make([]byte, branch2start+branchRLPOffset+32)
+	}
 	prepareBranchWitness(rows, branch1, 0)
 	prepareBranchWitness(rows, branch2, 2+32)
 
@@ -221,16 +225,15 @@ func TestStorageUpdateOneLevel(t *testing.T) {
 	branch1 := storageProof[0]
 	branch2 := storageProof1[0]
 
-	rows := prepareTwoBranchesWitness(branch1, branch2)
+	rows := prepareTwoBranchesWitness(branch1, branch2, key)
 
 	// check
-	l := len(rows[0]) / 2
-	for i := 0; i < 16; i++ {
-		if i == int(key[0]) {
+	for i := 1; i < 17; i++ {
+		if i-1 == int(key[0]) {
 			continue
 		}
-		for j := 0; j < l; j++ {
-			if rows[i][j] != rows[i][j+l] {
+		for j := 0; j < branchRLPOffset+32; j++ {
+			if rows[i][j] != rows[i][branch2start+j] {
 				panic("witness not properly generated")
 			}
 		}
