@@ -24,6 +24,33 @@ func check(err error) {
 	}
 }
 
+func matrixToJson(rows [][]byte) string {
+	// Had some problems with json.Marshal, so I just prepare json manually.
+	json := "["
+	for i := 0; i < len(rows); i++ {
+		json += listToJson(rows[i])
+		if i != len(rows)-1 {
+			json += ","
+		}
+	}
+	json += "]"
+
+	return json
+}
+
+func listToJson(row []byte) string {
+	json := "["
+	for j := 0; j < len(row); j++ {
+		json += strconv.Itoa(int(row[j]))
+		if j != len(row)-1 {
+			json += ","
+		}
+	}
+	json += "]"
+
+	return json
+}
+
 func VerifyProof(proof [][]byte, key []byte) bool {
 	hasher := trie.NewHasher(false)
 	for i := 0; i < len(proof)-1; i++ {
@@ -155,6 +182,16 @@ func prepareBranchWitness(rows [][]byte, branch []byte, branchStart int) {
 	}
 }
 
+func prepareLeaf(leaf []byte) []byte {
+	// 2 bytes for RLP, 32 bytes for key, 32 bytes for value
+	// pad value with 0
+	for i := len(leaf); i < 66; i++ {
+		leaf = append(leaf, 0)
+	}
+
+	return leaf
+}
+
 func prepareTwoBranchesWitness(branch1, branch2, key []byte) [][]byte {
 	rows := make([][]byte, 17)
 	rows[0] = make([]byte, branch2start+branchRLPOffset+32)
@@ -227,6 +264,9 @@ func TestStorageUpdateOneLevel(t *testing.T) {
 
 	rows := prepareTwoBranchesWitness(branch1, branch2, key)
 
+	leaf := prepareLeaf(storageProof[1])
+	rows = append(rows, leaf)
+
 	// check
 	for i := 1; i < 17; i++ {
 		if i-1 == int(key[0]) {
@@ -239,23 +279,7 @@ func TestStorageUpdateOneLevel(t *testing.T) {
 		}
 	}
 
-	// Had some problems with json.Marshal, so I just prepare json manually.
-	json := "["
-	for i := 0; i < len(rows); i++ {
-		json += "["
-		for j := 0; j < len(rows[i]); j++ {
-			json += strconv.Itoa(int(rows[i][j]))
-			if j != len(rows[i])-1 {
-				json += ","
-			}
-		}
-		json += "]"
-		if i != len(rows)-1 {
-			json += ","
-		}
-	}
-	json += "]"
-	fmt.Println(json)
+	fmt.Println(matrixToJson(rows))
 
 	if !VerifyTwoProofsAndPath(storageProof, storageProof1, key) {
 		panic("proof not valid")
