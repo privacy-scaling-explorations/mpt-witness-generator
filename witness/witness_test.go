@@ -17,6 +17,14 @@ import (
 
 const branchRLPOffset = 2
 const branch2start = branchRLPOffset + 32
+const rowLen = branch2start + branchRLPOffset + 32 + 1 // +1 is for info about what type of row is it
+
+/*
+Info about row type (given as the last element of the row):
+0: init branch (such a row contains RLP info about the branch node; key)
+1: branch child
+2: compact leaf
+*/
 
 func check(err error) {
 	if err != nil {
@@ -183,18 +191,18 @@ func prepareBranchWitness(rows [][]byte, branch []byte, branchStart int) {
 }
 
 func prepareLeaf(leaf []byte) []byte {
-	// 2 bytes for RLP, 32 bytes for key, 32 bytes for value
 	// pad value with 0
-	for i := len(leaf); i < 66; i++ {
+	for i := len(leaf); i < rowLen; i++ {
 		leaf = append(leaf, 0)
 	}
+	leaf[rowLen-1] = 2 // row type
 
 	return leaf
 }
 
 func prepareTwoBranchesWitness(branch1, branch2, key []byte) [][]byte {
 	rows := make([][]byte, 17)
-	rows[0] = make([]byte, branch2start+branchRLPOffset+32)
+	rows[0] = make([]byte, rowLen)
 
 	// Let's put in the 0-th row some RLP data (the length of the whole branch RLP)
 	// TODO: this can occupy more than two bytes
@@ -205,7 +213,12 @@ func prepareTwoBranchesWitness(branch1, branch2, key []byte) [][]byte {
 	rows[0][4] = key[0]
 
 	for i := 1; i < 17; i++ {
-		rows[i] = make([]byte, branch2start+branchRLPOffset+32)
+		rows[i] = make([]byte, rowLen)
+		if i == 0 {
+			rows[i][branch2start+branchRLPOffset+32+1-1] = 0
+		} else {
+			rows[i][branch2start+branchRLPOffset+32+1-1] = 1
+		}
 	}
 	prepareBranchWitness(rows, branch1, 0)
 	prepareBranchWitness(rows, branch2, 2+32)
@@ -223,7 +236,7 @@ func TestStorageUpdateOneLevel(t *testing.T) {
 
 	addr := common.HexToAddress("0x50efbf12580138bc263c95757826df4e24eb81c9")
 
-	// ks := [...]common.Hash{common.HexToHash("0x11"), common.HexToHash("0x12"), common.HexToHash("0x21")}
+	// ks := [...]common.Hash{common.HexToHash("0x11"), common.HexToHash("0x12"), common.HexToHash("0x21")} // this has three levels
 	ks := [...]common.Hash{common.HexToHash("0x12"), common.HexToHash("0x21")}
 	for i := 0; i < len(ks); i++ {
 		k := ks[i]
@@ -264,8 +277,10 @@ func TestStorageUpdateOneLevel(t *testing.T) {
 
 	rows := prepareTwoBranchesWitness(branch1, branch2, key)
 
-	leaf := prepareLeaf(storageProof[1])
-	rows = append(rows, leaf)
+	leaf1 := prepareLeaf(storageProof[1])
+	leaf2 := prepareLeaf(storageProof1[1])
+	rows = append(rows, leaf1)
+	rows = append(rows, leaf2)
 
 	// check
 	for i := 1; i < 17; i++ {
