@@ -200,7 +200,7 @@ func prepareLeaf(leaf []byte) []byte {
 	return leaf
 }
 
-func prepareTwoBranchesWitness(branch1, branch2, key []byte) [][]byte {
+func prepareTwoBranchesWitness(branch1, branch2 []byte, key byte) [][]byte {
 	rows := make([][]byte, 17)
 	rows[0] = make([]byte, rowLen)
 
@@ -210,7 +210,7 @@ func prepareTwoBranchesWitness(branch1, branch2, key []byte) [][]byte {
 	rows[0][1] = branch1[1]
 	rows[0][2] = branch2[0]
 	rows[0][3] = branch2[1]
-	rows[0][4] = key[0]
+	rows[0][4] = key
 
 	for i := 1; i < 17; i++ {
 		rows[i] = make([]byte, rowLen)
@@ -226,37 +226,60 @@ func prepareTwoBranchesWitness(branch1, branch2, key []byte) [][]byte {
 	return rows
 }
 
-func TestStorageUpdateOneLevel(t *testing.T) {
+func prepareWitness(storageProof, storageProof1 [][]byte, key []byte) [][]byte {
+	rows := make([][]byte, 0)
+	for i := 0; i < len(storageProof); i++ {
+		elems, _, err := rlp.SplitList(storageProof[i])
+		if err != nil {
+			fmt.Println("decode error", err)
+		}
+		switch c, _ := rlp.CountValues(elems); c {
+		case 2:
+			leaf1 := prepareLeaf(storageProof[i])
+			leaf2 := prepareLeaf(storageProof1[i])
+			rows = append(rows, leaf1)
+			rows = append(rows, leaf2)
+		case 17:
+			bRows := prepareTwoBranchesWitness(storageProof[i], storageProof1[i], key[i])
+			rows = append(rows, bRows...)
+			// check
+			for k := 1; k < 17; k++ {
+				if k-1 == int(key[i]) {
+					continue
+				}
+				for j := 0; j < branchRLPOffset+32; j++ {
+					if bRows[k][j] != bRows[k][branch2start+j] {
+						panic("witness not properly generated")
+					}
+				}
+			}
+		default:
+			fmt.Println("invalid number of list elements")
+		}
+	}
+
+	return rows
+}
+
+func execTest(keys []common.Hash, toBeModified common.Hash) {
 	blockNum := 13284469
 	blockNumberParent := big.NewInt(int64(blockNum))
 	blockHeaderParent := oracle.PrefetchBlock(blockNumberParent, true, nil)
-
 	database := state.NewDatabase(blockHeaderParent)
 	statedb, _ := state.New(blockHeaderParent.Root, database, nil)
-
 	addr := common.HexToAddress("0x50efbf12580138bc263c95757826df4e24eb81c9")
 
-	// ks := [...]common.Hash{common.HexToHash("0x11"), common.HexToHash("0x12"), common.HexToHash("0x21")} // this has three levels
-	ks := [...]common.Hash{common.HexToHash("0x12"), common.HexToHash("0x21")}
-	for i := 0; i < len(ks); i++ {
-		k := ks[i]
+	for i := 0; i < len(keys); i++ {
+		k := keys[i]
 		v := common.BigToHash(big.NewInt(int64(i + 1))) // don't put 0 value because otherwise nothing will be set (if 0 is prev value), see state_object.go line 279
 		statedb.SetState(addr, k, v)
 	}
-	// We have a branch with two leaves at positions 3 and 11.
 
-	// Let's say above is our starting position.
-
-	// This is a storage slot that will be modified (the list will come from bus-mapping):
-	toBeModified := [...]common.Hash{ks[1]}
-
-	// We now get a storageProof for the starting position for the slot that will be changed further on (ks[1]):
-	// This first storageProof will actually be retrieved by RPC eth_getProof (see oracle.PrefetchStorage function).
-	// All other proofs (after modifications) will be generated internally by buildig the internal state.
-	storageProof, err := statedb.GetStorageProof(addr, toBeModified[0])
+	// Let's say above state is our starting position.
+	storageProof, err := statedb.GetStorageProof(addr, toBeModified)
 	check(err)
 
-	kh := crypto.Keccak256(toBeModified[0].Bytes())
+	kh := crypto.Keccak256(toBeModified.Bytes())
 	key := trie.KeybytesToHex(kh)
 
 	/*
@@ -265,40 +288,47 @@ func TestStorageUpdateOneLevel(t *testing.T) {
 
 	// We now change one existing storage slot:
 	v := common.BigToHash(big.NewInt(int64(17)))
-	statedb.SetState(addr, toBeModified[0], v)
+	statedb.SetState(addr, toBeModified, v)
 
 	// We ask for a proof for the modified slot:
 	statedb.IntermediateRoot(false)
-	storageProof1, err := statedb.GetStorageProof(addr, toBeModified[0])
+	storageProof1, err := statedb.GetStorageProof(addr, toBeModified)
 	check(err)
 
-	branch1 := storageProof[0]
-	branch2 := storageProof1[0]
-
-	rows := prepareTwoBranchesWitness(branch1, branch2, key)
-
-	leaf1 := prepareLeaf(storageProof[1])
-	leaf2 := prepareLeaf(storageProof1[1])
-	rows = append(rows, leaf1)
-	rows = append(rows, leaf2)
-
-	// check
-	for i := 1; i < 17; i++ {
-		if i-1 == int(key[0]) {
-			continue
-		}
-		for j := 0; j < branchRLPOffset+32; j++ {
-			if rows[i][j] != rows[i][branch2start+j] {
-				panic("witness not properly generated")
-			}
-		}
-	}
-
+	rows := prepareWitness(storageProof, storageProof1, key)
 	fmt.Println(matrixToJson(rows))
 
 	if !VerifyTwoProofsAndPath(storageProof, storageProof1, key) {
 		panic("proof not valid")
 	}
+}
+
+func TestStorageUpdateOneLevel(t *testing.T) {
+	ks := [...]common.Hash{common.HexToHash("0x12"), common.HexToHash("0x21")}
+	// hexed keys:
+	// [3,1,14,12,12,...
+	// [11,11,8,10,6,...
+	// We have a branch with children at position 3 and 11.
+
+	toBeModified := ks[0]
+
+	execTest(ks[:], toBeModified)
+}
+
+func TestStorageUpdateTwoLevels(t *testing.T) {
+	ks := [...]common.Hash{common.HexToHash("0x11"), common.HexToHash("0x12"), common.HexToHash("0x21")} // this has three levels
+	// hexed keys:
+	// [3,1,14,12,12,...
+	// [11,11,8,10,6,...
+	// First we have a branch with children at position 3 and 11.
+	// The third storage change happens at key:
+	// [3,10,6,3,5,7,...
+	// That means leaf at position 3 turns into branch with children at position 1 and 10.
+	// ks := [...]common.Hash{common.HexToHash("0x12"), common.HexToHash("0x21")}
+
+	toBeModified := ks[0]
+
+	execTest(ks[:], toBeModified)
 }
 
 func TestStorageAddOneLevel(t *testing.T) {

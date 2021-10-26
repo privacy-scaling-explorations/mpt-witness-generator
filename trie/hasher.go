@@ -85,7 +85,7 @@ func (h *hasher) Hash(n Node, force bool) (hashed Node, cached Node) {
 		return hashed, cached
 	case *FullNode:
 		collapsed, cached := h.hashFullNodeChildren(n)
-		hashed = h.fullnodeToHash(collapsed, force)
+		hashed = h.FullnodeToHash(collapsed, force)
 		if hn, ok := hashed.(HashNode); ok {
 			cached.flags.hash = hn
 		} else {
@@ -166,7 +166,7 @@ func (h *hasher) shortnodeToHash(n *ShortNode, force bool) Node {
 
 // shortnodeToHash is used to creates a hashNode from a set of hashNodes, (which
 // may contain nil values)
-func (h *hasher) fullnodeToHash(n *FullNode, force bool) Node {
+func (h *hasher) FullnodeToHash(n *FullNode, force bool) Node {
 	h.tmp.Reset()
 	// Generate the RLP encoding of the node
 	if err := n.EncodeRLP(&h.tmp); err != nil {
@@ -188,18 +188,18 @@ func (h *hasher) HashData(data []byte) HashNode {
 	return n
 }
 
-// proofHash is used to construct trie proofs, and returns the 'collapsed'
+// ProofHash is used to construct trie proofs, and returns the 'collapsed'
 // node (for later RLP encoding) aswell as the hashed node -- unless the
 // node is smaller than 32 bytes, in which case it will be returned as is.
 // This method does not do anything on value- or hash-nodes.
-func (h *hasher) proofHash(original Node) (collapsed, hashed Node) {
+func (h *hasher) ProofHash(original Node) (collapsed, hashed Node) {
 	switch n := original.(type) {
 	case *ShortNode:
 		sn, _ := h.hashShortNodeChildren(n)
 		return sn, h.shortnodeToHash(sn, false)
 	case *FullNode:
 		fn, _ := h.hashFullNodeChildren(n)
-		return fn, h.fullnodeToHash(fn, false)
+		return fn, h.FullnodeToHash(fn, false)
 	default:
 		// Value and hash nodes don't have children so they're left as were
 		return n, n

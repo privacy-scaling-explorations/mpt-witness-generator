@@ -74,7 +74,7 @@ func (t *Trie) Prove(key []byte, fromLevel uint, proofDb ethdb.KeyValueWriter) e
 			continue
 		}
 		var hn Node
-		n, hn = hasher.proofHash(n)
+		n, hn = hasher.ProofHash(n)
 		if hash, ok := hn.(HashNode); ok || i == 0 {
 			// If the node's database encoding is a hash (or is the
 			// root node), it becomes a proof element.
