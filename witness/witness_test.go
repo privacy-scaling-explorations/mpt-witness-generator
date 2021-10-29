@@ -190,12 +190,11 @@ func prepareBranchWitness(rows [][]byte, branch []byte, branchStart int) {
 	}
 }
 
-func prepareLeaf(leaf []byte) []byte {
-	// pad value with 0
-	for i := len(leaf); i < rowLen; i++ {
-		leaf = append(leaf, 0)
-	}
-	leaf[rowLen-1] = 2 // row type
+func prepareLeaf(row []byte) []byte {
+	// Avoid directly changing the row as it might introduce some bugs later on.
+	leaf := make([]byte, len(row))
+	copy(leaf, row)
+	leaf = append(leaf, 2) // 2 is row type
 
 	return leaf
 }
