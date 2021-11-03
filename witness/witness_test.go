@@ -24,6 +24,7 @@ Info about row type (given as the last element of the row):
 0: init branch (such a row contains RLP info about the branch node; key)
 1: branch child
 2: compact leaf
+3: to be hashed in Keccak circuit (branch RLP whose hash needs to be checked in the parent)
 */
 
 func check(err error) {
@@ -227,6 +228,7 @@ func prepareTwoBranchesWitness(branch1, branch2 []byte, key byte) [][]byte {
 
 func prepareWitness(storageProof, storageProof1 [][]byte, key []byte) [][]byte {
 	rows := make([][]byte, 0)
+	toBeHashed := make([][]byte, 0)
 	for i := 0; i < len(storageProof); i++ {
 		elems, _, err := rlp.SplitList(storageProof[i])
 		if err != nil {
@@ -239,6 +241,14 @@ func prepareWitness(storageProof, storageProof1 [][]byte, key []byte) [][]byte {
 			rows = append(rows, leaf1)
 			rows = append(rows, leaf2)
 		case 17:
+			if i != 0 {
+				branchHash := crypto.Keccak256(storageProof[i])
+				branchHash1 := crypto.Keccak256(storageProof1[i])
+				branchHash = append(branchHash, 3)   // append type
+				branchHash1 = append(branchHash1, 3) // append type
+				toBeHashed = append(toBeHashed, branchHash)
+				toBeHashed = append(toBeHashed, branchHash1)
+			}
 			bRows := prepareTwoBranchesWitness(storageProof[i], storageProof1[i], key[i])
 			rows = append(rows, bRows...)
 			// check
@@ -256,6 +266,9 @@ func prepareWitness(storageProof, storageProof1 [][]byte, key []byte) [][]byte {
 			fmt.Println("invalid number of list elements")
 		}
 	}
+
+	// append toBeHashed at the end of the rows:
+	rows = append(rows, toBeHashed...)
 
 	return rows
 }
