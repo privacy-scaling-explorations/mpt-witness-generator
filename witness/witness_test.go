@@ -2,7 +2,6 @@ package witness
 
 import (
 	"fmt"
-	"hash"
 	"log"
 	"math/big"
 	"strconv"
@@ -12,7 +11,6 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/miha-stopar/mpt/oracle"
-	"github.com/miha-stopar/mpt/sha3"
 	"github.com/miha-stopar/mpt/state"
 	"github.com/miha-stopar/mpt/trie"
 )
@@ -26,7 +24,7 @@ Info about row type (given as the last element of the row):
 0: init branch (such a row contains RLP info about the branch node; key)
 1: branch child
 2: compact leaf
-3: to be hashed in Keccak circuit (branch RLP whose hash needs to be checked in the parent)
+3: branch RLP
 */
 
 func check(err error) {
@@ -225,34 +223,22 @@ func prepareTwoBranchesWitness(branch1, branch2 []byte, key byte) [][]byte {
 	prepareBranchWitness(rows, branch1, 0)
 	prepareBranchWitness(rows, branch2, 2+32)
 
+	branch1Ext := make([]byte, len(branch1))
+	copy(branch1Ext, branch1)
+	branch1Ext = append(branch1Ext, 3) // 3 is branch RLP type
+
+	branch2Ext := make([]byte, len(branch2))
+	copy(branch2Ext, branch2)
+	branch2Ext = append(branch2Ext, 3) // 3 is branch RLP type
+
+	rows = append(rows, branch1Ext)
+	rows = append(rows, branch2Ext)
+
 	return rows
-}
-
-// KeccakState wraps sha3.state. In addition to the usual hash methods, it also supports
-// Read to get a variable amount of data from the hash state. Read is faster than Sum
-// because it doesn't copy the internal state, but also modifies the internal state.
-type KeccakState interface {
-	hash.Hash
-	Read([]byte) []byte
-}
-
-func NewKeccakState() KeccakState {
-	return sha3.NewLegacyKeccak256().(KeccakState)
-}
-
-func keccakPad(data ...[]byte) []byte {
-	b := make([]byte, 32)
-	d := NewKeccakState()
-	for _, b := range data {
-		d.Write(b)
-	}
-
-	return d.Read(b)
 }
 
 func prepareWitness(storageProof, storageProof1 [][]byte, key []byte) [][]byte {
 	rows := make([][]byte, 0)
-	toBeHashed := make([][]byte, 0)
 	for i := 0; i < len(storageProof); i++ {
 		elems, _, err := rlp.SplitList(storageProof[i])
 		if err != nil {
@@ -265,17 +251,6 @@ func prepareWitness(storageProof, storageProof1 [][]byte, key []byte) [][]byte {
 			rows = append(rows, leaf1)
 			rows = append(rows, leaf2)
 		case 17:
-			if i != 0 {
-				padded := keccakPad(storageProof[i])
-				fmt.Println(padded)
-
-				branchHash := crypto.Keccak256(storageProof[i])
-				branchHash1 := crypto.Keccak256(storageProof1[i])
-				branchHash = append(branchHash, 3)   // append type
-				branchHash1 = append(branchHash1, 3) // append type
-				toBeHashed = append(toBeHashed, branchHash)
-				toBeHashed = append(toBeHashed, branchHash1)
-			}
 			bRows := prepareTwoBranchesWitness(storageProof[i], storageProof1[i], key[i])
 			rows = append(rows, bRows...)
 			// check
@@ -293,9 +268,6 @@ func prepareWitness(storageProof, storageProof1 [][]byte, key []byte) [][]byte {
 			fmt.Println("invalid number of list elements")
 		}
 	}
-
-	// append toBeHashed at the end of the rows:
-	rows = append(rows, toBeHashed...)
 
 	return rows
 }
