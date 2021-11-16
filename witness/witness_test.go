@@ -23,8 +23,10 @@ const rowLen = branch2start + branchRLPOffset + 32 + 1 // +1 is for info about w
 Info about row type (given as the last element of the row):
 0: init branch (such a row contains RLP info about the branch node; key)
 1: branch child
-2: compact leaf
-3: branch RLP
+2: leaf s
+3: leaf c
+4: leaf key s
+5: leaf key c
 */
 
 func check(err error) {
@@ -89,7 +91,7 @@ func VerifyTwoProofsAndPath(proof1, proof2 [][]byte, key []byte) bool {
 		return false
 	}
 	hasher := trie.NewHasher(false)
-	for i := 0; i < len(proof1)-1; i++ {
+	for i := 0; i < len(proof1)-2; i++ { // -2 because the last element is leaf key (not RLP)
 		parentHash := hasher.HashData(proof1[i])
 		parent, err := trie.DecodeNode(parentHash, proof1[i])
 		check(err)
@@ -191,11 +193,11 @@ func prepareBranchWitness(rows [][]byte, branch []byte, branchStart int) {
 	}
 }
 
-func prepareLeaf(row []byte) []byte {
+func prepareLeaf(row []byte, typ byte) []byte {
 	// Avoid directly changing the row as it might introduce some bugs later on.
 	leaf := make([]byte, len(row))
 	copy(leaf, row)
-	leaf = append(leaf, 2) // 2 is row type
+	leaf = append(leaf, typ)
 
 	return leaf
 }
@@ -223,31 +225,33 @@ func prepareTwoBranchesWitness(branch1, branch2 []byte, key byte) [][]byte {
 	prepareBranchWitness(rows, branch1, 0)
 	prepareBranchWitness(rows, branch2, 2+32)
 
-	branch1Ext := make([]byte, len(branch1))
-	copy(branch1Ext, branch1)
-	branch1Ext = append(branch1Ext, 3) // 3 is branch RLP type
-
-	branch2Ext := make([]byte, len(branch2))
-	copy(branch2Ext, branch2)
-	branch2Ext = append(branch2Ext, 3) // 3 is branch RLP type
-
-	rows = append(rows, branch1Ext)
-	rows = append(rows, branch2Ext)
-
 	return rows
 }
 
 func prepareWitness(storageProof, storageProof1 [][]byte, key []byte) [][]byte {
 	rows := make([][]byte, 0)
 	for i := 0; i < len(storageProof); i++ {
+		if i == len(storageProof)-1 {
+			l := make([]byte, len(storageProof[i]))
+			copy(l, storageProof[i])
+			l = append(l, 4) // 4 is leaf key s
+			rows = append(rows, l)
+
+			l1 := make([]byte, len(storageProof1[i]))
+			copy(l1, storageProof1[i])
+			l1 = append(l1, 5) // 5 is leaf key c
+			rows = append(rows, l1)
+
+			return rows
+		}
 		elems, _, err := rlp.SplitList(storageProof[i])
 		if err != nil {
 			fmt.Println("decode error", err)
 		}
 		switch c, _ := rlp.CountValues(elems); c {
 		case 2:
-			leaf1 := prepareLeaf(storageProof[i])
-			leaf2 := prepareLeaf(storageProof1[i])
+			leaf1 := prepareLeaf(storageProof[i], 2)  // leaf s
+			leaf2 := prepareLeaf(storageProof1[i], 3) // leaf c
 			rows = append(rows, leaf1)
 			rows = append(rows, leaf2)
 		case 17:
