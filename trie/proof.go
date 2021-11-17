@@ -85,12 +85,16 @@ func (t *Trie) Prove(key []byte, fromLevel uint, proofDb ethdb.KeyValueWriter) e
 					nCopy = make([]byte, len(short.Key))
 				}
 				copy(nCopy, short.Key)
-				var odd byte
-				odd = 2
+				var is_odd byte
+				var is_even byte
+				is_odd = 0
+				is_even = 0
 				if len(nCopy)&1 == 1 {
-					odd = 1
+					is_odd = 1
+				} else {
+					is_even = 1
 				}
-				nCopy = append([]byte{odd}, nCopy...)
+				nCopy = append([]byte{is_odd, is_even}, nCopy...)
 			}
 		}
 

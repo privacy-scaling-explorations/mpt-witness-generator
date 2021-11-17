@@ -25,8 +25,7 @@ Info about row type (given as the last element of the row):
 1: branch child
 2: leaf s
 3: leaf c
-4: leaf key s
-5: leaf key c
+4: leaf key
 */
 
 func check(err error) {
@@ -91,7 +90,7 @@ func VerifyTwoProofsAndPath(proof1, proof2 [][]byte, key []byte) bool {
 		return false
 	}
 	hasher := trie.NewHasher(false)
-	for i := 0; i < len(proof1)-2; i++ { // -2 because the last element is leaf key (not RLP)
+	for i := 0; i < len(proof1)-1; i++ {
 		parentHash := hasher.HashData(proof1[i])
 		parent, err := trie.DecodeNode(parentHash, proof1[i])
 		check(err)
@@ -232,15 +231,11 @@ func prepareWitness(storageProof, storageProof1 [][]byte, key []byte) [][]byte {
 	rows := make([][]byte, 0)
 	for i := 0; i < len(storageProof); i++ {
 		if i == len(storageProof)-1 {
+			// both proofs have the same key
 			l := make([]byte, len(storageProof[i]))
 			copy(l, storageProof[i])
-			l = append(l, 4) // 4 is leaf key s
+			l = append(l, 4) // 4 is leaf key
 			rows = append(rows, l)
-
-			l1 := make([]byte, len(storageProof1[i]))
-			copy(l1, storageProof1[i])
-			l1 = append(l1, 5) // 5 is leaf key c
-			rows = append(rows, l1)
 
 			return rows
 		}
