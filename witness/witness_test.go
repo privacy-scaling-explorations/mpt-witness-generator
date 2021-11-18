@@ -15,9 +15,10 @@ import (
 	"github.com/miha-stopar/mpt/trie"
 )
 
-const branchRLPOffset = 2
-const branch2start = branchRLPOffset + 32
-const rowLen = branch2start + branchRLPOffset + 32 + 1 // +1 is for info about what type of row is it
+const branch2start = 2 + 32 // we have two positions for RLP meta data
+// rowLen - each branch node has 2 positions for RLP meta data and 32 positions for hash
+const rowLen = branch2start + 2 + 32 + 1 // +1 is for info about what type of row is it
+const keyPos = 8
 
 /*
 Info about row type (given as the last element of the row):
@@ -152,11 +153,11 @@ func VerifyElementsInTwoBranches(b1, b2 *trie.FullNode, exceptPos byte) bool {
 	return true
 }
 
-func prepareBranchWitness(rows [][]byte, branch []byte, branchStart int) {
+func prepareBranchWitness(rows [][]byte, branch []byte, branchStart int, branchRLPOffset int) {
 	rowInd := 1 // start with 1 because rows[0] contains some RLP data
 	colInd := branchRLPOffset
 	inside32Ind := -1
-	for i := 0; i < int(branch[1]); i++ { // TODO: length can occupy more than just one byte
+	for i := 0; i < int(branch[1]); i++ {
 		if rowInd == 17 {
 			break
 		}
@@ -205,24 +206,51 @@ func prepareTwoBranchesWitness(branch1, branch2 []byte, key byte) [][]byte {
 	rows := make([][]byte, 17)
 	rows[0] = make([]byte, rowLen)
 
+	if branch1[0] != branch2[0] || branch1[1] != branch2[1] {
+		// TODO
+		panic("branches have different length")
+	}
+
+	// Branch (length 83) with two bytes of RLP meta data
+	// [248,81,128,128,...
+
+	// Branch (length 340) with three bytes of RLP meta data
+	// [249,1,81,128,16,...
+
+	branchRLPOffset := 2
+	rows[0][0] = 1 // 1 0 means two RLP bytes
+	rows[0][1] = 0
+	if branch1[0] == 249 {
+		branchRLPOffset = 3
+		rows[0][0] = 0 // 0 1 means three RLP bytes
+		rows[0][1] = 1
+	}
+
 	// Let's put in the 0-th row some RLP data (the length of the whole branch RLP)
-	// TODO: this can occupy more than two bytes
-	rows[0][0] = branch1[0]
-	rows[0][1] = branch1[1]
-	rows[0][2] = branch2[0]
-	rows[0][3] = branch2[1]
-	rows[0][4] = key
+	rows[0][2] = branch1[0]
+	rows[0][3] = branch1[1]
+
+	rows[0][5] = branch2[0]
+	rows[0][6] = branch2[1]
+
+	if branchRLPOffset == 3 {
+		rows[0][4] = branch1[2]
+		rows[0][7] = branch2[2]
+	}
+
+	rows[0][keyPos] = key
 
 	for i := 1; i < 17; i++ {
 		rows[i] = make([]byte, rowLen)
+		// assign row type
 		if i == 0 {
-			rows[i][branch2start+branchRLPOffset+32+1-1] = 0
+			rows[i][rowLen-1] = 0
 		} else {
-			rows[i][branch2start+branchRLPOffset+32+1-1] = 1
+			rows[i][rowLen-1] = 1
 		}
 	}
-	prepareBranchWitness(rows, branch1, 0)
-	prepareBranchWitness(rows, branch2, 2+32)
+	prepareBranchWitness(rows, branch1, 0, branchRLPOffset)
+	prepareBranchWitness(rows, branch2, 2+32, branchRLPOffset)
 
 	return rows
 }
@@ -252,6 +280,12 @@ func prepareWitness(storageProof, storageProof1 [][]byte, key []byte) [][]byte {
 		case 17:
 			bRows := prepareTwoBranchesWitness(storageProof[i], storageProof1[i], key[i])
 			rows = append(rows, bRows...)
+
+			branchRLPOffset := 2
+			if rows[0][0] == 249 {
+				branchRLPOffset = 3
+			}
+
 			// check
 			for k := 1; k < 17; k++ {
 				if k-1 == int(key[i]) {
@@ -337,6 +371,44 @@ func TestStorageUpdateTwoLevels(t *testing.T) {
 	// ks := [...]common.Hash{common.HexToHash("0x12"), common.HexToHash("0x21")}
 
 	toBeModified := ks[0]
+
+	execTest(ks[:], toBeModified)
+}
+
+func TestStorageUpdateTwoLevels2(t *testing.T) {
+	ks := [...]common.Hash{
+		common.HexToHash("0x11"),
+		common.HexToHash("0x12"),
+		common.HexToHash("0x21"),
+		common.HexToHash("0x31"),
+		common.HexToHash("0x32"),
+		common.HexToHash("0x33"),
+		common.HexToHash("0x34"),
+		common.HexToHash("0x35"),
+		common.HexToHash("0x36"),
+		common.HexToHash("0x37"),
+		common.HexToHash("0x38"), //
+		common.HexToHash("0x39"),
+		common.HexToHash("0x40"),
+		common.HexToHash("0x41"),
+		common.HexToHash("0x42"),
+		common.HexToHash("0x43"),
+		common.HexToHash("0x44"),
+		common.HexToHash("0x45"),
+		common.HexToHash("0x46"),
+	}
+	// this has ... levels
+
+	// hexed keys:
+	// [3,1,14,12,12,...
+	// [11,11,8,10,6,...
+	// First we have a branch with children at position 3 and 11.
+	// The third storage change happens at key:
+	// [3,10,6,3,5,7,...
+	// That means leaf at position 3 turns into branch with children at position 1 and 10.
+	// ks := [...]common.Hash{common.HexToHash("0x12"), common.HexToHash("0x21")}
+
+	toBeModified := ks[10]
 
 	execTest(ks[:], toBeModified)
 }
