@@ -34,7 +34,7 @@ import (
 // If the trie does not contain a value for key, the returned proof contains all
 // nodes of the longest existing prefix of the key (at least the root node), ending
 // with the node that proves the absence of the key.
-func (t *Trie) Prove(key []byte, fromLevel uint, proofDb ethdb.KeyValueWriter, storageProof bool) error {
+func (t *Trie) Prove(key []byte, fromLevel uint, proofDb ethdb.KeyValueWriter) error {
 	// Collect all nodes on the path to key.
 	key = KeybytesToHex(key)
 	var nodes []Node
@@ -77,7 +77,7 @@ func (t *Trie) Prove(key []byte, fromLevel uint, proofDb ethdb.KeyValueWriter, s
 
 		var nCopy []byte
 		// copy n.Key before it gets changed in ProofHash
-		if storageProof && i == len(nodes)-1 {
+		if i == len(nodes)-1 {
 			if short, ok := n.(*ShortNode); ok {
 				if hasTerm(short.Key) {
 					nCopy = make([]byte, len(short.Key)-1)
@@ -107,7 +107,7 @@ func (t *Trie) Prove(key []byte, fromLevel uint, proofDb ethdb.KeyValueWriter, s
 				hash = hasher.HashData(enc)
 			}
 			proofDb.Put(hash, enc)
-			if storageProof && i == len(nodes)-1 {
+			if i == len(nodes)-1 {
 				if _, ok := n.(*ShortNode); ok {
 					dummyKey := []byte{1}
 					proofDb.Put(dummyKey, nCopy)
@@ -125,8 +125,8 @@ func (t *Trie) Prove(key []byte, fromLevel uint, proofDb ethdb.KeyValueWriter, s
 // If the trie does not contain a value for key, the returned proof contains all
 // nodes of the longest existing prefix of the key (at least the root node), ending
 // with the node that proves the absence of the key.
-func (t *SecureTrie) Prove(key []byte, fromLevel uint, proofDb ethdb.KeyValueWriter, storageProof bool) error {
-	return t.trie.Prove(key, fromLevel, proofDb, storageProof)
+func (t *SecureTrie) Prove(key []byte, fromLevel uint, proofDb ethdb.KeyValueWriter) error {
+	return t.trie.Prove(key, fromLevel, proofDb)
 }
 
 // VerifyProof checks merkle proofs. The given proof must contain the value for

@@ -78,7 +78,7 @@ type stateObject struct {
 	dbErr error
 
 	// Write caches.
-	trie Trie // storage trie, which becomes non-nil on first access
+	Trie Trie // storage trie, which becomes non-nil on first access
 	code Code // contract bytecode, which gets set when code is loaded
 
 	originStorage  Storage // Storage cache of original entries to dedup rewrites, reset for every transaction
@@ -158,24 +158,24 @@ func (s *stateObject) touch() {
 }
 
 func (s *stateObject) getTrie(db Database) Trie {
-	if s.trie == nil {
+	if s.Trie == nil {
 		// Try fetching from prefetcher first
 		// We don't prefetch empty tries
 		if s.data.Root != emptyRoot && s.db.prefetcher != nil {
 			// When the miner is creating the pending state, there is no
 			// prefetcher
-			s.trie = s.db.prefetcher.trie(s.data.Root)
+			s.Trie = s.db.prefetcher.trie(s.data.Root)
 		}
-		if s.trie == nil {
+		if s.Trie == nil {
 			var err error
-			s.trie, err = db.OpenStorageTrie(s.addrHash, s.data.Root)
+			s.Trie, err = db.OpenStorageTrie(s.addrHash, s.data.Root)
 			if err != nil {
-				s.trie, _ = db.OpenStorageTrie(s.addrHash, common.Hash{})
+				s.Trie, _ = db.OpenStorageTrie(s.addrHash, common.Hash{})
 				s.setError(fmt.Errorf("can't create storage trie: %v", err))
 			}
 		}
 	}
-	return s.trie
+	return s.Trie
 }
 
 // GetState retrieves a value from the account storage trie.
@@ -334,7 +334,7 @@ func (s *stateObject) updateTrie(db Database) Trie {
 	// Make sure all dirty slots are finalized into the pending storage area
 	s.finalise(false) // Don't prefetch any more, pull directly if need be
 	if len(s.pendingStorage) == 0 {
-		return s.trie
+		return s.Trie
 	}
 	// Track the amount of time wasted on updating the storage trie
 	if metrics.EnabledExpensive {
@@ -398,7 +398,7 @@ func (s *stateObject) updateRoot(db Database) {
 	if metrics.EnabledExpensive {
 		defer func(start time.Time) { s.db.StorageHashes += time.Since(start) }(time.Now())
 	}
-	s.data.Root = s.trie.Hash()
+	s.data.Root = s.Trie.Hash()
 }
 
 // CommitTrie the storage trie of the object to db.
@@ -415,7 +415,7 @@ func (s *stateObject) CommitTrie(db Database) error {
 	if metrics.EnabledExpensive {
 		defer func(start time.Time) { s.db.StorageCommits += time.Since(start) }(time.Now())
 	}
-	root, err := s.trie.Commit(nil)
+	root, err := s.Trie.Commit(nil)
 	if err == nil {
 		s.data.Root = root
 	}
@@ -459,8 +459,8 @@ func (s *stateObject) setBalance(amount *big.Int) {
 
 func (s *stateObject) deepCopy(db *StateDB) *stateObject {
 	stateObject := newObject(db, s.address, s.data)
-	if s.trie != nil {
-		stateObject.trie = db.db.CopyTrie(s.trie)
+	if s.Trie != nil {
+		stateObject.Trie = db.db.CopyTrie(s.Trie)
 	}
 	stateObject.code = s.code
 	stateObject.dirtyStorage = s.dirtyStorage.Copy()

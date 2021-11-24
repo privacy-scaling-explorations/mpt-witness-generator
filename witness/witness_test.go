@@ -87,16 +87,13 @@ func VerifyProof(proof [][]byte, key []byte) bool {
 	return true
 }
 
-func VerifyTwoProofsAndPath(proof1, proof2 [][]byte, key []byte, storageProof bool) bool {
+func VerifyTwoProofsAndPath(proof1, proof2 [][]byte, key []byte) bool {
 	if len(proof1) != len(proof2) {
 		fmt.Println("constraint failed: proofs length not the same")
 		return false
 	}
 	hasher := trie.NewHasher(false)
-	for i := 0; i < len(proof1)-1; i++ { // -1 because it checks current and next row
-		if storageProof && i == len(proof1)-2 { // key nibbles
-			break
-		}
+	for i := 0; i < len(proof1)-1-1; i++ { // -1 because it checks current and next row; another -1 because the last row is key nibbles
 		parentHash := hasher.HashData(proof1[i])
 		parent, err := trie.DecodeNode(parentHash, proof1[i])
 		check(err)
@@ -290,7 +287,7 @@ func prepareWitness(storageProof, storageProof1 [][]byte, key []byte) [][]byte {
 			bRows := prepareTwoBranchesWitness(storageProof[i], storageProof1[i], key[i])
 			rows = append(rows, bRows...)
 
-			// check
+			// check the two branches
 			for k := 1; k < 17; k++ {
 				if k-1 == int(key[i]) {
 					continue
@@ -346,7 +343,7 @@ func execTest(keys []common.Hash, toBeModified common.Hash) {
 	rows := prepareWitness(storageProof, storageProof1, key)
 	fmt.Println(matrixToJson(rows))
 
-	if !VerifyTwoProofsAndPath(storageProof, storageProof1, key, true) {
+	if !VerifyTwoProofsAndPath(storageProof, storageProof1, key) {
 		panic("proof not valid")
 	}
 }
@@ -364,6 +361,9 @@ func execStateTest(keys []common.Hash, toBeModified common.Hash, addr common.Add
 		v := common.BigToHash(big.NewInt(int64(i + 1))) // don't put 0 value because otherwise nothing will be set (if 0 is prev value), see state_object.go line 279
 		statedb.SetState(addr, k, v)
 	}
+
+	// If we don't call IntermediateRoot, obj.data.Root will be hash(emptyRoot).
+	statedb.IntermediateRoot(false)
 
 	// Let's say above is our starting position.
 
@@ -395,7 +395,7 @@ func execStateTest(keys []common.Hash, toBeModified common.Hash, addr common.Add
 
 	hasher := trie.NewHasher(false)
 
-	ind := len(accountProof) - 1
+	ind := len(accountProof) - 2 // last row is address nibbles
 	accountHash := hasher.HashData(accountProof[ind])
 	accountLeaf, err := trie.DecodeNode(accountHash, accountProof[ind])
 	check(err)
@@ -407,6 +407,15 @@ func execStateTest(keys []common.Hash, toBeModified common.Hash, addr common.Add
 	if fmt.Sprintf("%b", rl) != fmt.Sprintf("%b", accountValueNode) {
 		panic("not the same")
 	}
+
+	hasher1 := trie.NewHasher(false)
+	hash := hasher1.HashData(storageProof[0])
+	fmt.Println(hash)
+
+	t := obj.Trie
+	fmt.Println(t)
+	h := t.Hash()
+	fmt.Println(h)
 
 	accountAddr := trie.KeybytesToHex(crypto.Keccak256(addr.Bytes()))
 
@@ -430,16 +439,16 @@ func execStateTest(keys []common.Hash, toBeModified common.Hash, addr common.Add
 	storageProof1, err := statedb.GetStorageProof(addr, toBeModified)
 	check(err)
 
-	rowsState := prepareWitness(accountProof, accountProof1, key)
+	rowsState := prepareWitness(accountProof, accountProof1, accountAddr)
 	rowsStorage := prepareWitness(storageProof, storageProof1, key)
 	rowsState = append(rowsState, rowsStorage...)
 	fmt.Println(matrixToJson(rowsState))
 
-	if !VerifyTwoProofsAndPath(accountProof, accountProof1, accountAddr, false) {
+	if !VerifyTwoProofsAndPath(accountProof, accountProof1, accountAddr) {
 		panic("proof not valid")
 	}
 
-	if !VerifyTwoProofsAndPath(storageProof, storageProof1, key, true) {
+	if !VerifyTwoProofsAndPath(storageProof, storageProof1, key) {
 		panic("proof not valid")
 	}
 }
