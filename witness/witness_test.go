@@ -15,7 +15,9 @@ import (
 	"github.com/miha-stopar/mpt/trie"
 )
 
-const branch2start = 2 + 32 // we have two positions for RLP meta data
+const branchNodeRLPLen = 2 // we have two positions for RLP meta data
+const branch2start = branchNodeRLPLen + 32
+
 // rowLen - each branch node has 2 positions for RLP meta data and 32 positions for hash
 const rowLen = branch2start + 2 + 32 + 1 // +1 is for info about what type of row is it
 const keyPos = 8
@@ -85,13 +87,16 @@ func VerifyProof(proof [][]byte, key []byte) bool {
 	return true
 }
 
-func VerifyTwoProofsAndPath(proof1, proof2 [][]byte, key []byte) bool {
+func VerifyTwoProofsAndPath(proof1, proof2 [][]byte, key []byte, storageProof bool) bool {
 	if len(proof1) != len(proof2) {
 		fmt.Println("constraint failed: proofs length not the same")
 		return false
 	}
 	hasher := trie.NewHasher(false)
-	for i := 0; i < len(proof1)-1; i++ {
+	for i := 0; i < len(proof1)-1; i++ { // -1 because it checks current and next row
+		if storageProof && i == len(proof1)-2 { // key nibbles
+			break
+		}
 		parentHash := hasher.HashData(proof1[i])
 		parent, err := trie.DecodeNode(parentHash, proof1[i])
 		check(err)
@@ -155,16 +160,20 @@ func VerifyElementsInTwoBranches(b1, b2 *trie.FullNode, exceptPos byte) bool {
 
 func prepareBranchWitness(rows [][]byte, branch []byte, branchStart int, branchRLPOffset int) {
 	rowInd := 1 // start with 1 because rows[0] contains some RLP data
-	colInd := branchRLPOffset
+	colInd := branchNodeRLPLen
 	inside32Ind := -1
-	for i := 0; i < int(branch[1]); i++ {
+	count := int(branch[1])
+	if branchRLPOffset == 3 {
+		count = int(branch[1])*256 + int(branch[2])
+	}
+	for i := 0; i < count; i++ {
 		if rowInd == 17 {
 			break
 		}
 		b := branch[branchRLPOffset+i]
 		if b == 160 && inside32Ind == -1 { // new child
 			inside32Ind = 0
-			colInd = branchRLPOffset - 1
+			colInd = branchNodeRLPLen - 1
 			rows[rowInd][branchStart+colInd] = b
 			colInd++
 			continue
@@ -186,7 +195,7 @@ func prepareBranchWitness(rows [][]byte, branch []byte, branchStart int, branchR
 			if b != 128 {
 				panic("not 128")
 			}
-			rows[rowInd][branchStart+branchRLPOffset] = b
+			rows[rowInd][branchStart+branchNodeRLPLen] = b
 			rowInd++
 			fmt.Println(rows[rowInd-1])
 		}
@@ -281,17 +290,12 @@ func prepareWitness(storageProof, storageProof1 [][]byte, key []byte) [][]byte {
 			bRows := prepareTwoBranchesWitness(storageProof[i], storageProof1[i], key[i])
 			rows = append(rows, bRows...)
 
-			branchRLPOffset := 2
-			if rows[0][0] == 249 {
-				branchRLPOffset = 3
-			}
-
 			// check
 			for k := 1; k < 17; k++ {
 				if k-1 == int(key[i]) {
 					continue
 				}
-				for j := 0; j < branchRLPOffset+32; j++ {
+				for j := 0; j < branchNodeRLPLen+32; j++ {
 					if bRows[k][j] != bRows[k][branch2start+j] {
 						panic("witness not properly generated")
 					}
@@ -342,7 +346,100 @@ func execTest(keys []common.Hash, toBeModified common.Hash) {
 	rows := prepareWitness(storageProof, storageProof1, key)
 	fmt.Println(matrixToJson(rows))
 
-	if !VerifyTwoProofsAndPath(storageProof, storageProof1, key) {
+	if !VerifyTwoProofsAndPath(storageProof, storageProof1, key, true) {
+		panic("proof not valid")
+	}
+}
+
+func execStateTest(keys []common.Hash, toBeModified common.Hash, addr common.Address) {
+	// Here we are checking the whole state trie, not only a storage trie for some account as in above tests.
+	blockNum := 13284469
+	blockNumberParent := big.NewInt(int64(blockNum))
+	blockHeaderParent := oracle.PrefetchBlock(blockNumberParent, true, nil)
+	database := state.NewDatabase(blockHeaderParent)
+	statedb, _ := state.New(blockHeaderParent.Root, database, nil)
+
+	for i := 0; i < len(keys); i++ {
+		k := keys[i]
+		v := common.BigToHash(big.NewInt(int64(i + 1))) // don't put 0 value because otherwise nothing will be set (if 0 is prev value), see state_object.go line 279
+		statedb.SetState(addr, k, v)
+	}
+
+	// Let's say above is our starting position.
+
+	// We now get a proof for the starting position for the slot that will be changed further on (ks[1]):
+	// This first proof will actually be retrieved by RPC eth_getProof (see oracle.PrefetchStorage function).
+	// All other proofs (after modifications) will be generated internally by buildig the internal state.
+
+	accountProof, err := statedb.GetProof(addr)
+	check(err)
+	storageProof, err := statedb.GetStorageProof(addr, toBeModified)
+	check(err)
+
+	// By calling RPC eth_getProof we will get accountProof and storageProof.
+
+	// The last element in accountProof contains the state object for this address.
+	// We need to verify that the state object for this address is the in last
+	// element of the accountProof. The last element of the accountProof actually contains the RLP of
+	// nonce, balance, code, and root.
+	// We need to use a root from the storage proof (first element) and obtain balance, code, and nonce
+	// by the following RPC calls:
+	// eth_getBalance, eth_getCode, eth_getTransactionCount (nonce).
+	// We use these four values to compute the hash and compare it to the last value in accountProof.
+
+	// We simulate getting the RLP of the four values (instead of using RPC calls and taking the first
+	// element of the storage proof):
+	obj := statedb.GetOrNewStateObject(addr)
+	rl, err := rlp.EncodeToBytes(obj)
+	check(err)
+
+	hasher := trie.NewHasher(false)
+
+	ind := len(accountProof) - 1
+	accountHash := hasher.HashData(accountProof[ind])
+	accountLeaf, err := trie.DecodeNode(accountHash, accountProof[ind])
+	check(err)
+
+	account := accountLeaf.(*trie.ShortNode)
+	accountValueNode := account.Val.(trie.ValueNode)
+
+	// Constraint for checking the transition from storage to account proof:
+	if fmt.Sprintf("%b", rl) != fmt.Sprintf("%b", accountValueNode) {
+		panic("not the same")
+	}
+
+	accountAddr := trie.KeybytesToHex(crypto.Keccak256(addr.Bytes()))
+
+	kh := crypto.Keccak256(toBeModified.Bytes())
+	key := trie.KeybytesToHex(kh)
+
+	/*
+		Modifying storage:
+	*/
+
+	// We now change one existing storage slot:
+	v := common.BigToHash(big.NewInt(int64(17)))
+	statedb.SetState(addr, toBeModified, v)
+
+	// We ask for a proof for the modified slot:
+	statedb.IntermediateRoot(false)
+
+	accountProof1, err := statedb.GetProof(addr)
+	check(err)
+
+	storageProof1, err := statedb.GetStorageProof(addr, toBeModified)
+	check(err)
+
+	rowsState := prepareWitness(accountProof, accountProof1, key)
+	rowsStorage := prepareWitness(storageProof, storageProof1, key)
+	rowsState = append(rowsState, rowsStorage...)
+	fmt.Println(matrixToJson(rowsState))
+
+	if !VerifyTwoProofsAndPath(accountProof, accountProof1, accountAddr, false) {
+		panic("proof not valid")
+	}
+
+	if !VerifyTwoProofsAndPath(storageProof, storageProof1, key, true) {
 		panic("proof not valid")
 	}
 }
@@ -375,7 +472,7 @@ func TestStorageUpdateTwoLevels(t *testing.T) {
 	execTest(ks[:], toBeModified)
 }
 
-func TestStorageUpdateTwoLevels2(t *testing.T) {
+func TestStorageUpdateThreeLevels1(t *testing.T) {
 	ks := [...]common.Hash{
 		common.HexToHash("0x11"),
 		common.HexToHash("0x12"),
@@ -397,17 +494,19 @@ func TestStorageUpdateTwoLevels2(t *testing.T) {
 		common.HexToHash("0x45"),
 		common.HexToHash("0x46"),
 	}
-	// this has ... levels
+	/*
+		ks[10] = 0x38 is at position 3 in root.Children[3].Children[8]
 
-	// hexed keys:
-	// [3,1,14,12,12,...
-	// [11,11,8,10,6,...
-	// First we have a branch with children at position 3 and 11.
-	// The third storage change happens at key:
-	// [3,10,6,3,5,7,...
-	// That means leaf at position 3 turns into branch with children at position 1 and 10.
-	// ks := [...]common.Hash{common.HexToHash("0x12"), common.HexToHash("0x21")}
+		nibbles
+		[9,5,12,5,13,12,14,10,13,14,9,6,0,3,4,7,9,11,1,7,7,11,6,8,9,5,9,0,4,9,4,8,5,13,15,8,10,10,9,7,11,3,9,15,3,5,3,3,0,3,9,10,15,5,15,4,5,6,1,9,9,16]
 
+		terminator flag 16 (last byte) is removed, then it remains len 61 (these are nibbles):
+		[9,5,12,5,13,12,14,10,13,14,9,6,0,3,4,7,9,11,1,7,7,11,6,8,9,5,9,0,4,9,4,8,5,13,15,8,10,10,9,7,11,3,9,15,3,5,3,3,0,3,9,10,15,5,15,4,5,6,1,9,9]
+
+		buf (31 len):
+		this is key stored in leaf:
+		[57,92,93,206,173,233,96,52,121,177,119,182,137,89,4,148,133,223,138,169,123,57,243,83,48,57,175,95,69,97,153]
+	*/
 	toBeModified := ks[10]
 
 	execTest(ks[:], toBeModified)
@@ -489,97 +588,11 @@ func TestStorageAddOneLevel(t *testing.T) {
 }
 
 func TestStateUpdateOneLevel(t *testing.T) {
-	// Here we are checking the whole state trie, not only a storage trie for some account as in above tests.
-	blockNum := 13284469
-	blockNumberParent := big.NewInt(int64(blockNum))
-	blockHeaderParent := oracle.PrefetchBlock(blockNumberParent, true, nil)
-
-	database := state.NewDatabase(blockHeaderParent)
-	statedb, _ := state.New(blockHeaderParent.Root, database, nil)
-
 	addr := common.HexToAddress("0x50efbf12580138bc263c95757826df4e24eb81c9")
-
 	ks := [...]common.Hash{common.HexToHash("0x12"), common.HexToHash("0x21")}
-	for i := 0; i < len(ks); i++ {
-		k := ks[i]
-		v := common.BigToHash(big.NewInt(int64(i + 1))) // don't put 0 value because otherwise nothing will be set (if 0 is prev value), see state_object.go line 279
-		statedb.SetState(addr, k, v)
-	}
-	// We have a branch with two leaves at positions 3 and 11.
-
-	// Let's say above is our starting position.
 
 	// This is a storage slot that will be modified (the list will come from bus-mapping):
-	toBeModified := [...]common.Hash{ks[1]}
+	toBeModified := ks[1]
 
-	// We now get a proof for the starting position for the slot that will be changed further on (ks[1]):
-	// This first proof will actually be retrieved by RPC eth_getProof (see oracle.PrefetchStorage function).
-	// All other proofs (after modifications) will be generated internally by buildig the internal state.
-
-	accountProof, err := statedb.GetProof(addr)
-	check(err)
-	storageProof, err := statedb.GetStorageProof(addr, toBeModified[0])
-	check(err)
-
-	// By calling RPC eth_getProof we will get accountProof and storageProof.
-
-	// The last element in accountProof contains the state object for this address.
-	// We need to verify that the state object for this address is the in last
-	// element of the accountProof. The last element of the accountProof actually contains the RLP of
-	// nonce, balance, code, and root.
-	// We need to use a root from the storage proof (first element) and obtain balance, code, and nonce
-	// by the following RPC calls:
-	// eth_getBalance, eth_getCode, eth_getTransactionCount (nonce).
-	// We use these four values to compute the hash and compare it to the last value in accountProof.
-
-	// We simulate getting the RLP of the four values (instead of using RPC calls and taking the first
-	// element of the storage proof):
-	obj := statedb.GetOrNewStateObject(addr)
-	rl, err := rlp.EncodeToBytes(obj)
-	check(err)
-
-	hasher := trie.NewHasher(false)
-
-	ind := len(accountProof) - 1
-	accountHash := hasher.HashData(accountProof[ind])
-	accountLeaf, err := trie.DecodeNode(accountHash, accountProof[ind])
-	check(err)
-
-	account := accountLeaf.(*trie.ShortNode)
-	accountValueNode := account.Val.(trie.ValueNode)
-
-	// Constraint for checking the transition from storage to account proof:
-	if fmt.Sprintf("%b", rl) != fmt.Sprintf("%b", accountValueNode) {
-		panic("not the same")
-	}
-
-	accountAddr := trie.KeybytesToHex(crypto.Keccak256(addr.Bytes()))
-
-	kh := crypto.Keccak256(toBeModified[0].Bytes())
-	key := trie.KeybytesToHex(kh)
-
-	/*
-		Modifying storage:
-	*/
-
-	// We now change one existing storage slot:
-	v := common.BigToHash(big.NewInt(int64(17)))
-	statedb.SetState(addr, toBeModified[0], v)
-
-	// We ask for a proof for the modified slot:
-	statedb.IntermediateRoot(false)
-
-	accountProof1, err := statedb.GetProof(addr)
-	check(err)
-
-	storageProof1, err := statedb.GetStorageProof(addr, toBeModified[0])
-	check(err)
-
-	if !VerifyTwoProofsAndPath(accountProof, accountProof1, accountAddr) {
-		panic("proof not valid")
-	}
-
-	if !VerifyTwoProofsAndPath(storageProof, storageProof1, key) {
-		panic("proof not valid")
-	}
+	execStateTest(ks[:], toBeModified, addr)
 }
