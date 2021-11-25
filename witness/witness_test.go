@@ -29,6 +29,7 @@ Info about row type (given as the last element of the row):
 2: leaf s
 3: leaf c
 4: leaf key
+5: hash to be computed (for example branch RLP whose hash needs to be checked in the parent)
 */
 
 func check(err error) {
@@ -156,6 +157,7 @@ func VerifyElementsInTwoBranches(b1, b2 *trie.FullNode, exceptPos byte) bool {
 }
 
 func prepareBranchWitness(rows [][]byte, branch []byte, branchStart int, branchRLPOffset int) {
+	// TODO: ValueNode info is currently missing
 	rowInd := 1 // start with 1 because rows[0] contains some RLP data
 	colInd := branchNodeRLPLen
 	inside32Ind := -1
@@ -163,6 +165,7 @@ func prepareBranchWitness(rows [][]byte, branch []byte, branchStart int, branchR
 	if branchRLPOffset == 3 {
 		count = int(branch[1])*256 + int(branch[2])
 	}
+	// TODO: don't loop to count when there is ValueNode
 	for i := 0; i < count; i++ {
 		if rowInd == 17 {
 			break
@@ -180,7 +183,7 @@ func prepareBranchWitness(rows [][]byte, branch []byte, branchStart int, branchR
 			rows[rowInd][branchStart+colInd] = b
 			colInd++
 			inside32Ind++
-			fmt.Println(rows[rowInd])
+			// fmt.Println(rows[rowInd])
 			if inside32Ind == 32 {
 				inside32Ind = -1
 				rowInd++
@@ -194,7 +197,7 @@ func prepareBranchWitness(rows [][]byte, branch []byte, branchStart int, branchR
 			}
 			rows[rowInd][branchStart+branchNodeRLPLen] = b
 			rowInd++
-			fmt.Println(rows[rowInd-1])
+			// fmt.Println(rows[rowInd-1])
 		}
 	}
 }
@@ -261,8 +264,9 @@ func prepareTwoBranchesWitness(branch1, branch2 []byte, key byte) [][]byte {
 	return rows
 }
 
-func prepareWitness(storageProof, storageProof1 [][]byte, key []byte) [][]byte {
+func prepareWitness(storageProof, storageProof1 [][]byte, key []byte) ([][]byte, [][]byte) {
 	rows := make([][]byte, 0)
+	toBeHashed := make([][]byte, 0)
 	for i := 0; i < len(storageProof); i++ {
 		if i == len(storageProof)-1 {
 			// both proofs have the same key
@@ -271,7 +275,7 @@ func prepareWitness(storageProof, storageProof1 [][]byte, key []byte) [][]byte {
 			l = append(l, 4) // 4 is leaf key
 			rows = append(rows, l)
 
-			return rows
+			return rows, toBeHashed
 		}
 		elems, _, err := rlp.SplitList(storageProof[i])
 		if err != nil {
@@ -286,6 +290,17 @@ func prepareWitness(storageProof, storageProof1 [][]byte, key []byte) [][]byte {
 		case 17:
 			bRows := prepareTwoBranchesWitness(storageProof[i], storageProof1[i], key[i])
 			rows = append(rows, bRows...)
+
+			branch1Ext := make([]byte, len(storageProof[i]))
+			copy(branch1Ext, storageProof[i])
+			branch1Ext = append(branch1Ext, 5) // 5 means it needs to be hashed
+
+			branch2Ext := make([]byte, len(storageProof1[i]))
+			copy(branch2Ext, storageProof1[i])
+			branch2Ext = append(branch2Ext, 5) // 5 means it needs to be hashed
+
+			toBeHashed = append(toBeHashed, branch1Ext)
+			toBeHashed = append(toBeHashed, branch2Ext)
 
 			// check the two branches
 			for k := 1; k < 17; k++ {
@@ -303,7 +318,7 @@ func prepareWitness(storageProof, storageProof1 [][]byte, key []byte) [][]byte {
 		}
 	}
 
-	return rows
+	return rows, toBeHashed
 }
 
 func execTest(keys []common.Hash, toBeModified common.Hash) {
@@ -340,7 +355,10 @@ func execTest(keys []common.Hash, toBeModified common.Hash) {
 	storageProof1, err := statedb.GetStorageProof(addr, toBeModified)
 	check(err)
 
-	rows := prepareWitness(storageProof, storageProof1, key)
+	// TODO: add key nibbles in rows to be hashed
+
+	rows, toBeHashed := prepareWitness(storageProof, storageProof1, key)
+	rows = append(rows, toBeHashed...)
 	fmt.Println(matrixToJson(rows))
 
 	if !VerifyTwoProofsAndPath(storageProof, storageProof1, key) {
@@ -439,9 +457,17 @@ func execStateTest(keys []common.Hash, toBeModified common.Hash, addr common.Add
 	storageProof1, err := statedb.GetStorageProof(addr, toBeModified)
 	check(err)
 
-	rowsState := prepareWitness(accountProof, accountProof1, accountAddr)
-	rowsStorage := prepareWitness(storageProof, storageProof1, key)
+	// TODO: add accountAddr and key nibbles in rows to be hashed
+
+	rowsState, toBeHashedAcc := prepareWitness(accountProof, accountProof1, accountAddr)
+	rowsStorage, toBeHashedStorage := prepareWitness(storageProof, storageProof1, key)
+
 	rowsState = append(rowsState, rowsStorage...)
+
+	// Put rows that just need to be hashed at the end, because circuit assign function
+	// relies on index (for example when assigning s_keccak and c_keccak).
+	rowsState = append(rowsState, toBeHashedAcc...)
+	rowsState = append(rowsState, toBeHashedStorage...)
 	fmt.Println(matrixToJson(rowsState))
 
 	if !VerifyTwoProofsAndPath(accountProof, accountProof1, accountAddr) {
