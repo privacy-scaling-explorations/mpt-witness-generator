@@ -30,6 +30,12 @@ Info about row type (given as the last element of the row):
 3: leaf c
 4: leaf key
 5: hash to be computed (for example branch RLP whose hash needs to be checked in the parent)
+6: account leaf S
+7: account leaf S
+8: account leaf S
+9: account leaf C
+10: account leaf C
+11: account leaf C
 */
 
 func check(err error) {
@@ -264,7 +270,7 @@ func prepareTwoBranchesWitness(branch1, branch2 []byte, key byte) [][]byte {
 	return rows
 }
 
-func prepareWitness(storageProof, storageProof1 [][]byte, key []byte) ([][]byte, [][]byte) {
+func prepareWitness(storageProof, storageProof1 [][]byte, key []byte, isAccountProof bool) ([][]byte, [][]byte) {
 	rows := make([][]byte, 0)
 	toBeHashed := make([][]byte, 0)
 	for i := 0; i < len(storageProof); i++ {
@@ -283,10 +289,120 @@ func prepareWitness(storageProof, storageProof1 [][]byte, key []byte) ([][]byte,
 		}
 		switch c, _ := rlp.CountValues(elems); c {
 		case 2:
-			leaf1 := prepareLeaf(storageProof[i], 2)  // leaf s
-			leaf2 := prepareLeaf(storageProof1[i], 3) // leaf c
-			rows = append(rows, leaf1)
-			rows = append(rows, leaf2)
+			if isAccountProof {
+				l := len(storageProof)
+				leafS := storageProof[l-2] // last one is nibbles
+				leafC := storageProof1[l-2]
+
+				keyLen := int(leafS[2]) - 128
+				keyRow := make([]byte, rowLen)
+				for i := 0; i < 3+keyLen; i++ {
+					keyRow[i] = leafS[i]
+				}
+
+				rlpStringSecondPartLen := leafS[3+keyLen] - 183
+				if rlpStringSecondPartLen != 1 {
+					panic("Account leaf RLP at this position should be 1")
+				}
+				rlpStringLen := leafS[3+keyLen+1]
+
+				// [248,112,157,59,158,160,175,159,65,212,107,23,98,208,38,205,150,63,244,2,185,236,246,95,240,224,191,229,27,102,202,231,184,80,248,78
+				// In this example RLP, there are first 36 bytes of a leaf.
+				// 157 means there are 29 bytes for key (157 - 128).
+				// Positions 32-35: 184, 80, 248, 78.
+				// 184 - 183 = 1 means length of the second part of a string.
+				// 80 means length of a string.
+				// 248 - 247 = 1 means length of the second part of a list.
+				// 78 means lenght of a list.
+
+				rlpListSecondPartLen := leafS[3+keyLen+1+1] - 247
+				if rlpListSecondPartLen != 1 {
+					panic("Account leaf RLP 1")
+				}
+				rlpListLen := leafS[3+keyLen+1+1+1]
+				if rlpStringLen != rlpListLen+2 {
+					panic("Account leaf RLP 2")
+				}
+
+				nonceStart := 3 + keyLen + 1 + 1 + 1 + 1
+				nonceRlpLen := leafS[nonceStart] - 128
+				nonce := leafS[nonceStart : nonceStart+int(nonceRlpLen)+1]
+
+				nonceBalanceRow := make([]byte, rowLen)
+				for i := 0; i < len(nonce); i++ {
+					nonceBalanceRow[branchNodeRLPLen+i] = nonce[i]
+				}
+
+				balanceStart := nonceStart + int(nonceRlpLen) + 1
+				balanceRlpLen := leafS[balanceStart] - 128
+				balance := leafS[balanceStart : balanceStart+int(balanceRlpLen)+1]
+				for i := 0; i < len(balance); i++ {
+					nonceBalanceRow[branch2start+1+i] = balance[i] // start from c_rlp2
+				}
+
+				storageCodeHashRowS := make([]byte, rowLen)
+
+				storageStart := balanceStart + int(balanceRlpLen) + 1
+				storageRlpLen := leafS[storageStart] - 128
+				if storageRlpLen != 32 {
+					panic("Account leaf RLP 3")
+				}
+				storage := leafS[storageStart : storageStart+32+1]
+				for i := 0; i < 33; i++ {
+					storageCodeHashRowS[branchNodeRLPLen-1+i] = storage[i]
+				}
+
+				codeHashStart := storageStart + int(storageRlpLen) + 1
+				codeHashRlpLen := leafS[codeHashStart] - 128
+				if codeHashRlpLen != 32 {
+					panic("Account leaf RLP 4")
+				}
+				codeHash := leafS[codeHashStart : codeHashStart+32+1]
+				for i := 0; i < 33; i++ {
+					storageCodeHashRowS[branch2start+1+i] = codeHash[i] // start from c_rlp2
+				}
+
+				// TODO: delete operation
+
+				// Only storage root is different in S and C.
+				storageCodeHashRowC := make([]byte, rowLen)
+				copy(storageCodeHashRowC, storageCodeHashRowS)
+				storageC := leafC[storageStart : storageStart+32+1]
+				for i := 0; i < 33; i++ {
+					storageCodeHashRowC[branchNodeRLPLen-1+i] = storageC[i]
+				}
+
+				keyRowC := make([]byte, rowLen)
+				copy(keyRowC, keyRow)
+				nonceBalanceRowC := make([]byte, rowLen)
+				copy(nonceBalanceRowC, nonceBalanceRow)
+
+				keyRow = append(keyRow, 6)
+				nonceBalanceRow = append(nonceBalanceRow, 7)
+				storageCodeHashRowS = append(storageCodeHashRowS, 8)
+
+				keyRowC = append(keyRowC, 9)
+				nonceBalanceRowC = append(nonceBalanceRowC, 10)
+				storageCodeHashRowC = append(storageCodeHashRowC, 11)
+
+				rows = append(rows, keyRow)
+				rows = append(rows, nonceBalanceRow)
+				rows = append(rows, storageCodeHashRowS)
+
+				rows = append(rows, keyRowC)
+				rows = append(rows, nonceBalanceRowC)
+				rows = append(rows, storageCodeHashRowC)
+
+				leafS = append(leafS, 5)
+				leafC = append(leafC, 5)
+				toBeHashed = append(toBeHashed, leafS)
+				toBeHashed = append(toBeHashed, leafC)
+			} else {
+				leaf1 := prepareLeaf(storageProof[i], 2)  // leaf s
+				leaf2 := prepareLeaf(storageProof1[i], 3) // leaf c
+				rows = append(rows, leaf1)
+				rows = append(rows, leaf2)
+			}
 		case 17:
 			bRows := prepareTwoBranchesWitness(storageProof[i], storageProof1[i], key[i])
 			rows = append(rows, bRows...)
@@ -357,7 +473,7 @@ func execTest(keys []common.Hash, toBeModified common.Hash) {
 
 	// TODO: add key nibbles in rows to be hashed
 
-	rows, toBeHashed := prepareWitness(storageProof, storageProof1, key)
+	rows, toBeHashed := prepareWitness(storageProof, storageProof1, key, false)
 	rows = append(rows, toBeHashed...)
 	fmt.Println(matrixToJson(rows))
 
@@ -459,9 +575,8 @@ func execStateTest(keys []common.Hash, toBeModified common.Hash, addr common.Add
 
 	// TODO: add accountAddr and key nibbles in rows to be hashed
 
-	rowsState, toBeHashedAcc := prepareWitness(accountProof, accountProof1, accountAddr)
-	rowsStorage, toBeHashedStorage := prepareWitness(storageProof, storageProof1, key)
-
+	rowsState, toBeHashedAcc := prepareWitness(accountProof, accountProof1, accountAddr, true)
+	rowsStorage, toBeHashedStorage := prepareWitness(storageProof, storageProof1, key, false)
 	rowsState = append(rowsState, rowsStorage...)
 
 	// Put rows that just need to be hashed at the end, because circuit assign function
