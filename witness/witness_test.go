@@ -28,7 +28,7 @@ Info about row type (given as the last element of the row):
 1: branch child
 2: leaf s
 3: leaf c
-4: leaf key
+4: leaf key nibbles
 5: hash to be computed (for example branch RLP whose hash needs to be checked in the parent)
 6: account leaf S
 7: account leaf S
@@ -36,6 +36,7 @@ Info about row type (given as the last element of the row):
 9: account leaf C
 10: account leaf C
 11: account leaf C
+12: account leaf key nibbles
 */
 
 func check(err error) {
@@ -278,7 +279,11 @@ func prepareWitness(storageProof, storageProof1 [][]byte, key []byte, isAccountP
 			// both proofs have the same key
 			l := make([]byte, len(storageProof[i]))
 			copy(l, storageProof[i])
-			l = append(l, 4) // 4 is leaf key
+			if isAccountProof {
+				l = append(l, 12) // 12 is account leaf key nibbles
+			} else {
+				l = append(l, 4) // 4 is leaf key nibbles
+			}
 			rows = append(rows, l)
 
 			return rows, toBeHashed
@@ -337,7 +342,7 @@ func prepareWitness(storageProof, storageProof1 [][]byte, key []byte, isAccountP
 				balanceRlpLen := leafS[balanceStart] - 128
 				balance := leafS[balanceStart : balanceStart+int(balanceRlpLen)+1]
 				for i := 0; i < len(balance); i++ {
-					nonceBalanceRow[branch2start+1+i] = balance[i] // start from c_rlp2
+					nonceBalanceRow[branch2start+2+i] = balance[i] // c_advices
 				}
 
 				storageCodeHashRowS := make([]byte, rowLen)
@@ -576,13 +581,13 @@ func execStateTest(keys []common.Hash, toBeModified common.Hash, addr common.Add
 	// TODO: add accountAddr and key nibbles in rows to be hashed
 
 	rowsState, toBeHashedAcc := prepareWitness(accountProof, accountProof1, accountAddr, true)
-	rowsStorage, toBeHashedStorage := prepareWitness(storageProof, storageProof1, key, false)
-	rowsState = append(rowsState, rowsStorage...)
+	// rowsStorage, toBeHashedStorage := prepareWitness(storageProof, storageProof1, key, false)
+	// rowsState = append(rowsState, rowsStorage...)
 
 	// Put rows that just need to be hashed at the end, because circuit assign function
 	// relies on index (for example when assigning s_keccak and c_keccak).
 	rowsState = append(rowsState, toBeHashedAcc...)
-	rowsState = append(rowsState, toBeHashedStorage...)
+	// rowsState = append(rowsState, toBeHashedStorage...)
 	fmt.Println(matrixToJson(rowsState))
 
 	if !VerifyTwoProofsAndPath(accountProof, accountProof1, accountAddr) {
