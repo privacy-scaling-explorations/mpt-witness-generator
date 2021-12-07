@@ -338,6 +338,11 @@ func prepareWitness(storageProof, storageProof1 [][]byte, key []byte, isAccountP
 					nonceBalanceRow[branchNodeRLPLen+i] = nonce[i]
 				}
 
+				nonceBalanceRow[0] = leafS[3+keyLen]
+				nonceBalanceRow[1] = leafS[3+keyLen+1]
+				nonceBalanceRow[branch2start] = leafS[3+keyLen+1+1]
+				nonceBalanceRow[branch2start+1] = leafS[3+keyLen+1+1+1]
+
 				balanceStart := nonceStart + int(nonceRlpLen) + 1
 				balanceRlpLen := leafS[balanceStart] - 128
 				balance := leafS[balanceStart : balanceStart+int(balanceRlpLen)+1]
@@ -442,7 +447,7 @@ func prepareWitness(storageProof, storageProof1 [][]byte, key []byte, isAccountP
 	return rows, toBeHashed
 }
 
-func execTest(keys []common.Hash, toBeModified common.Hash) {
+func execTest(keys []common.Hash, toBeModified common.Hash, value common.Hash) {
 	blockNum := 13284469
 	blockNumberParent := big.NewInt(int64(blockNum))
 	blockHeaderParent := oracle.PrefetchBlock(blockNumberParent, true, nil)
@@ -468,8 +473,7 @@ func execTest(keys []common.Hash, toBeModified common.Hash) {
 	*/
 
 	// We now change one existing storage slot:
-	v := common.BigToHash(big.NewInt(int64(17)))
-	statedb.SetState(addr, toBeModified, v)
+	statedb.SetState(addr, toBeModified, value)
 
 	// We ask for a proof for the modified slot:
 	statedb.IntermediateRoot(false)
@@ -581,13 +585,20 @@ func execStateTest(keys []common.Hash, toBeModified common.Hash, addr common.Add
 	// TODO: add accountAddr and key nibbles in rows to be hashed
 
 	rowsState, toBeHashedAcc := prepareWitness(accountProof, accountProof1, accountAddr, true)
-	// rowsStorage, toBeHashedStorage := prepareWitness(storageProof, storageProof1, key, false)
-	// rowsState = append(rowsState, rowsStorage...)
+	rowsStorage, toBeHashedStorage := prepareWitness(storageProof, storageProof1, key, false)
+	rowsState = append(rowsState, rowsStorage...)
 
 	// Put rows that just need to be hashed at the end, because circuit assign function
 	// relies on index (for example when assigning s_keccak and c_keccak).
 	rowsState = append(rowsState, toBeHashedAcc...)
-	// rowsState = append(rowsState, toBeHashedStorage...)
+	rowsState = append(rowsState, toBeHashedStorage...)
+
+	/*
+		// If only storage:
+		rowsStorage, toBeHashedStorage := prepareWitness(storageProof, storageProof1, key, false)
+		rowsState := append(rowsStorage, toBeHashedStorage...)
+	*/
+
 	fmt.Println(matrixToJson(rowsState))
 
 	if !VerifyTwoProofsAndPath(accountProof, accountProof1, accountAddr) {
@@ -606,9 +617,27 @@ func TestStorageUpdateOneLevel(t *testing.T) {
 	// [11,11,8,10,6,...
 	// We have a branch with children at position 3 and 11.
 
+	// This key is turned into odd length (see hexToCompact in encoding.go to see
+	// odd and even length are handled differently)
 	toBeModified := ks[0]
+	v := common.BigToHash(big.NewInt(int64(17)))
+	execTest(ks[:], toBeModified, v)
+}
 
-	execTest(ks[:], toBeModified)
+func TestStorageUpdateOneLevelBigVal(t *testing.T) {
+	ks := [...]common.Hash{common.HexToHash("0x12"), common.HexToHash("0x21")}
+	// hexed keys:
+	// [3,1,14,12,12,...
+	// [11,11,8,10,6,...
+	// We have a branch with children at position 3 and 11.
+
+	// This key is turned into odd length (see hexToCompact in encoding.go to see
+	// odd and even length are handled differently)
+	toBeModified := ks[0]
+	// big value so that RLP is longer than 55 bytes
+	v1 := common.FromHex("0xbbefaa12580138bc263c95757826df4e24eb81c9aaaaaaaaaaaaaaaaaaaaaaaa")
+	v2 := common.BytesToHash(v1)
+	execTest(ks[:], toBeModified, v2)
 }
 
 func TestStorageUpdateTwoLevels(t *testing.T) {
@@ -622,9 +651,11 @@ func TestStorageUpdateTwoLevels(t *testing.T) {
 	// That means leaf at position 3 turns into branch with children at position 1 and 10.
 	// ks := [...]common.Hash{common.HexToHash("0x12"), common.HexToHash("0x21")}
 
+	// This key is turned into even length (see hexToCompact in encoding.go to see
+	// odd and even length are handled differently)
 	toBeModified := ks[0]
-
-	execTest(ks[:], toBeModified)
+	v := common.BigToHash(big.NewInt(int64(17)))
+	execTest(ks[:], toBeModified, v)
 }
 
 func TestStorageUpdateThreeLevels1(t *testing.T) {
@@ -664,7 +695,8 @@ func TestStorageUpdateThreeLevels1(t *testing.T) {
 	*/
 	toBeModified := ks[10]
 
-	execTest(ks[:], toBeModified)
+	v := common.BigToHash(big.NewInt(int64(17)))
+	execTest(ks[:], toBeModified, v)
 }
 
 func TestStorageAddOneLevel(t *testing.T) {
@@ -744,6 +776,20 @@ func TestStorageAddOneLevel(t *testing.T) {
 
 func TestStateUpdateOneLevel(t *testing.T) {
 	addr := common.HexToAddress("0x50efbf12580138bc263c95757826df4e24eb81c9")
+	// This address is turned into odd length (see hexToCompact in encoding.go to see
+	// odd and even length are handled differently)
+	ks := [...]common.Hash{common.HexToHash("0x12"), common.HexToHash("0x21")}
+
+	// This is a storage slot that will be modified (the list will come from bus-mapping):
+	toBeModified := ks[1]
+
+	execStateTest(ks[:], toBeModified, addr)
+}
+
+func TestStateUpdateOneLevelEvenAddress(t *testing.T) {
+	addr := common.HexToAddress("0x25efbf12580138bc263c95757826df4e24eb81c9")
+	// This address is turned into even length (see hexToCompact in encoding.go to see
+	// odd and even length are handled differently)
 	ks := [...]common.Hash{common.HexToHash("0x12"), common.HexToHash("0x21")}
 
 	// This is a storage slot that will be modified (the list will come from bus-mapping):
