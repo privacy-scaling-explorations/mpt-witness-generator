@@ -37,6 +37,8 @@ Info about row type (given as the last element of the row):
 10: account leaf C
 11: account leaf C
 12: account leaf key nibbles
+13: leaf s value
+14: leaf c value
 */
 
 func check(err error) {
@@ -209,13 +211,30 @@ func prepareBranchWitness(rows [][]byte, branch []byte, branchStart int, branchR
 	}
 }
 
-func prepareLeaf(row []byte, typ byte) []byte {
+func prepareLeafRows(row []byte, typ byte) [][]byte {
 	// Avoid directly changing the row as it might introduce some bugs later on.
-	leaf := make([]byte, len(row))
-	copy(leaf, row)
-	leaf = append(leaf, typ)
+	leaf1 := make([]byte, rowLen)
+	leaf2 := make([]byte, rowLen)
+	typ2 := byte(13)
+	if typ == 3 {
+		typ2 = 14
+	}
+	if row[0] == 248 {
+		keyLen := row[2] - 128
+		copy(leaf1, row[:keyLen+3])
+		leaf1 = append(leaf1, typ)
+		// there are two RLP meta data bytes which are put in s_rlp1 and s_rlp2,
+		// value starts in s_advices[0]
+		leaf2 = append(leaf2, typ2)
+	} else {
+		keyLen := row[1] - 128
+		copy(leaf1, row[:keyLen+2])
+		leaf1 = append(leaf1, typ)
+		copy(leaf2, row[keyLen+2:]) // value starts in s_rlp1
+		leaf2 = append(leaf2, typ2)
+	}
 
-	return leaf
+	return [][]byte{leaf1, leaf2}
 }
 
 func prepareTwoBranchesWitness(branch1, branch2 []byte, key byte) [][]byte {
@@ -408,10 +427,12 @@ func prepareWitness(storageProof, storageProof1 [][]byte, key []byte, isAccountP
 				toBeHashed = append(toBeHashed, leafS)
 				toBeHashed = append(toBeHashed, leafC)
 			} else {
-				leaf1 := prepareLeaf(storageProof[i], 2)  // leaf s
-				leaf2 := prepareLeaf(storageProof1[i], 3) // leaf c
-				rows = append(rows, leaf1)
-				rows = append(rows, leaf2)
+				leaves := prepareLeafRows(storageProof[i], 2) // leaf s
+				rows = append(rows, leaves[0])
+				rows = append(rows, leaves[1])
+				leaves = prepareLeafRows(storageProof1[i], 3) // leaf c
+				rows = append(rows, leaves[0])
+				rows = append(rows, leaves[1])
 			}
 		case 17:
 			bRows := prepareTwoBranchesWitness(storageProof[i], storageProof1[i], key[i])
@@ -479,8 +500,6 @@ func execTest(keys []common.Hash, toBeModified common.Hash, value common.Hash) {
 	statedb.IntermediateRoot(false)
 	storageProof1, err := statedb.GetStorageProof(addr, toBeModified)
 	check(err)
-
-	// TODO: add key nibbles in rows to be hashed
 
 	rows, toBeHashed := prepareWitness(storageProof, storageProof1, key, false)
 	rows = append(rows, toBeHashed...)
@@ -656,6 +675,26 @@ func TestStorageUpdateTwoLevels(t *testing.T) {
 	toBeModified := ks[0]
 	v := common.BigToHash(big.NewInt(int64(17)))
 	execTest(ks[:], toBeModified, v)
+}
+
+func TestStorageUpdateTwoLevelsBigVal(t *testing.T) {
+	ks := [...]common.Hash{common.HexToHash("0x11"), common.HexToHash("0x12"), common.HexToHash("0x21")} // this has three levels
+	// hexed keys:
+	// [3,1,14,12,12,...
+	// [11,11,8,10,6,...
+	// First we have a branch with children at position 3 and 11.
+	// The third storage change happens at key:
+	// [3,10,6,3,5,7,...
+	// That means leaf at position 3 turns into branch with children at position 1 and 10.
+	// ks := [...]common.Hash{common.HexToHash("0x12"), common.HexToHash("0x21")}
+
+	// This key is turned into even length (see hexToCompact in encoding.go to see
+	// odd and even length are handled differently)
+	toBeModified := ks[0]
+
+	v1 := common.FromHex("0xbbefaa12580138bc263c95757826df4e24eb81c9aaaaaaaaaaaaaaaaaaaaaaaa")
+	v2 := common.BytesToHash(v1)
+	execTest(ks[:], toBeModified, v2)
 }
 
 func TestStorageUpdateThreeLevels1(t *testing.T) {
