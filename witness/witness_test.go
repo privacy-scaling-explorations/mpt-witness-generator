@@ -225,6 +225,7 @@ func prepareLeafRows(row []byte, typ byte) [][]byte {
 		leaf1 = append(leaf1, typ)
 		// there are two RLP meta data bytes which are put in s_rlp1 and s_rlp2,
 		// value starts in s_advices[0]
+		copy(leaf2, row[keyLen+3:]) // RLP data in s_rlp1 and s_rlp2, value starts in s_advices[0]
 		leaf2 = append(leaf2, typ2)
 	} else {
 		keyLen := row[1] - 128
@@ -433,6 +434,14 @@ func prepareWitness(storageProof, storageProof1 [][]byte, key []byte, isAccountP
 				leaves = prepareLeafRows(storageProof1[i], 3) // leaf c
 				rows = append(rows, leaves[0])
 				rows = append(rows, leaves[1])
+
+				leafS := storageProof[i]
+				leafC := storageProof1[i]
+				leafS = append(leafS, 5)
+				leafC = append(leafC, 5)
+				toBeHashed = append(toBeHashed, leafS)
+				toBeHashed = append(toBeHashed, leafC)
+
 			}
 		case 17:
 			bRows := prepareTwoBranchesWitness(storageProof[i], storageProof1[i], key[i])
