@@ -477,7 +477,7 @@ func prepareWitness(storageProof, storageProof1 [][]byte, key []byte, isAccountP
 	return rows, toBeHashed
 }
 
-func execTest(keys []common.Hash, toBeModified common.Hash, value common.Hash) {
+func updateStorageAndGetProofs(keys []common.Hash, toBeModified common.Hash, value common.Hash) {
 	blockNum := 13284469
 	blockNumberParent := big.NewInt(int64(blockNum))
 	blockHeaderParent := oracle.PrefetchBlock(blockNumberParent, true, nil)
@@ -514,12 +514,49 @@ func execTest(keys []common.Hash, toBeModified common.Hash, value common.Hash) {
 	rows = append(rows, toBeHashed...)
 	fmt.Println(matrixToJson(rows))
 
-	if !VerifyTwoProofsAndPath(storageProof, storageProof1, key) {
-		panic("proof not valid")
+	len1 := len(storageProof)
+	len2 := len(storageProof1)
+	if len1 == len2 {
+		if !VerifyTwoProofsAndPath(storageProof, storageProof1, key) {
+			panic("proof not valid")
+		}
+	} else {
+		minLen := len2
+		if len1 > len2 { // remove nibbles
+			storageProof = storageProof[:len1-1]
+		} else {
+			storageProof1 = storageProof1[:len2-1]
+			minLen = len1
+		}
+
+		if !VerifyProof(storageProof, key) {
+			panic("proof not valid")
+		}
+		if !VerifyProof(storageProof1, key) {
+			panic("proof 1 not valid")
+		}
+
+		hasher := trie.NewHasher(false)
+
+		for i := 0; i < minLen; i++ {
+			rootHash := hasher.HashData(storageProof[i])
+			root, err := trie.DecodeNode(rootHash, storageProof[i])
+			check(err)
+			r := root.(*trie.FullNode)
+
+			rootHash1 := hasher.HashData(storageProof1[i])
+			root1, err := trie.DecodeNode(rootHash1, storageProof1[i])
+			check(err)
+			r1 := root1.(*trie.FullNode)
+
+			if !VerifyElementsInTwoBranches(r, r1, key[i]) {
+				panic("proof not valid")
+			}
+		}
 	}
 }
 
-func execStateTest(keys []common.Hash, toBeModified common.Hash, addr common.Address) {
+func updateStateAndGetProofs(keys []common.Hash, toBeModified common.Hash, addr common.Address) {
 	// Here we are checking the whole state trie, not only a storage trie for some account as in above tests.
 	blockNum := 13284469
 	blockNumberParent := big.NewInt(int64(blockNum))
@@ -649,7 +686,7 @@ func TestStorageUpdateOneLevel(t *testing.T) {
 	// odd and even length are handled differently)
 	toBeModified := ks[0]
 	v := common.BigToHash(big.NewInt(int64(17)))
-	execTest(ks[:], toBeModified, v)
+	updateStorageAndGetProofs(ks[:], toBeModified, v)
 }
 
 func TestStorageUpdateOneLevelBigVal(t *testing.T) {
@@ -665,7 +702,7 @@ func TestStorageUpdateOneLevelBigVal(t *testing.T) {
 	// big value so that RLP is longer than 55 bytes
 	v1 := common.FromHex("0xbbefaa12580138bc263c95757826df4e24eb81c9aaaaaaaaaaaaaaaaaaaaaaaa")
 	v2 := common.BytesToHash(v1)
-	execTest(ks[:], toBeModified, v2)
+	updateStorageAndGetProofs(ks[:], toBeModified, v2)
 }
 
 func TestStorageUpdateTwoLevels(t *testing.T) {
@@ -683,7 +720,7 @@ func TestStorageUpdateTwoLevels(t *testing.T) {
 	// odd and even length are handled differently)
 	toBeModified := ks[0]
 	v := common.BigToHash(big.NewInt(int64(17)))
-	execTest(ks[:], toBeModified, v)
+	updateStorageAndGetProofs(ks[:], toBeModified, v)
 }
 
 func TestStorageUpdateTwoLevelsBigVal(t *testing.T) {
@@ -703,7 +740,7 @@ func TestStorageUpdateTwoLevelsBigVal(t *testing.T) {
 
 	v1 := common.FromHex("0xbbefaa12580138bc263c95757826df4e24eb81c9aaaaaaaaaaaaaaaaaaaaaaaa")
 	v2 := common.BytesToHash(v1)
-	execTest(ks[:], toBeModified, v2)
+	updateStorageAndGetProofs(ks[:], toBeModified, v2)
 }
 
 func TestStorageUpdateThreeLevels1(t *testing.T) {
@@ -744,82 +781,28 @@ func TestStorageUpdateThreeLevels1(t *testing.T) {
 	toBeModified := ks[10]
 
 	v := common.BigToHash(big.NewInt(int64(17)))
-	execTest(ks[:], toBeModified, v)
+	updateStorageAndGetProofs(ks[:], toBeModified, v)
 }
 
-func TestStorageAddOneLevel(t *testing.T) {
-	blockNum := 13284469
-	blockNumberParent := big.NewInt(int64(blockNum))
-	blockHeaderParent := oracle.PrefetchBlock(blockNumberParent, true, nil)
-
-	database := state.NewDatabase(blockHeaderParent)
-	statedb, _ := state.New(blockHeaderParent.Root, database, nil)
-
-	addr := common.HexToAddress("0x50efbf12580138bc263c95757826df4e24eb81c9")
-
-	ks := [...]common.Hash{common.HexToHash("0x12"), common.HexToHash("0x21")}
-	for i := 0; i < len(ks); i++ {
-		k := ks[i]
-		v := common.BigToHash(big.NewInt(int64(i + 1))) // don't put 0 value because otherwise nothing will be set (if 0 is prev value), see state_object.go line 279
-		statedb.SetState(addr, k, v)
+func TestStorageUpdateFromTwoToThreeLevels(t *testing.T) {
+	ks := [...]common.Hash{
+		common.HexToHash("0x11"),
+		common.HexToHash("0x12"),
+		common.HexToHash("0x21"),
+		common.HexToHash("0x31"),
+		common.HexToHash("0x32"),
+		common.HexToHash("0x33"),
+		common.HexToHash("0x34"),
+		common.HexToHash("0x35"),
+		common.HexToHash("0x36"),
+		common.HexToHash("0x37"),
 	}
-	// We have a branch with two leaves at positions 3 and 11.
+	// This test is similar as above, but the key that is being modified has not been used yet.
 
-	// Let's say above is our starting position.
+	toBeModified := common.HexToHash("0x38")
 
-	// This is a storage slot that will be modified (the list will come from bus-mapping).
-	// Compared to the test TestStorageUpdateOneLevel, there is no node in trie for this storage key.
-	toBeModified := [...]common.Hash{common.HexToHash("0x31")}
-
-	// We now get a storageProof for the starting position for the slot that will be changed further on (ks[1]):
-	// This first storageProof will actually be retrieved by RPC eth_getProof (see oracle.PrefetchStorage function).
-	// All other proofs (after modifications) will be generated internally by buildig the internal state.
-	storageProof, err := statedb.GetStorageProof(addr, toBeModified[0])
-	check(err)
-	hasher := trie.NewHasher(false)
-
-	// Compared to the test TestStorageUpdateOneLevel, there is no node in trie for this storage key - the key
-	// asks for the position 12 and there is nothing. Thus, the proof will only contain one element - the root node.
-
-	kh := crypto.Keccak256(toBeModified[0].Bytes())
-	key := trie.KeybytesToHex(kh)
-
-	rootHash := hasher.HashData(storageProof[0])
-	root, err := trie.DecodeNode(rootHash, storageProof[0])
-	check(err)
-	r := root.(*trie.FullNode)
-
-	// Constraint for proof verification - only one element in the proof so nothing to be verified except
-	// that the key at this position is nil:
-	if r.Children[key[0]] != nil {
-		panic("not correct")
-	}
-
-	/*
-		Modifying storage:
-	*/
-
-	// We now change the storage slot:
 	v := common.BigToHash(big.NewInt(int64(17)))
-	statedb.SetState(addr, toBeModified[0], v)
-
-	// We ask for a proof for the modified slot:
-	statedb.IntermediateRoot(false)
-	storageProof2, err := statedb.GetStorageProof(addr, toBeModified[0])
-	check(err)
-
-	rootHash2 := hasher.HashData(storageProof2[0])
-	root2, err := trie.DecodeNode(rootHash2, storageProof2[0])
-	check(err)
-	r2 := root2.(*trie.FullNode)
-
-	if !VerifyProof(storageProof2, key) {
-		panic("proof not valid")
-	}
-
-	if !VerifyElementsInTwoBranches(r, r2, key[0]) {
-		panic("proof not valid")
-	}
+	updateStorageAndGetProofs(ks[:], toBeModified, v)
 }
 
 func TestStateUpdateOneLevel(t *testing.T) {
@@ -831,7 +814,7 @@ func TestStateUpdateOneLevel(t *testing.T) {
 	// This is a storage slot that will be modified (the list will come from bus-mapping):
 	toBeModified := ks[1]
 
-	execStateTest(ks[:], toBeModified, addr)
+	updateStateAndGetProofs(ks[:], toBeModified, addr)
 }
 
 func TestStateUpdateOneLevelEvenAddress(t *testing.T) {
@@ -843,5 +826,44 @@ func TestStateUpdateOneLevelEvenAddress(t *testing.T) {
 	// This is a storage slot that will be modified (the list will come from bus-mapping):
 	toBeModified := ks[1]
 
-	execStateTest(ks[:], toBeModified, addr)
+	updateStateAndGetProofs(ks[:], toBeModified, addr)
+}
+
+func TestStorageExtension(t *testing.T) {
+	ks := [...]common.Hash{
+		common.HexToHash("0x11"),
+		common.HexToHash("0x12"),
+		common.HexToHash("0x21"),
+		common.HexToHash("0x31"),
+		common.HexToHash("0x32"),
+		common.HexToHash("0x33"),
+		common.HexToHash("0x34"),
+		common.HexToHash("0x35"),
+		common.HexToHash("0x36"),
+		common.HexToHash("0x37"),
+		common.HexToHash("0x38"), //
+		common.HexToHash("0x39"),
+		common.HexToHash("0x40"),
+		common.HexToHash("0x42"),
+		common.HexToHash("0x43"),
+		common.HexToHash("0x44"),
+		common.HexToHash("0x45"),
+		common.HexToHash("0x46"),
+		common.HexToHash("0x47"),
+		common.HexToHash("0x48"),
+		common.HexToHash("0x50"),
+		common.HexToHash("0x51"),
+		common.HexToHash("0x52"),
+		common.HexToHash("0x53"),
+		common.HexToHash("0x54"),
+		common.HexToHash("0x55"),
+		common.HexToHash("0x56"),
+
+		common.HexToHash("0x61"), // extension
+	}
+
+	toBeModified := ks[10]
+
+	v := common.BigToHash(big.NewInt(int64(17)))
+	updateStorageAndGetProofs(ks[:], toBeModified, v)
 }

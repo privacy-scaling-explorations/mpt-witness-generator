@@ -16,6 +16,8 @@
 
 package trie
 
+import "fmt"
+
 // Trie keys are dealt with in three distinct encodings:
 //
 // KEYBYTES encoding contains the actual key and nothing else. This encoding is the
@@ -39,6 +41,8 @@ func hexToCompact(hex []byte) []byte {
 	if hasTerm(hex) {
 		terminator = 1
 		hex = hex[:len(hex)-1]
+	} else {
+		fmt.Println("extension")
 	}
 	buf := make([]byte, len(hex)/2+1)
 	buf[0] = terminator << 5 // the flag byte

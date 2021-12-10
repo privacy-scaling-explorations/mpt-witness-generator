@@ -308,6 +308,7 @@ func (t *Trie) insert(n Node, prefix, key []byte, value Node) (bool, Node, error
 			return true, branch, nil
 		}
 		// Otherwise, replace it with a short node leading up to the branch.
+		// (this is extension node)
 		return true, &ShortNode{key[:matchlen], branch, t.newFlag()}, nil
 
 	case *FullNode:
