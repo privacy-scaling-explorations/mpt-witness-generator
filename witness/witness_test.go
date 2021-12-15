@@ -310,43 +310,33 @@ func prepareTwoBranchesWitness(branch1, branch2 []byte, key byte) [][]byte {
 	return rows
 }
 
-func prepareWitness(storageProof, storageProof1 [][]byte, key []byte, isAccountProof bool) ([][]byte, [][]byte) {
+func prepareWitness(storageProof1, storageProof2 [][]byte, key []byte, isAccountProof bool) ([][]byte, [][]byte) {
 	rows := make([][]byte, 0)
 	toBeHashed := make([][]byte, 0)
 
-	minLen := len(storageProof)
-	maxLen := len(storageProof)
-	if len(storageProof1) < minLen {
-		minLen = len(storageProof1)
-	}
-	if len(storageProof1) > maxLen {
-		maxLen = len(storageProof1)
+	minLen := len(storageProof1)
+	if len(storageProof2) < minLen {
+		minLen = len(storageProof2)
 	}
 
-	for i := 0; i < minLen; i++ {
-		if i == maxLen-1 {
-			// Both proofs have the same key, so we add only one row for nibbles.
-			l := make([]byte, len(storageProof[i]))
-			copy(l, storageProof[i])
-			if isAccountProof {
-				l = append(l, 12) // 12 marks account leaf key nibbles
-			} else {
-				l = append(l, 4) // 4 marks leaf key nibbles
-			}
-			rows = append(rows, l)
+	len1 := len(storageProof1)
+	len2 := len(storageProof2)
+	upTo := minLen - 1 // -1 because the last element is nibbles
+	if len1 != len2 {
+		upTo = minLen - 2
+	}
 
-			return rows, toBeHashed
-		}
-		elems, _, err := rlp.SplitList(storageProof[i])
+	for i := 0; i < upTo; i++ {
+		elems, _, err := rlp.SplitList(storageProof1[i])
 		if err != nil {
 			fmt.Println("decode error", err)
 		}
 		switch c, _ := rlp.CountValues(elems); c {
 		case 2:
 			if isAccountProof {
-				l := len(storageProof)
-				leafS := storageProof[l-2] // last one is nibbles
-				leafC := storageProof1[l-2]
+				l := len(storageProof1)
+				leafS := storageProof1[l-2] // last one is nibbles
+				leafC := storageProof2[l-2]
 
 				keyLen := int(leafS[2]) - 128
 				keyRow := make([]byte, rowLen)
@@ -457,23 +447,23 @@ func prepareWitness(storageProof, storageProof1 [][]byte, key []byte, isAccountP
 				toBeHashed = append(toBeHashed, leafS)
 				toBeHashed = append(toBeHashed, leafC)
 			} else {
-				leafRows, leafForHashing := prepareLeafRows(storageProof[i], 2) // leaf s
+				leafRows, leafForHashing := prepareLeafRows(storageProof1[i], 2) // leaf s
 				rows = append(rows, leafRows...)
 				toBeHashed = append(toBeHashed, leafForHashing)
-				leafRows, leafForHashing = prepareLeafRows(storageProof1[i], 3) // leaf s
+				leafRows, leafForHashing = prepareLeafRows(storageProof2[i], 3) // leaf s
 				rows = append(rows, leafRows...)
 				toBeHashed = append(toBeHashed, leafForHashing)
 			}
 		case 17:
-			bRows := prepareTwoBranchesWitness(storageProof[i], storageProof1[i], key[i])
+			bRows := prepareTwoBranchesWitness(storageProof1[i], storageProof2[i], key[i])
 			rows = append(rows, bRows...)
 
-			branch1Ext := make([]byte, len(storageProof[i]))
-			copy(branch1Ext, storageProof[i])
+			branch1Ext := make([]byte, len(storageProof1[i]))
+			copy(branch1Ext, storageProof1[i])
 			branch1Ext = append(branch1Ext, 5) // 5 means it needs to be hashed
 
-			branch2Ext := make([]byte, len(storageProof1[i]))
-			copy(branch2Ext, storageProof1[i])
+			branch2Ext := make([]byte, len(storageProof2[i]))
+			copy(branch2Ext, storageProof2[i])
 			branch2Ext = append(branch2Ext, 5) // 5 means it needs to be hashed
 
 			toBeHashed = append(toBeHashed, branch1Ext)
@@ -494,27 +484,114 @@ func prepareWitness(storageProof, storageProof1 [][]byte, key []byte, isAccountP
 			fmt.Println("invalid number of list elements")
 		}
 	}
-	if len(storageProof) > len(storageProof1) {
-		// TODO: when branch or extension node is added (now only an added leaf is considered)
-		leaf := storageProof[maxLen-2]                       // maxLen-1 is nibbles
-		leafRows, leafForHashing := prepareLeafRows(leaf, 2) // leaf s
-		rows = append(rows, leafRows...)
-		toBeHashed = append(toBeHashed, leafForHashing)
 
-		// For leaf c use the same leaf as for s, this is just a placeholder.
-		leafRows, _ = prepareLeafRows(leaf, 3) // leaf c
-		rows = append(rows, leafRows...)
-	} else if len(storageProof1) > len(storageProof) {
-		// TODO: when branch or extension node is added (now only an added leaf is considered)
-		leaf := storageProof1[maxLen-2] // maxLen-1 is nibbles
-		// For leaf s use the same leaf as for c, this is just a placeholder.
-		leafRows, leafForHashing := prepareLeafRows(leaf, 2) // leaf s
-		rows = append(rows, leafRows...)
-		toBeHashed = append(toBeHashed, leafForHashing)
+	// When value in the trie is updated, both proofs are of the same length.
+	// When value is added and there is no node which needs to be changed
+	// into branch, one proof has a leaf and one doesn't have it.
 
-		leafRows, _ = prepareLeafRows(leaf, 3) // leaf c
-		rows = append(rows, leafRows...)
+	// Check if the last proof element in the shorter proof in is a leaf -
+	// if it is, then there is an additional branch.
+	additionalBranchNeeded := func(proofEl []byte) bool {
+		elems, _, err := rlp.SplitList(proofEl)
+		check(err)
+		c, _ := rlp.CountValues(elems)
+		return c == 2
 	}
+
+	additionalBranch := false
+	if len1 < len2 {
+		additionalBranch = additionalBranchNeeded(storageProof1[len1-2]) // the last element is nibbles
+	} else if len2 < len1 {
+		additionalBranch = additionalBranchNeeded(storageProof2[len2-2]) // the last element is nibbles
+	}
+
+	addBranch := func(branch []byte, modifiedIndex byte) {
+		// We just put one branch as a placeholder.
+		bRows := prepareTwoBranchesWitness(branch, branch, modifiedIndex)
+		rows = append(rows, bRows...)
+
+		branch1Ext := make([]byte, len(branch))
+		copy(branch1Ext, branch)
+		branch1Ext = append(branch1Ext, 5) // 5 means it needs to be hashed
+		toBeHashed = append(toBeHashed, branch1Ext)
+	}
+
+	if len1 > len2 {
+		if additionalBranch {
+			addBranch(storageProof1[len1-3], key[len1-3])
+
+			leafRows, leafForHashing := prepareLeafRows(storageProof1[len1-2], 2)
+			rows = append(rows, leafRows...)
+			toBeHashed = append(toBeHashed, leafForHashing)
+
+			leafRows, leafForHashing = prepareLeafRows(storageProof2[len2-2], 3)
+			rows = append(rows, leafRows...)
+			toBeHashed = append(toBeHashed, leafForHashing)
+
+			/*
+				// We add nibbles of the shorter proof:
+				l := make([]byte, len(storageProof2[len2-1]))
+				copy(l, storageProof2[len2-1])
+				// Account proof always has len1 = len2.
+				l = append(l, 4) // 4 marks leaf key nibbles
+				rows = append(rows, l)
+			*/
+		} else {
+			// We don't have a leaf in the shorter proof, but we will add it there
+			// too as a placeholder.
+			leafRows, leafForHashing := prepareLeafRows(storageProof1[len1-2], 2)
+			rows = append(rows, leafRows...)
+			toBeHashed = append(toBeHashed, leafForHashing)
+
+			leafRows, _ = prepareLeafRows(storageProof1[len1-2], 3)
+			rows = append(rows, leafRows...)
+		}
+	} else if len2 > len1 {
+		if additionalBranch {
+			addBranch(storageProof2[len2-3], key[len2-3])
+
+			// Note that this is not just reversed order compared to
+			// len1 > len2 case - the first leaf is always from proof S.
+
+			leafRows, leafForHashing := prepareLeafRows(storageProof1[len1-2], 2)
+			rows = append(rows, leafRows...)
+			toBeHashed = append(toBeHashed, leafForHashing)
+
+			leafRows, leafForHashing = prepareLeafRows(storageProof2[len2-2], 3)
+			rows = append(rows, leafRows...)
+			toBeHashed = append(toBeHashed, leafForHashing)
+
+			/*
+				// We add nibbles of the shorter proof:
+				l := make([]byte, len(storageProof1[len1-1]))
+				copy(l, storageProof1[len1-1])
+				// Account proof always has len1 = len2.
+				l = append(l, 4) // 4 marks leaf key nibbles
+				rows = append(rows, l)
+			*/
+		} else {
+			leafRows, leafForHashing := prepareLeafRows(storageProof2[len2-2], 2)
+			rows = append(rows, leafRows...)
+			toBeHashed = append(toBeHashed, leafForHashing)
+
+			leafRows, _ = prepareLeafRows(storageProof2[len2-2], 3)
+			rows = append(rows, leafRows...)
+		}
+	}
+
+	/*
+		// Nibbles
+		if (len1 == len2) || !additionalBranch {
+			l := make([]byte, len(storageProof1[len1-1]))
+			copy(l, storageProof1[len1-1])
+			if isAccountProof {
+				l = append(l, 12) // 12 marks account leaf key nibbles
+			} else {
+				l = append(l, 4) // 4 marks leaf key nibbles
+			}
+			rows = append(rows, l)
+		}
+	*/
 
 	return rows, toBeHashed
 }
@@ -869,6 +946,23 @@ func TestStateUpdateOneLevelEvenAddress(t *testing.T) {
 	toBeModified := ks[1]
 
 	updateStateAndGetProofs(ks[:], toBeModified, addr)
+}
+
+func TestStorageAddBranch(t *testing.T) {
+	ks := [...]common.Hash{common.HexToHash("0x11"), common.HexToHash("0x12")}
+	// hexed keys:
+	// [3,1,14,12,12,...
+	// [11,11,8,10,6,...
+	// First we have a branch with children at position 3 and 11.
+	// ks := [...]common.Hash{common.HexToHash("0x12"), common.HexToHash("0x21")}
+
+	// This key is not in the trie yet, its nibbles:
+	// [3,10,6,3,5,7,...
+	// That means leaf at position 3 turns into branch with children at position 1 and 10.
+	toBeModified := common.HexToHash("0x21")
+
+	v := common.BigToHash(big.NewInt(int64(17)))
+	updateStorageAndGetProofs(ks[:], toBeModified, v)
 }
 
 func TestStorageExtension(t *testing.T) {
