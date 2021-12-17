@@ -26,19 +26,16 @@ const keyPos = 10
 Info about row type (given as the last element of the row):
 0: init branch (such a row contains RLP info about the branch node; key)
 1: branch child
-2: leaf s
-3: leaf c
-4: leaf key nibbles
+2: storage leaf s
+3: storage leaf c
 5: hash to be computed (for example branch RLP whose hash needs to be checked in the parent)
-6: account leaf S
-7: account leaf S
-8: account leaf S
-9: account leaf C
-10: account leaf C
-11: account leaf C
-12: account leaf key nibbles
-13: leaf s value
-14: leaf c value
+6: account leaf key S
+7: account leaf nonce balance S
+8: account leaf root codehash S
+10: account leaf nonce balance C
+11: account leaf root codehash C
+13: storage leaf s value
+14: storage leaf c value
 */
 
 func check(err error) {
@@ -421,8 +418,6 @@ func prepareWitness(storageProof1, storageProof2 [][]byte, key []byte, isAccount
 					storageCodeHashRowC[branchNodeRLPLen-1+i] = storageC[i]
 				}
 
-				keyRowC := make([]byte, rowLen)
-				copy(keyRowC, keyRow)
 				nonceBalanceRowC := make([]byte, rowLen)
 				copy(nonceBalanceRowC, nonceBalanceRow)
 
@@ -430,7 +425,6 @@ func prepareWitness(storageProof1, storageProof2 [][]byte, key []byte, isAccount
 				nonceBalanceRow = append(nonceBalanceRow, 7)
 				storageCodeHashRowS = append(storageCodeHashRowS, 8)
 
-				keyRowC = append(keyRowC, 9)
 				nonceBalanceRowC = append(nonceBalanceRowC, 10)
 				storageCodeHashRowC = append(storageCodeHashRowC, 11)
 
@@ -438,7 +432,6 @@ func prepareWitness(storageProof1, storageProof2 [][]byte, key []byte, isAccount
 				rows = append(rows, nonceBalanceRow)
 				rows = append(rows, storageCodeHashRowS)
 
-				rows = append(rows, keyRowC)
 				rows = append(rows, nonceBalanceRowC)
 				rows = append(rows, storageCodeHashRowC)
 
@@ -748,6 +741,13 @@ func updateStateAndGetProofs(keys []common.Hash, toBeModified common.Hash, addr 
 
 	kh := crypto.Keccak256(toBeModified.Bytes())
 	key := trie.KeybytesToHex(kh)
+
+	kh_sum := 0
+	for i := 0; i < len(kh); i++ {
+		kh_sum += int(kh[i])
+	}
+	fmt.Println("key sum:")
+	fmt.Println(kh_sum)
 
 	/*
 		Modifying storage:
