@@ -32,7 +32,6 @@ Info about row type (given as the last element of the row):
 6: account leaf key S
 7: account leaf nonce balance S
 8: account leaf root codehash S
-10: account leaf nonce balance C
 11: account leaf root codehash C
 13: storage leaf s value
 14: storage leaf c value
@@ -418,21 +417,16 @@ func prepareWitness(storageProof1, storageProof2 [][]byte, key []byte, isAccount
 					storageCodeHashRowC[branchNodeRLPLen-1+i] = storageC[i]
 				}
 
-				nonceBalanceRowC := make([]byte, rowLen)
-				copy(nonceBalanceRowC, nonceBalanceRow)
-
 				keyRow = append(keyRow, 6)
 				nonceBalanceRow = append(nonceBalanceRow, 7)
 				storageCodeHashRowS = append(storageCodeHashRowS, 8)
 
-				nonceBalanceRowC = append(nonceBalanceRowC, 10)
 				storageCodeHashRowC = append(storageCodeHashRowC, 11)
 
 				rows = append(rows, keyRow)
 				rows = append(rows, nonceBalanceRow)
 				rows = append(rows, storageCodeHashRowS)
 
-				rows = append(rows, nonceBalanceRowC)
 				rows = append(rows, storageCodeHashRowC)
 
 				leafS = append(leafS, 5)
@@ -610,6 +604,14 @@ func updateStorageAndGetProofs(keys []common.Hash, toBeModified common.Hash, val
 	kh := crypto.Keccak256(toBeModified.Bytes())
 	key := trie.KeybytesToHex(kh)
 
+	// Just to check key RLC (rand = 1)
+	kh_sum := 0
+	for i := 0; i < len(kh); i++ {
+		kh_sum += int(kh[i])
+	}
+	fmt.Println("key sum:")
+	fmt.Println(kh_sum)
+
 	/*
 		Modifying storage:
 	*/
@@ -742,6 +744,7 @@ func updateStateAndGetProofs(keys []common.Hash, toBeModified common.Hash, addr 
 	kh := crypto.Keccak256(toBeModified.Bytes())
 	key := trie.KeybytesToHex(kh)
 
+	// Just to check key RLC (rand = 1)
 	kh_sum := 0
 	for i := 0; i < len(kh); i++ {
 		kh_sum += int(kh[i])
