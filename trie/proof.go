@@ -75,29 +75,6 @@ func (t *Trie) Prove(key []byte, fromLevel uint, proofDb ethdb.KeyValueWriter) e
 		}
 		var hn Node
 
-		var nCopy []byte
-		// copy n.Key before it gets changed in ProofHash
-		if i == len(nodes)-1 {
-			if short, ok := n.(*ShortNode); ok {
-				if hasTerm(short.Key) {
-					nCopy = make([]byte, len(short.Key)-1)
-				} else {
-					nCopy = make([]byte, len(short.Key))
-				}
-				copy(nCopy, short.Key)
-				var is_odd byte
-				var is_even byte
-				is_odd = 0
-				is_even = 0
-				if len(nCopy)&1 == 1 {
-					is_odd = 1
-				} else {
-					is_even = 1
-				}
-				nCopy = append([]byte{is_odd, is_even}, nCopy...)
-			}
-		}
-
 		n, hn = hasher.ProofHash(n)
 		if hash, ok := hn.(HashNode); ok || i == 0 {
 			// If the node's database encoding is a hash (or is the
@@ -107,12 +84,6 @@ func (t *Trie) Prove(key []byte, fromLevel uint, proofDb ethdb.KeyValueWriter) e
 				hash = hasher.HashData(enc)
 			}
 			proofDb.Put(hash, enc)
-			if i == len(nodes)-1 {
-				if _, ok := n.(*ShortNode); ok {
-					dummyKey := []byte{1}
-					proofDb.Put(dummyKey, nCopy)
-				}
-			}
 		}
 	}
 	return nil
