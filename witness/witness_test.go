@@ -21,8 +21,8 @@ const branch2start = branchNodeRLPLen + 32
 // rowLen - each branch node has 2 positions for RLP meta data and 32 positions for hash
 const rowLen = branch2start + 2 + 32 + 1 // +1 is for info about what type of row is it
 const keyPos = 10
-const isAddedSBranchPos = 11
-const isAddedCBranchPos = 12
+const isBranchSPlaceholderPos = 11
+const isBranchCPlaceholderPos = 12
 
 /*
 Info about row type (given as the last element of the row):
@@ -240,7 +240,7 @@ func prepareLeafRows(row []byte, typ byte) ([][]byte, []byte) {
 	return [][]byte{leaf1, leaf2}, leafForHashing
 }
 
-func prepareTwoBranchesWitness(branch1, branch2 []byte, key byte, isAddedSBranch, isAddedCBranch bool) [][]byte {
+func prepareTwoBranchesWitness(branch1, branch2 []byte, key byte, isBranchSPlaceholder, isBranchCPlaceholder bool) [][]byte {
 	rows := make([][]byte, 17)
 	rows[0] = make([]byte, rowLen)
 
@@ -293,11 +293,11 @@ func prepareTwoBranchesWitness(branch1, branch2 []byte, key byte, isAddedSBranch
 
 	rows[0][keyPos] = key
 
-	if isAddedSBranch {
-		rows[0][isAddedSBranchPos] = 1
+	if isBranchSPlaceholder {
+		rows[0][isBranchSPlaceholderPos] = 1
 	}
-	if isAddedCBranch {
-		rows[0][isAddedCBranchPos] = 1
+	if isBranchCPlaceholder {
+		rows[0][isBranchCPlaceholderPos] = 1
 	}
 
 	for i := 1; i < 17; i++ {
@@ -502,19 +502,19 @@ func prepareWitness(storageProof1, storageProof2 [][]byte, key []byte, isAccount
 		}
 	}
 
-	addBranch := func(branch1, branch2 []byte, modifiedIndex byte, sAdded bool) {
-		isAddedSBranch := false
-		isAddedCBranch := false
-		if sAdded {
-			isAddedSBranch = true
+	addBranch := func(branch1, branch2 []byte, modifiedIndex byte, isCPlaceholder bool) {
+		isBranchSPlaceholder := false
+		isBranchCPlaceholder := false
+		if isCPlaceholder {
+			isBranchCPlaceholder = true
 		} else {
-			isAddedCBranch = true
+			isBranchSPlaceholder = true
 		}
-		bRows := prepareTwoBranchesWitness(branch1, branch2, modifiedIndex, isAddedSBranch, isAddedCBranch)
+		bRows := prepareTwoBranchesWitness(branch1, branch2, modifiedIndex, isBranchSPlaceholder, isBranchCPlaceholder)
 		rows = append(rows, bRows...)
 
 		branchToBeHashed := branch1
-		if !sAdded {
+		if !isCPlaceholder {
 			branchToBeHashed = branch2
 		}
 		branchExt := make([]byte, len(branchToBeHashed))
