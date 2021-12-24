@@ -23,6 +23,7 @@ const rowLen = branch2start + 2 + 32 + 1 // +1 is for info about what type of ro
 const keyPos = 10
 const isBranchSPlaceholderPos = 11
 const isBranchCPlaceholderPos = 12
+const firstNibblePos = 13
 
 /*
 Info about row type (given as the last element of the row):
@@ -523,6 +524,26 @@ func prepareWitness(storageProof1, storageProof2 [][]byte, key []byte, isAccount
 		toBeHashed = append(toBeHashed, branchExt)
 	}
 
+	getFirstNibble := func(leafKeyRow []byte) byte {
+		// Set first nibble in branch init:
+		firstNibble := byte(0)
+		if leafKeyRow[0] == 226 {
+			if leafKeyRow[2] == 32 {
+				firstNibble = leafKeyRow[3] / 16
+			} else {
+				firstNibble = leafKeyRow[2] - 48
+			}
+		} else {
+			if leafKeyRow[3] == 32 {
+				firstNibble = leafKeyRow[4] / 16
+			} else {
+				firstNibble = leafKeyRow[3] - 48
+			}
+		}
+
+		return firstNibble
+	}
+
 	if len1 > len2 {
 		if additionalBranch {
 			// C branch is just a placeholder here.
@@ -539,6 +560,7 @@ func prepareWitness(storageProof1, storageProof2 [][]byte, key []byte, isAccount
 			// We don't have a leaf in the shorter proof, but we will add it there
 			// too as a placeholder.
 			leafRows, leafForHashing := prepareLeafRows(storageProof1[len1-1], 2)
+			rows[len(rows)-17][firstNibblePos] = getFirstNibble(leafRows[0])
 			rows = append(rows, leafRows...)
 			toBeHashed = append(toBeHashed, leafForHashing)
 
@@ -554,6 +576,7 @@ func prepareWitness(storageProof1, storageProof2 [][]byte, key []byte, isAccount
 			// len1 > len2 case - the first leaf is always from proof S.
 
 			leafRows, leafForHashing := prepareLeafRows(storageProof1[len1-1], 2)
+			rows[len(rows)-17][firstNibblePos] = getFirstNibble(leafRows[0])
 			rows = append(rows, leafRows...)
 			toBeHashed = append(toBeHashed, leafForHashing)
 
