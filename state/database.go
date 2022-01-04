@@ -94,7 +94,9 @@ type Trie interface {
 	// and external (for account tries) references.
 	Commit(onleaf trie.LeafCallback) (common.Hash, error)
 
-	Prove(key []byte, fromLevel uint, proofDb ethdb.KeyValueWriter) error
+	Prove(key []byte, fromLevel uint, proofDb ethdb.KeyValueWriter) ([]byte, error)
+
+	GetNodeByNibbles(key []byte) ([]byte, error)
 }
 
 // stubbed: we don't prefetch

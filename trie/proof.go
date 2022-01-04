@@ -34,11 +34,12 @@ import (
 // If the trie does not contain a value for key, the returned proof contains all
 // nodes of the longest existing prefix of the key (at least the root node), ending
 // with the node that proves the absence of the key.
-func (t *Trie) Prove(key []byte, fromLevel uint, proofDb ethdb.KeyValueWriter) error {
+func (t *Trie) Prove(key []byte, fromLevel uint, proofDb ethdb.KeyValueWriter) ([]byte, error) {
 	// Collect all nodes on the path to key.
 	key = KeybytesToHex(key)
 	var nodes []Node
 	tn := t.root
+	foundAt := []byte{}
 	for len(key) > 0 && tn != nil {
 		switch n := tn.(type) {
 		case *ShortNode:
@@ -52,6 +53,10 @@ func (t *Trie) Prove(key []byte, fromLevel uint, proofDb ethdb.KeyValueWriter) e
 			nodes = append(nodes, n)
 		case *FullNode:
 			tn = n.Children[key[0]]
+
+			foundAt = append(foundAt, key[0])
+			fmt.Println(foundAt)
+
 			key = key[1:]
 			nodes = append(nodes, n)
 		case HashNode:
@@ -59,7 +64,7 @@ func (t *Trie) Prove(key []byte, fromLevel uint, proofDb ethdb.KeyValueWriter) e
 			tn, err = t.resolveHash(n, nil)
 			if err != nil {
 				log.Error(fmt.Sprintf("Unhandled trie error: %v", err))
-				return err
+				return nil, err
 			}
 		default:
 			panic(fmt.Sprintf("%T: invalid node: %v", tn, tn))
@@ -86,7 +91,45 @@ func (t *Trie) Prove(key []byte, fromLevel uint, proofDb ethdb.KeyValueWriter) e
 			proofDb.Put(hash, enc)
 		}
 	}
-	return nil
+	return foundAt, nil
+}
+
+func (t *Trie) GetNodeByNibbles(key []byte) ([]byte, error) {
+	tn := t.root
+	// var node Node
+	for len(key) > 0 && tn != nil {
+		switch n := tn.(type) {
+		case *ShortNode:
+			if len(key) < len(n.Key) || !bytes.Equal(n.Key, key[:len(n.Key)]) {
+				// The trie doesn't contain the key.
+				tn = nil
+			} else {
+				tn = n.Val
+				key = key[len(n.Key):]
+			}
+		case *FullNode:
+			tn = n.Children[key[0]]
+			key = key[1:]
+			if len(key) == 0 {
+				hasher := NewHasher(false)
+				s := tn.(*ShortNode)
+				nn, _ := hasher.ProofHash(s)
+				enc, _ := rlp.EncodeToBytes(nn)
+				return enc, nil
+			}
+		case HashNode:
+			var err error
+			tn, err = t.resolveHash(n, nil)
+			if err != nil {
+				log.Error(fmt.Sprintf("Unhandled trie error: %v", err))
+				return nil, err
+			}
+		default:
+			panic(fmt.Sprintf("%T: invalid node: %v", tn, tn))
+		}
+	}
+
+	return nil, nil
 }
 
 // Prove constructs a merkle proof for key. The result contains all encoded nodes
@@ -96,8 +139,12 @@ func (t *Trie) Prove(key []byte, fromLevel uint, proofDb ethdb.KeyValueWriter) e
 // If the trie does not contain a value for key, the returned proof contains all
 // nodes of the longest existing prefix of the key (at least the root node), ending
 // with the node that proves the absence of the key.
-func (t *SecureTrie) Prove(key []byte, fromLevel uint, proofDb ethdb.KeyValueWriter) error {
+func (t *SecureTrie) Prove(key []byte, fromLevel uint, proofDb ethdb.KeyValueWriter) ([]byte, error) {
 	return t.trie.Prove(key, fromLevel, proofDb)
+}
+
+func (t *SecureTrie) GetNodeByNibbles(key []byte) ([]byte, error) {
+	return t.trie.GetNodeByNibbles(key)
 }
 
 // VerifyProof checks merkle proofs. The given proof must contain the value for

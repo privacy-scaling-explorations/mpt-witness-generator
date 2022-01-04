@@ -38,6 +38,7 @@ Info about row type (given as the last element of the row):
 11: account leaf root codehash C
 13: storage leaf s value
 14: storage leaf c value
+15: neighbouring storage leaf (when leaf turned into branch)
 */
 
 func check(err error) {
@@ -316,7 +317,7 @@ func prepareTwoBranchesWitness(branch1, branch2 []byte, key byte, isBranchSPlace
 	return rows
 }
 
-func prepareWitness(storageProof1, storageProof2 [][]byte, key []byte, isAccountProof bool) ([][]byte, [][]byte) {
+func prepareWitness(storageProof1, storageProof2 [][]byte, key, foundAt []byte, addr common.Address, statedb *state.StateDB, isAccountProof bool) ([][]byte, [][]byte) {
 	rows := make([][]byte, 0)
 	toBeHashed := make([][]byte, 0)
 
@@ -550,7 +551,22 @@ func prepareWitness(storageProof1, storageProof2 [][]byte, key []byte, isAccount
 			addBranch(storageProof1[len1-2], storageProof1[len1-2], key[len1-2], true)
 
 			leafRows, leafForHashing := prepareLeafRows(storageProof1[len1-1], 2)
+			firstNibble := getFirstNibble(leafRows[0])
+
+			rows[len(rows)-17][firstNibblePos] = firstNibble
 			rows = append(rows, leafRows...)
+
+			foundAt[len(foundAt)-1] = firstNibble
+			node, err := statedb.GetNodeByNibbles(addr, foundAt)
+			check(err)
+			sLeafRows, _ := prepareLeafRows(node, 15)
+			rows = append(rows, []byte{}) // will be used for extension nodes (for ShortNode key)
+			// Neighbouring leaf - the leaf that used to be one level above,
+			// but it was "drifted down" when additional branch was added.
+			// Value (sLeafRows[1]) is not needed because we already have it
+			// in the parallel proof.
+			rows = append(rows, sLeafRows[0])
+
 			toBeHashed = append(toBeHashed, leafForHashing)
 
 			leafRows, leafForHashing = prepareLeafRows(storageProof2[len2-1], 3)
@@ -560,7 +576,6 @@ func prepareWitness(storageProof1, storageProof2 [][]byte, key []byte, isAccount
 			// We don't have a leaf in the shorter proof, but we will add it there
 			// too as a placeholder.
 			leafRows, leafForHashing := prepareLeafRows(storageProof1[len1-1], 2)
-			rows[len(rows)-17][firstNibblePos] = getFirstNibble(leafRows[0])
 			rows = append(rows, leafRows...)
 			toBeHashed = append(toBeHashed, leafForHashing)
 
@@ -576,8 +591,22 @@ func prepareWitness(storageProof1, storageProof2 [][]byte, key []byte, isAccount
 			// len1 > len2 case - the first leaf is always from proof S.
 
 			leafRows, leafForHashing := prepareLeafRows(storageProof1[len1-1], 2)
-			rows[len(rows)-17][firstNibblePos] = getFirstNibble(leafRows[0])
+			firstNibble := getFirstNibble(leafRows[0])
+
+			rows[len(rows)-17][firstNibblePos] = firstNibble
 			rows = append(rows, leafRows...)
+
+			foundAt[len(foundAt)-1] = firstNibble
+			node, err := statedb.GetNodeByNibbles(addr, foundAt)
+			check(err)
+			sLeafRows, _ := prepareLeafRows(node, 15)
+			rows = append(rows, []byte{}) // will be used for extension nodes (for ShortNode key)
+			// Neighbouring leaf - the leaf that used to be one level above,
+			// but it was "drifted down" when additional branch was added.
+			// Value (sLeafRows[1]) is not needed because we already have it
+			// in the parallel proof.
+			rows = append(rows, sLeafRows[0])
+
 			toBeHashed = append(toBeHashed, leafForHashing)
 
 			leafRows, leafForHashing = prepareLeafRows(storageProof2[len2-1], 3)
@@ -611,7 +640,7 @@ func updateStorageAndGetProofs(keys []common.Hash, toBeModified common.Hash, val
 	}
 
 	// Let's say above state is our starting position.
-	storageProof, err := statedb.GetStorageProof(addr, toBeModified)
+	storageProof, foundAt, err := statedb.GetStorageProof(addr, toBeModified)
 	check(err)
 
 	kh := crypto.Keccak256(toBeModified.Bytes())
@@ -634,10 +663,10 @@ func updateStorageAndGetProofs(keys []common.Hash, toBeModified common.Hash, val
 
 	// We ask for a proof for the modified slot:
 	statedb.IntermediateRoot(false)
-	storageProof1, err := statedb.GetStorageProof(addr, toBeModified)
+	storageProof1, foundAt, err := statedb.GetStorageProof(addr, toBeModified)
 	check(err)
 
-	rows, toBeHashed := prepareWitness(storageProof, storageProof1, key, false)
+	rows, toBeHashed := prepareWitness(storageProof, storageProof1, key, foundAt, addr, statedb, false)
 	rows = append(rows, toBeHashed...)
 	fmt.Println(matrixToJson(rows))
 
@@ -706,9 +735,9 @@ func updateStateAndGetProofs(keys []common.Hash, toBeModified common.Hash, addr 
 	// This first proof will actually be retrieved by RPC eth_getProof (see oracle.PrefetchStorage function).
 	// All other proofs (after modifications) will be generated internally by buildig the internal state.
 
-	accountProof, err := statedb.GetProof(addr)
+	accountProof, _, err := statedb.GetProof(addr)
 	check(err)
-	storageProof, err := statedb.GetStorageProof(addr, toBeModified)
+	storageProof, foundAt, err := statedb.GetStorageProof(addr, toBeModified)
 	check(err)
 
 	// By calling RPC eth_getProof we will get accountProof and storageProof.
@@ -776,14 +805,14 @@ func updateStateAndGetProofs(keys []common.Hash, toBeModified common.Hash, addr 
 	// We ask for a proof for the modified slot:
 	statedb.IntermediateRoot(false)
 
-	accountProof1, err := statedb.GetProof(addr)
+	accountProof1, _, err := statedb.GetProof(addr)
 	check(err)
 
-	storageProof1, err := statedb.GetStorageProof(addr, toBeModified)
+	storageProof1, foundAt1, err := statedb.GetStorageProof(addr, toBeModified)
 	check(err)
 
-	rowsState, toBeHashedAcc := prepareWitness(accountProof, accountProof1, accountAddr, true)
-	rowsStorage, toBeHashedStorage := prepareWitness(storageProof, storageProof1, key, false)
+	rowsState, toBeHashedAcc := prepareWitness(accountProof, accountProof1, accountAddr, foundAt, addr, statedb, true)
+	rowsStorage, toBeHashedStorage := prepareWitness(storageProof, storageProof1, key, foundAt1, addr, statedb, false)
 	rowsState = append(rowsState, rowsStorage...)
 
 	// Put rows that just need to be hashed at the end, because circuit assign function
@@ -1012,7 +1041,7 @@ func TestStorageExtension(t *testing.T) {
 		common.HexToHash("0x61"), // extension
 	}
 
-	toBeModified := ks[10]
+	toBeModified := ks[len(ks)-1]
 
 	v := common.BigToHash(big.NewInt(int64(17)))
 	updateStorageAndGetProofs(ks[:], toBeModified, v)

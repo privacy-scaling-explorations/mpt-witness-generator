@@ -289,26 +289,31 @@ func (s *StateDB) GetState(addr common.Address, hash common.Hash) common.Hash {
 }
 
 // GetProof returns the Merkle proof for a given account.
-func (s *StateDB) GetProof(addr common.Address) ([][]byte, error) {
+func (s *StateDB) GetProof(addr common.Address) ([][]byte, []byte, error) {
 	return s.GetProofByHash(crypto.Keccak256Hash(addr.Bytes()))
 }
 
 // GetProofByHash returns the Merkle proof for a given account.
-func (s *StateDB) GetProofByHash(addrHash common.Hash) ([][]byte, error) {
+func (s *StateDB) GetProofByHash(addrHash common.Hash) ([][]byte, []byte, error) {
 	var proof proofList
-	err := s.trie.Prove(addrHash[:], 0, &proof)
-	return proof, err
+	foundAt, err := s.trie.Prove(addrHash[:], 0, &proof)
+	return proof, foundAt, err
 }
 
 // GetStorageProof returns the Merkle proof for given storage slot.
-func (s *StateDB) GetStorageProof(a common.Address, key common.Hash) ([][]byte, error) {
+func (s *StateDB) GetStorageProof(a common.Address, key common.Hash) ([][]byte, []byte, error) {
 	var proof proofList
 	trie := s.StorageTrie(a)
 	if trie == nil {
-		return proof, errors.New("storage trie for requested address does not exist")
+		return proof, nil, errors.New("storage trie for requested address does not exist")
 	}
-	err := trie.Prove(crypto.Keccak256(key.Bytes()), 0, &proof)
-	return proof, err
+	foundAt, err := trie.Prove(crypto.Keccak256(key.Bytes()), 0, &proof)
+	return proof, foundAt, err
+}
+
+func (s *StateDB) GetNodeByNibbles(a common.Address, key []byte) ([]byte, error) {
+	trie := s.StorageTrie(a)
+	return trie.GetNodeByNibbles(key)
 }
 
 // GetCommittedState retrieves a value from the given account's committed storage trie.
