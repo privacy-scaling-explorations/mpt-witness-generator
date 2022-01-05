@@ -17,6 +17,7 @@ import (
 
 const branchNodeRLPLen = 2 // we have two positions for RLP meta data
 const branch2start = branchNodeRLPLen + 32
+const branchRows = 19 // 1 (init) + 16 (children) + 2 (extension S and C)
 
 // rowLen - each branch node has 2 positions for RLP meta data and 32 positions for hash
 const rowLen = branch2start + 2 + 32 + 1 // +1 is for info about what type of row is it
@@ -39,7 +40,8 @@ Info about row type (given as the last element of the row):
 13: storage leaf s value
 14: storage leaf c value
 15: neighbouring storage leaf (when leaf turned into branch)
-16: extension node key
+16: extension node S
+17: extension node C
 */
 
 func check(err error) {
@@ -213,17 +215,21 @@ func prepareBranchWitness(rows [][]byte, branch []byte, branchStart int, branchR
 }
 
 func preparePlaceholderRows() [][]byte {
-	/*
-		// TODO: extension node key will be added to the end of the branch
-		ext_row := make([]byte, rowLen)
-		ext_row = append(ext_row, 16)
-	*/
-
 	leaf_in_added_branch := make([]byte, rowLen)
 	leaf_in_added_branch = append(leaf_in_added_branch, 15)
 
-	// return [][]byte{ext_row, leaf_in_added_branch}
 	return [][]byte{leaf_in_added_branch}
+}
+
+func prepareExtensionRows() [][]byte {
+	// TODO: extension node key in s_advices, hash of branch in c_advices
+	ext_row1 := make([]byte, rowLen)
+	ext_row1 = append(ext_row1, 16)
+
+	ext_row2 := make([]byte, rowLen)
+	ext_row2 = append(ext_row2, 17)
+
+	return [][]byte{ext_row1, ext_row2}
 }
 
 func prepareLeafRows(row []byte, typ byte) ([][]byte, []byte) {
@@ -328,6 +334,9 @@ func prepareTwoBranchesWitness(branch1, branch2 []byte, key byte, isBranchSPlace
 	}
 	prepareBranchWitness(rows, branch1, 0, branch1RLPOffset)
 	prepareBranchWitness(rows, branch2, 2+32, branch2RLPOffset)
+
+	eRows := prepareExtensionRows()
+	rows = append(rows, eRows...)
 
 	return rows
 }
@@ -567,7 +576,7 @@ func prepareWitness(storageProof1, storageProof2 [][]byte, key, foundAt []byte, 
 
 			leafRows, leafForHashing := prepareLeafRows(storageProof1[len1-1], 2)
 			firstNibble := getFirstNibble(leafRows[0])
-			rows[len(rows)-17][firstNibblePos] = firstNibble
+			rows[len(rows)-branchRows][firstNibblePos] = firstNibble // -branchRows lands into branch init
 			rows = append(rows, leafRows...)
 			toBeHashed = append(toBeHashed, leafForHashing)
 
@@ -613,7 +622,7 @@ func prepareWitness(storageProof1, storageProof2 [][]byte, key, foundAt []byte, 
 
 			leafRows, leafForHashing := prepareLeafRows(storageProof1[len1-1], 2)
 			firstNibble := getFirstNibble(leafRows[0])
-			rows[len(rows)-17][firstNibblePos] = firstNibble
+			rows[len(rows)-branchRows][firstNibblePos] = firstNibble // -branchRows lands into branch init
 			rows = append(rows, leafRows...)
 			toBeHashed = append(toBeHashed, leafForHashing)
 
