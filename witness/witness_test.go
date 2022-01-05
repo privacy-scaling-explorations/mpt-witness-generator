@@ -39,6 +39,7 @@ Info about row type (given as the last element of the row):
 13: storage leaf s value
 14: storage leaf c value
 15: neighbouring storage leaf (when leaf turned into branch)
+16: extension node key
 */
 
 func check(err error) {
@@ -209,6 +210,20 @@ func prepareBranchWitness(rows [][]byte, branch []byte, branchStart int, branchR
 			// fmt.Println(rows[rowInd-1])
 		}
 	}
+}
+
+func preparePlaceholderRows() [][]byte {
+	/*
+		// TODO: extension node key will be added to the end of the branch
+		ext_row := make([]byte, rowLen)
+		ext_row = append(ext_row, 16)
+	*/
+
+	leaf_in_added_branch := make([]byte, rowLen)
+	leaf_in_added_branch = append(leaf_in_added_branch, 15)
+
+	// return [][]byte{ext_row, leaf_in_added_branch}
+	return [][]byte{leaf_in_added_branch}
 }
 
 func prepareLeafRows(row []byte, typ byte) ([][]byte, []byte) {
@@ -552,26 +567,29 @@ func prepareWitness(storageProof1, storageProof2 [][]byte, key, foundAt []byte, 
 
 			leafRows, leafForHashing := prepareLeafRows(storageProof1[len1-1], 2)
 			firstNibble := getFirstNibble(leafRows[0])
-
 			rows[len(rows)-17][firstNibblePos] = firstNibble
 			rows = append(rows, leafRows...)
-
-			foundAt[len(foundAt)-1] = firstNibble
-			node, err := statedb.GetNodeByNibbles(addr, foundAt)
-			check(err)
-			sLeafRows, _ := prepareLeafRows(node, 15)
-			rows = append(rows, []byte{}) // will be used for extension nodes (for ShortNode key)
-			// Neighbouring leaf - the leaf that used to be one level above,
-			// but it was "drifted down" when additional branch was added.
-			// Value (sLeafRows[1]) is not needed because we already have it
-			// in the parallel proof.
-			rows = append(rows, sLeafRows[0])
-
 			toBeHashed = append(toBeHashed, leafForHashing)
 
 			leafRows, leafForHashing = prepareLeafRows(storageProof2[len2-1], 3)
 			rows = append(rows, leafRows...)
 			toBeHashed = append(toBeHashed, leafForHashing)
+
+			foundAt[len(foundAt)-1] = firstNibble
+			node, err := statedb.GetNodeByNibbles(addr, foundAt)
+			check(err)
+			sLeafRows, _ := prepareLeafRows(node, 15)
+			/*
+					// TODO: extension node key will be added at the end of the branch
+					ext_row := make([]byte, rowLen)
+					ext_row = append(ext_row, 16)
+				rows = append(rows, ext_row) // will be used for extension nodes (for ShortNode key)
+			*/
+			// Neighbouring leaf - the leaf that used to be one level above,
+			// but it was "drifted down" when additional branch was added.
+			// Value (sLeafRows[1]) is not needed because we already have it
+			// in the parallel proof.
+			rows = append(rows, sLeafRows[0])
 		} else {
 			// We don't have a leaf in the shorter proof, but we will add it there
 			// too as a placeholder.
@@ -581,6 +599,9 @@ func prepareWitness(storageProof1, storageProof2 [][]byte, key, foundAt []byte, 
 
 			leafRows, _ = prepareLeafRows(storageProof1[len1-1], 3)
 			rows = append(rows, leafRows...)
+
+			pRows := preparePlaceholderRows()
+			rows = append(rows, pRows...)
 		}
 	} else if len2 > len1 {
 		if additionalBranch {
@@ -592,26 +613,29 @@ func prepareWitness(storageProof1, storageProof2 [][]byte, key, foundAt []byte, 
 
 			leafRows, leafForHashing := prepareLeafRows(storageProof1[len1-1], 2)
 			firstNibble := getFirstNibble(leafRows[0])
-
 			rows[len(rows)-17][firstNibblePos] = firstNibble
 			rows = append(rows, leafRows...)
-
-			foundAt[len(foundAt)-1] = firstNibble
-			node, err := statedb.GetNodeByNibbles(addr, foundAt)
-			check(err)
-			sLeafRows, _ := prepareLeafRows(node, 15)
-			rows = append(rows, []byte{}) // will be used for extension nodes (for ShortNode key)
-			// Neighbouring leaf - the leaf that used to be one level above,
-			// but it was "drifted down" when additional branch was added.
-			// Value (sLeafRows[1]) is not needed because we already have it
-			// in the parallel proof.
-			rows = append(rows, sLeafRows[0])
-
 			toBeHashed = append(toBeHashed, leafForHashing)
 
 			leafRows, leafForHashing = prepareLeafRows(storageProof2[len2-1], 3)
 			rows = append(rows, leafRows...)
 			toBeHashed = append(toBeHashed, leafForHashing)
+
+			foundAt[len(foundAt)-1] = firstNibble
+			node, err := statedb.GetNodeByNibbles(addr, foundAt)
+			check(err)
+			sLeafRows, _ := prepareLeafRows(node, 15)
+			/*
+					// TODO: extension node key will be added at the end of the branch
+					ext_row := make([]byte, rowLen)
+					ext_row = append(ext_row, 16)
+				rows = append(rows, ext_row) // will be used for extension nodes (for ShortNode key)
+			*/
+			// Neighbouring leaf - the leaf that used to be one level above,
+			// but it was "drifted down" when additional branch was added.
+			// Value (sLeafRows[1]) is not needed because we already have it
+			// in the parallel proof.
+			rows = append(rows, sLeafRows[0])
 		} else {
 			leafRows, leafForHashing := prepareLeafRows(storageProof2[len2-1], 2)
 			rows = append(rows, leafRows...)
@@ -619,7 +643,13 @@ func prepareWitness(storageProof1, storageProof2 [][]byte, key, foundAt []byte, 
 
 			leafRows, _ = prepareLeafRows(storageProof2[len2-1], 3)
 			rows = append(rows, leafRows...)
+
+			pRows := preparePlaceholderRows()
+			rows = append(rows, pRows...)
 		}
+	} else if !isAccountProof {
+		pRows := preparePlaceholderRows()
+		rows = append(rows, pRows...)
 	}
 
 	return rows, toBeHashed
@@ -694,7 +724,7 @@ func updateStorageAndGetProofs(keys []common.Hash, toBeModified common.Hash, val
 
 		hasher := trie.NewHasher(false)
 
-		for i := 0; i < minLen; i++ {
+		for i := 0; i < minLen-1; i++ {
 			rootHash := hasher.HashData(storageProof[i])
 			root, err := trie.DecodeNode(rootHash, storageProof[i])
 			check(err)
