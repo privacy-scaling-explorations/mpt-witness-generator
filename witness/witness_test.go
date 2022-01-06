@@ -30,8 +30,8 @@ const firstNibblePos = 13
 Info about row type (given as the last element of the row):
 0: init branch (such a row contains RLP info about the branch node; key)
 1: branch child
-2: storage leaf s
-3: storage leaf c
+2: storage leaf s key
+3: storage leaf c key
 5: hash to be computed (for example branch RLP whose hash needs to be checked in the parent)
 6: account leaf key S
 7: account leaf nonce balance S
@@ -586,14 +586,17 @@ func prepareWitness(storageProof1, storageProof2 [][]byte, key, foundAt []byte, 
 
 			foundAt[len(foundAt)-1] = firstNibble
 			node, err := statedb.GetNodeByNibbles(addr, foundAt)
+
 			check(err)
+
+			// The branch contains hash of the neighbouring leaf, to be able
+			// to check it, we add node RLP to toBeHashed
+			leafRLP := make([]byte, rowLen)
+			copy(leafRLP, node)
+			leafRLP = append(leafRLP, 5)
+			toBeHashed = append(toBeHashed, leafRLP)
+
 			sLeafRows, _ := prepareLeafRows(node, 15)
-			/*
-					// TODO: extension node key will be added at the end of the branch
-					ext_row := make([]byte, rowLen)
-					ext_row = append(ext_row, 16)
-				rows = append(rows, ext_row) // will be used for extension nodes (for ShortNode key)
-			*/
 			// Neighbouring leaf - the leaf that used to be one level above,
 			// but it was "drifted down" when additional branch was added.
 			// Value (sLeafRows[1]) is not needed because we already have it
@@ -633,13 +636,15 @@ func prepareWitness(storageProof1, storageProof2 [][]byte, key, foundAt []byte, 
 			foundAt[len(foundAt)-1] = firstNibble
 			node, err := statedb.GetNodeByNibbles(addr, foundAt)
 			check(err)
+
+			// The branch contains hash of the neighbouring leaf, to be able
+			// to check it, we add node RLP to toBeHashed
+			leafRLP := make([]byte, rowLen)
+			copy(leafRLP, node)
+			leafRLP = append(leafRLP, 5)
+			toBeHashed = append(toBeHashed, leafRLP)
+
 			sLeafRows, _ := prepareLeafRows(node, 15)
-			/*
-					// TODO: extension node key will be added at the end of the branch
-					ext_row := make([]byte, rowLen)
-					ext_row = append(ext_row, 16)
-				rows = append(rows, ext_row) // will be used for extension nodes (for ShortNode key)
-			*/
 			// Neighbouring leaf - the leaf that used to be one level above,
 			// but it was "drifted down" when additional branch was added.
 			// Value (sLeafRows[1]) is not needed because we already have it
