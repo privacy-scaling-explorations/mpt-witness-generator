@@ -639,7 +639,7 @@ func prepareWitness(storageProof1, storageProof2 [][]byte, key, foundAt []byte, 
 
 			// The branch contains hash of the neighbouring leaf, to be able
 			// to check it, we add node RLP to toBeHashed
-			leafRLP := make([]byte, rowLen)
+			leafRLP := make([]byte, len(node))
 			copy(leafRLP, node)
 			leafRLP = append(leafRLP, 5)
 			toBeHashed = append(toBeHashed, leafRLP)
