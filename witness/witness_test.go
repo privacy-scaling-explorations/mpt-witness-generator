@@ -604,7 +604,7 @@ func prepareWitness(storageProof1, storageProof2 [][]byte, key, foundAt []byte, 
 			rows = append(rows, sLeafRows[0])
 		} else {
 			// We don't have a leaf in the shorter proof, but we will add it there
-			// too as a placeholder.
+			// as a placeholder.
 			leafRows, leafForHashing := prepareLeafRows(storageProof1[len1-1], 2)
 			rows = append(rows, leafRows...)
 			toBeHashed = append(toBeHashed, leafForHashing)
@@ -683,8 +683,15 @@ func updateStorageAndGetProofs(keys []common.Hash, toBeModified common.Hash, val
 		statedb.SetState(addr, k, v)
 	}
 
+	// Calling IntermediateRoot because of delete operation - without this call,
+	// delete doesn't happen, see
+	//if value == s.originStorage[key] {
+	//		continue
+	//}
+	// in state_object.go, because originStorage stays set to 0 and value = 0.
+	statedb.IntermediateRoot(false)
 	// Let's say above state is our starting position.
-	storageProof, foundAt, err := statedb.GetStorageProof(addr, toBeModified)
+	storageProof, _, err := statedb.GetStorageProof(addr, toBeModified)
 	check(err)
 
 	kh := crypto.Keccak256(toBeModified.Bytes())
@@ -1008,6 +1015,20 @@ func TestStorageFromNilToValue(t *testing.T) {
 	toBeModified := common.HexToHash("0x38")
 
 	v := common.BigToHash(big.NewInt(int64(17)))
+	updateStorageAndGetProofs(ks[:], toBeModified, v)
+}
+
+func TestStorageDelete(t *testing.T) {
+	ks := [...]common.Hash{
+		common.HexToHash("0xaaaabbbbabab"),
+		common.HexToHash("0xbaaabbbbabab"),
+		common.HexToHash("0xcaaabbbbabab"),
+		common.HexToHash("0xdaaabbbbabab"),
+	}
+
+	toBeModified := common.HexToHash("0xdaaabbbbabab")
+
+	v := common.Hash{}
 	updateStorageAndGetProofs(ks[:], toBeModified, v)
 }
 
