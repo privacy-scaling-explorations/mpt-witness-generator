@@ -341,7 +341,7 @@ func prepareTwoBranchesWitness(branch1, branch2 []byte, key byte, isBranchSPlace
 	return rows
 }
 
-func prepareWitness(storageProof1, storageProof2 [][]byte, key, foundAt []byte, addr common.Address, statedb *state.StateDB, isAccountProof bool) ([][]byte, [][]byte) {
+func prepareWitness(storageProof1, storageProof2 [][]byte, key []byte, neighbourNode []byte, addr common.Address, statedb *state.StateDB, isAccountProof bool) ([][]byte, [][]byte) {
 	rows := make([][]byte, 0)
 	toBeHashed := make([][]byte, 0)
 
@@ -575,28 +575,26 @@ func prepareWitness(storageProof1, storageProof2 [][]byte, key, foundAt []byte, 
 			addBranch(storageProof1[len1-2], storageProof1[len1-2], key[len1-2], true)
 
 			leafRows, leafForHashing := prepareLeafRows(storageProof1[len1-1], 2)
-			firstNibble := getFirstNibble(leafRows[0])
-			rows[len(rows)-branchRows][firstNibblePos] = firstNibble // -branchRows lands into branch init
 			rows = append(rows, leafRows...)
 			toBeHashed = append(toBeHashed, leafForHashing)
 
 			leafRows, leafForHashing = prepareLeafRows(storageProof2[len2-1], 3)
+			// We now get the first nibble of the leaf that was turned into branch.
+			// This first nibble presents the position of the leaf once it moved
+			// into the new branch.
+			firstNibble := getFirstNibble(leafRows[0])
+			rows[len(rows)-branchRows-2][firstNibblePos] = firstNibble // -branchRows-2 lands into branch init
 			rows = append(rows, leafRows...)
 			toBeHashed = append(toBeHashed, leafForHashing)
 
-			foundAt[len(foundAt)-1] = firstNibble
-			node, err := statedb.GetNodeByNibbles(addr, foundAt)
-
-			check(err)
-
 			// The branch contains hash of the neighbouring leaf, to be able
 			// to check it, we add node RLP to toBeHashed
-			leafRLP := make([]byte, rowLen)
-			copy(leafRLP, node)
+			leafRLP := make([]byte, len(neighbourNode))
+			copy(leafRLP, neighbourNode)
 			leafRLP = append(leafRLP, 5)
 			toBeHashed = append(toBeHashed, leafRLP)
 
-			sLeafRows, _ := prepareLeafRows(node, 15)
+			sLeafRows, _ := prepareLeafRows(neighbourNode, 15)
 			// Neighbouring leaf - the leaf that used to be one level above,
 			// but it was "drifted down" when additional branch was added.
 			// Value (sLeafRows[1]) is not needed because we already have it
@@ -621,9 +619,13 @@ func prepareWitness(storageProof1, storageProof2 [][]byte, key, foundAt []byte, 
 			addBranch(storageProof2[len2-2], storageProof2[len2-2], key[len2-2], false)
 
 			// Note that this is not just reversed order compared to
-			// len1 > len2 case - the first leaf is always from proof S.
+			// len1 > len2 case - the first leaf is always from proof S
+			// (the order of leaves at the end is always: first S, then C).
 
 			leafRows, leafForHashing := prepareLeafRows(storageProof1[len1-1], 2)
+			// We now get the first nibble of the leaf that was turned into branch.
+			// This first nibble presents the position of the leaf once it moved
+			// into the new branch.
 			firstNibble := getFirstNibble(leafRows[0])
 			rows[len(rows)-branchRows][firstNibblePos] = firstNibble // -branchRows lands into branch init
 			rows = append(rows, leafRows...)
@@ -633,18 +635,14 @@ func prepareWitness(storageProof1, storageProof2 [][]byte, key, foundAt []byte, 
 			rows = append(rows, leafRows...)
 			toBeHashed = append(toBeHashed, leafForHashing)
 
-			foundAt[len(foundAt)-1] = firstNibble
-			node, err := statedb.GetNodeByNibbles(addr, foundAt)
-			check(err)
-
 			// The branch contains hash of the neighbouring leaf, to be able
 			// to check it, we add node RLP to toBeHashed
-			leafRLP := make([]byte, len(node))
-			copy(leafRLP, node)
+			leafRLP := make([]byte, len(neighbourNode))
+			copy(leafRLP, neighbourNode)
 			leafRLP = append(leafRLP, 5)
 			toBeHashed = append(toBeHashed, leafRLP)
 
-			sLeafRows, _ := prepareLeafRows(node, 15)
+			sLeafRows, _ := prepareLeafRows(neighbourNode, 15)
 			// Neighbouring leaf - the leaf that used to be one level above,
 			// but it was "drifted down" when additional branch was added.
 			// Value (sLeafRows[1]) is not needed because we already have it
@@ -669,7 +667,7 @@ func prepareWitness(storageProof1, storageProof2 [][]byte, key, foundAt []byte, 
 	return rows, toBeHashed
 }
 
-func updateStorageAndGetProofs(keys []common.Hash, toBeModified common.Hash, value common.Hash) {
+func updateStorageAndGetProofs(keys []common.Hash, values []common.Hash, toBeModified common.Hash, value common.Hash) {
 	blockNum := 13284469
 	blockNumberParent := big.NewInt(int64(blockNum))
 	blockHeaderParent := oracle.PrefetchBlock(blockNumberParent, true, nil)
@@ -678,9 +676,7 @@ func updateStorageAndGetProofs(keys []common.Hash, toBeModified common.Hash, val
 	addr := common.HexToAddress("0x50efbf12580138bc263c95757826df4e24eb81c9")
 
 	for i := 0; i < len(keys); i++ {
-		k := keys[i]
-		v := common.BigToHash(big.NewInt(int64(i + 1))) // don't put 0 value because otherwise nothing will be set (if 0 is prev value), see state_object.go line 279
-		statedb.SetState(addr, k, v)
+		statedb.SetState(addr, keys[i], values[i])
 	}
 
 	// Calling IntermediateRoot because of delete operation - without this call,
@@ -691,7 +687,7 @@ func updateStorageAndGetProofs(keys []common.Hash, toBeModified common.Hash, val
 	// in state_object.go, because originStorage stays set to 0 and value = 0.
 	statedb.IntermediateRoot(false)
 	// Let's say above state is our starting position.
-	storageProof, _, err := statedb.GetStorageProof(addr, toBeModified)
+	storageProof, neighbourNode1, err := statedb.GetStorageProof(addr, toBeModified)
 	check(err)
 
 	kh := crypto.Keccak256(toBeModified.Bytes())
@@ -714,10 +710,24 @@ func updateStorageAndGetProofs(keys []common.Hash, toBeModified common.Hash, val
 
 	// We ask for a proof for the modified slot:
 	statedb.IntermediateRoot(false)
-	storageProof1, foundAt, err := statedb.GetStorageProof(addr, toBeModified)
+	storageProof1, neighbourNode2, err := statedb.GetStorageProof(addr, toBeModified)
 	check(err)
 
-	rows, toBeHashed := prepareWitness(storageProof, storageProof1, key, foundAt, addr, statedb, false)
+	// Neighbouring node (neighbour to the node that is being added or deleted) is used
+	// because when a node is added which causes some node to turn into a branch, then
+	// this "some" node moves into a branch and is neighbour to the node that has been added.
+	// In MPT circuit, when a node is added, we check that "some" node turns into "neighbour".
+
+	// Similarly, when a node is deleted and if it has only one neighbour in a branch,
+	// this neighbour replaces the branch.
+	// In MPT circuit, we check that the neighbouring node replaces the branch.
+	node := neighbourNode2
+	if len(storageProof) > len(storageProof1) {
+		// delete operation
+		node = neighbourNode1
+	}
+
+	rows, toBeHashed := prepareWitness(storageProof, storageProof1, key, node, addr, statedb, false)
 	rows = append(rows, toBeHashed...)
 	fmt.Println(matrixToJson(rows))
 
@@ -788,7 +798,7 @@ func updateStateAndGetProofs(keys []common.Hash, toBeModified common.Hash, addr 
 
 	accountProof, _, err := statedb.GetProof(addr)
 	check(err)
-	storageProof, foundAt, err := statedb.GetStorageProof(addr, toBeModified)
+	storageProof, neighbourNode1, err := statedb.GetStorageProof(addr, toBeModified)
 	check(err)
 
 	// By calling RPC eth_getProof we will get accountProof and storageProof.
@@ -859,11 +869,17 @@ func updateStateAndGetProofs(keys []common.Hash, toBeModified common.Hash, addr 
 	accountProof1, _, err := statedb.GetProof(addr)
 	check(err)
 
-	storageProof1, foundAt1, err := statedb.GetStorageProof(addr, toBeModified)
+	storageProof1, neighbourNode2, err := statedb.GetStorageProof(addr, toBeModified)
 	check(err)
 
-	rowsState, toBeHashedAcc := prepareWitness(accountProof, accountProof1, accountAddr, foundAt, addr, statedb, true)
-	rowsStorage, toBeHashedStorage := prepareWitness(storageProof, storageProof1, key, foundAt1, addr, statedb, false)
+	node := neighbourNode2
+	if len(storageProof) > len(storageProof1) {
+		// delete operation
+		node = neighbourNode1
+	}
+
+	rowsState, toBeHashedAcc := prepareWitness(accountProof, accountProof1, accountAddr, nil, addr, statedb, true)
+	rowsStorage, toBeHashedStorage := prepareWitness(storageProof, storageProof1, key, node, addr, statedb, false)
 	rowsState = append(rowsState, rowsStorage...)
 
 	// Put rows that just need to be hashed at the end, because circuit assign function
@@ -895,11 +911,16 @@ func TestStorageUpdateOneLevel(t *testing.T) {
 	// [11,11,8,10,6,...
 	// We have a branch with children at position 3 and 11.
 
+	var values []common.Hash
+	for i := 0; i < len(ks); i++ {
+		values = append(values, common.BigToHash(big.NewInt(int64(i + 1)))) // don't put 0 value because otherwise nothing will be set (if 0 is prev value), see state_object.go line 279
+	}
+
 	// This key is turned into odd length (see hexToCompact in encoding.go to see
 	// odd and even length are handled differently)
 	toBeModified := ks[0]
 	v := common.BigToHash(big.NewInt(int64(17)))
-	updateStorageAndGetProofs(ks[:], toBeModified, v)
+	updateStorageAndGetProofs(ks[:], values, toBeModified, v)
 }
 
 func TestStorageUpdateOneLevelBigVal(t *testing.T) {
@@ -909,13 +930,18 @@ func TestStorageUpdateOneLevelBigVal(t *testing.T) {
 	// [11,11,8,10,6,...
 	// We have a branch with children at position 3 and 11.
 
+	var values []common.Hash
+	for i := 0; i < len(ks); i++ {
+		values = append(values, common.BigToHash(big.NewInt(int64(i + 1)))) // don't put 0 value because otherwise nothing will be set (if 0 is prev value), see state_object.go line 279
+	}
+
 	// This key is turned into odd length (see hexToCompact in encoding.go to see
 	// odd and even length are handled differently)
 	toBeModified := ks[0]
 	// big value so that RLP is longer than 55 bytes
 	v1 := common.FromHex("0xbbefaa12580138bc263c95757826df4e24eb81c9aaaaaaaaaaaaaaaaaaaaaaaa")
 	v2 := common.BytesToHash(v1)
-	updateStorageAndGetProofs(ks[:], toBeModified, v2)
+	updateStorageAndGetProofs(ks[:], values, toBeModified, v2)
 }
 
 func TestStorageUpdateTwoLevels(t *testing.T) {
@@ -929,11 +955,16 @@ func TestStorageUpdateTwoLevels(t *testing.T) {
 	// That means leaf at position 3 turns into branch with children at position 1 and 10.
 	// ks := [...]common.Hash{common.HexToHash("0x12"), common.HexToHash("0x21")}
 
+	var values []common.Hash
+	for i := 0; i < len(ks); i++ {
+		values = append(values, common.BigToHash(big.NewInt(int64(i + 1)))) // don't put 0 value because otherwise nothing will be set (if 0 is prev value), see state_object.go line 279
+	}
+
 	// This key is turned into even length (see hexToCompact in encoding.go to see
 	// odd and even length are handled differently)
 	toBeModified := ks[0]
 	v := common.BigToHash(big.NewInt(int64(17)))
-	updateStorageAndGetProofs(ks[:], toBeModified, v)
+	updateStorageAndGetProofs(ks[:], values, toBeModified, v)
 }
 
 func TestStorageUpdateTwoLevelsBigVal(t *testing.T) {
@@ -947,13 +978,18 @@ func TestStorageUpdateTwoLevelsBigVal(t *testing.T) {
 	// That means leaf at position 3 turns into branch with children at position 1 and 10.
 	// ks := [...]common.Hash{common.HexToHash("0x12"), common.HexToHash("0x21")}
 
+	var values []common.Hash
+	for i := 0; i < len(ks); i++ {
+		values = append(values, common.BigToHash(big.NewInt(int64(i + 1)))) // don't put 0 value because otherwise nothing will be set (if 0 is prev value), see state_object.go line 279
+	}
+
 	// This key is turned into even length (see hexToCompact in encoding.go to see
 	// odd and even length are handled differently)
 	toBeModified := ks[0]
 
 	v1 := common.FromHex("0xbbefaa12580138bc263c95757826df4e24eb81c9aaaaaaaaaaaaaaaaaaaaaaaa")
 	v2 := common.BytesToHash(v1)
-	updateStorageAndGetProofs(ks[:], toBeModified, v2)
+	updateStorageAndGetProofs(ks[:], values, toBeModified, v2)
 }
 
 func TestStorageUpdateThreeLevels1(t *testing.T) {
@@ -991,10 +1027,16 @@ func TestStorageUpdateThreeLevels1(t *testing.T) {
 		this is key stored in leaf:
 		[57,92,93,206,173,233,96,52,121,177,119,182,137,89,4,148,133,223,138,169,123,57,243,83,48,57,175,95,69,97,153]
 	*/
+
+	var values []common.Hash
+	for i := 0; i < len(ks); i++ {
+		values = append(values, common.BigToHash(big.NewInt(int64(i + 1)))) // don't put 0 value because otherwise nothing will be set (if 0 is prev value), see state_object.go line 279
+	}
+
 	toBeModified := ks[10]
 
 	v := common.BigToHash(big.NewInt(int64(17)))
-	updateStorageAndGetProofs(ks[:], toBeModified, v)
+	updateStorageAndGetProofs(ks[:], values, toBeModified, v)
 }
 
 func TestStorageFromNilToValue(t *testing.T) {
@@ -1010,12 +1052,18 @@ func TestStorageFromNilToValue(t *testing.T) {
 		common.HexToHash("0x36"),
 		common.HexToHash("0x37"),
 	}
+	
+	var values []common.Hash
+	for i := 0; i < len(ks); i++ {
+		values = append(values, common.BigToHash(big.NewInt(int64(i + 1)))) // don't put 0 value because otherwise nothing will be set (if 0 is prev value), see state_object.go line 279
+	}
+
 	// This test is similar as above, but the key that is being modified has not been used yet.
 
 	toBeModified := common.HexToHash("0x38")
 
 	v := common.BigToHash(big.NewInt(int64(17)))
-	updateStorageAndGetProofs(ks[:], toBeModified, v)
+	updateStorageAndGetProofs(ks[:], values, toBeModified, v)
 }
 
 func TestStorageDelete(t *testing.T) {
@@ -1026,10 +1074,15 @@ func TestStorageDelete(t *testing.T) {
 		common.HexToHash("0xdaaabbbbabab"),
 	}
 
+	var values []common.Hash
+	for i := 0; i < len(ks); i++ {
+		values = append(values, common.BigToHash(big.NewInt(int64(i + 1)))) // don't put 0 value because otherwise nothing will be set (if 0 is prev value), see state_object.go line 279
+	}
+
 	toBeModified := common.HexToHash("0xdaaabbbbabab")
 
-	v := common.Hash{}
-	updateStorageAndGetProofs(ks[:], toBeModified, v)
+	v := common.Hash{} // empty value deletes the key
+	updateStorageAndGetProofs(ks[:], values, toBeModified, v)
 }
 
 func TestStateUpdateOneLevel(t *testing.T) {
@@ -1064,13 +1117,98 @@ func TestStorageAddBranch(t *testing.T) {
 	// First we have a branch with children at position 3 and 11.
 	// ks := [...]common.Hash{common.HexToHash("0x12"), common.HexToHash("0x21")}
 
+	var values []common.Hash
+	for i := 0; i < len(ks); i++ {
+		values = append(values, common.BigToHash(big.NewInt(int64(i + 1)))) // don't put 0 value because otherwise nothing will be set (if 0 is prev value), see state_object.go line 279
+	}
+
 	// This key is not in the trie yet, its nibbles:
 	// [3,10,6,3,5,7,...
 	// That means leaf at position 3 turns into branch with children at position 1 and 10.
 	toBeModified := common.HexToHash("0x21")
 
 	v := common.BigToHash(big.NewInt(int64(17)))
-	updateStorageAndGetProofs(ks[:], toBeModified, v)
+	updateStorageAndGetProofs(ks[:], values, toBeModified, v)
+}
+
+func TestStorageAddBranchLong(t *testing.T) {
+	ks := [...]common.Hash{common.HexToHash("0x11"), common.HexToHash("0x12")}
+	// hexed keys:
+	// [3,1,14,12,12,...
+	// [11,11,8,10,6,...
+	// First we have a branch with children at position 3 and 11.
+	// ks := [...]common.Hash{common.HexToHash("0x12"), common.HexToHash("0x21")}
+
+	var values []common.Hash
+	// big value so that RLP will be longer than 55 bytes for the neighbouring node
+	v1 := common.FromHex("0xbbefaa12580138bc263c95757826df4e24eb81c9aaaaaaaaaaaaaaaaaaaaaaaa")
+	v2 := common.BytesToHash(v1)
+	for i := 0; i < len(ks); i++ {
+		values = append(values, v2)
+	}
+
+	// This key is not in the trie yet, its nibbles:
+	// [3,10,6,3,5,7,...
+	// That means leaf at position 3 turns into branch with children at position 1 and 10.
+	toBeModified := common.HexToHash("0x21")
+
+	v := common.BigToHash(big.NewInt(int64(17)))
+	updateStorageAndGetProofs(ks[:], values, toBeModified, v)
+}
+
+func TestStorageDeleteBranch(t *testing.T) {
+	h := common.HexToHash("0x11dd2277aa")
+
+	ks := [...]common.Hash{
+		common.HexToHash("0xaa"),
+		common.HexToHash("0xabcc"),
+		common.HexToHash("0xffdd"),
+		common.HexToHash("0x11dd"),
+		common.HexToHash("0x11dd22"),
+		common.HexToHash("0x11dd2233"),
+		common.HexToHash("0x11dd2255"),
+		common.HexToHash("0x11dd2277"),
+		h, // this leaf turns into a branch
+	}
+	
+	var values []common.Hash
+	for i := 0; i < len(ks); i++ {
+		values = append(values, common.BigToHash(big.NewInt(int64(i + 1)))) // don't put 0 value because otherwise nothing will be set (if 0 is prev value), see state_object.go line 279
+	}
+
+	toBeModified := h
+
+	v := common.Hash{} // empty value deletes the key
+	updateStorageAndGetProofs(ks[:], values, toBeModified, v)
+}
+
+func TestStorageDeleteBranchLong(t *testing.T) {
+	h := common.HexToHash("0x11dd2277aa")
+
+	ks := [...]common.Hash{
+		common.HexToHash("0xaa"),
+		common.HexToHash("0xabcc"),
+		common.HexToHash("0xffdd"),
+		common.HexToHash("0x11dd"),
+		common.HexToHash("0x11dd22"),
+		common.HexToHash("0x11dd2233"),
+		common.HexToHash("0x11dd2255"),
+		common.HexToHash("0x11dd2277"),
+		h, // this leaf turns into a branch
+	}
+
+	var values []common.Hash
+	// big value so that RLP will be longer than 55 bytes for the neighbouring node
+	v1 := common.FromHex("0xbbefaa12580138bc263c95757826df4e24eb81c9aaaaaaaaaaaaaaaaaaaaaaaa")
+	v2 := common.BytesToHash(v1)
+	for i := 0; i < len(ks); i++ {
+		values = append(values, v2)
+	}
+	
+	toBeModified := h
+
+	v := common.Hash{} // empty value deletes the key
+	updateStorageAndGetProofs(ks[:], values, toBeModified, v)
 }
 
 func TestStorageExtension(t *testing.T) {
@@ -1106,8 +1244,13 @@ func TestStorageExtension(t *testing.T) {
 		common.HexToHash("0x61"), // extension
 	}
 
+	var values []common.Hash
+	for i := 0; i < len(ks); i++ {
+		values = append(values, common.BigToHash(big.NewInt(int64(i + 1)))) // don't put 0 value because otherwise nothing will be set (if 0 is prev value), see state_object.go line 279
+	}
+
 	toBeModified := ks[len(ks)-1]
 
 	v := common.BigToHash(big.NewInt(int64(17)))
-	updateStorageAndGetProofs(ks[:], toBeModified, v)
+	updateStorageAndGetProofs(ks[:], values, toBeModified, v)
 }

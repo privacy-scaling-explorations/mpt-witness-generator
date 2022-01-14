@@ -296,8 +296,8 @@ func (s *StateDB) GetProof(addr common.Address) ([][]byte, []byte, error) {
 // GetProofByHash returns the Merkle proof for a given account.
 func (s *StateDB) GetProofByHash(addrHash common.Hash) ([][]byte, []byte, error) {
 	var proof proofList
-	foundAt, err := s.trie.Prove(addrHash[:], 0, &proof)
-	return proof, foundAt, err
+	neighbourNode, err := s.trie.Prove(addrHash[:], 0, &proof)
+	return proof, neighbourNode, err
 }
 
 // GetStorageProof returns the Merkle proof for given storage slot.
@@ -307,8 +307,8 @@ func (s *StateDB) GetStorageProof(a common.Address, key common.Hash) ([][]byte, 
 	if trie == nil {
 		return proof, nil, errors.New("storage trie for requested address does not exist")
 	}
-	foundAt, err := trie.Prove(crypto.Keccak256(key.Bytes()), 0, &proof)
-	return proof, foundAt, err
+	neighbourNode, err := trie.Prove(crypto.Keccak256(key.Bytes()), 0, &proof)
+	return proof, neighbourNode, err
 }
 
 func (s *StateDB) GetNodeByNibbles(a common.Address, key []byte) ([]byte, error) {

@@ -39,7 +39,7 @@ func (t *Trie) Prove(key []byte, fromLevel uint, proofDb ethdb.KeyValueWriter) (
 	key = KeybytesToHex(key)
 	var nodes []Node
 	tn := t.root
-	foundAt := []byte{}
+	var neighbourNode Node
 	for len(key) > 0 && tn != nil {
 		switch n := tn.(type) {
 		case *ShortNode:
@@ -54,8 +54,20 @@ func (t *Trie) Prove(key []byte, fromLevel uint, proofDb ethdb.KeyValueWriter) (
 		case *FullNode:
 			tn = n.Children[key[0]]
 
-			foundAt = append(foundAt, key[0])
-			fmt.Println(foundAt)
+			count := 0
+			neighbourIndex := -1
+			// If there is only one neighbour node, store it, as it is needed when the node
+			// is deleted and the branch turns into leaf (that used to be neighbour node).
+			for i, c := range n.Children {
+				if byte(i) == key[0] {
+					continue
+				}
+				if c != nil {
+					count++
+					neighbourIndex = i
+				}
+			}
+			neighbourNode = n.Children[neighbourIndex]
 
 			key = key[1:]
 			nodes = append(nodes, n)
@@ -91,7 +103,11 @@ func (t *Trie) Prove(key []byte, fromLevel uint, proofDb ethdb.KeyValueWriter) (
 			proofDb.Put(hash, enc)
 		}
 	}
-	return foundAt, nil
+
+	neighbourHash, _ := hasher.ProofHash(neighbourNode)
+	neighbourNodeRLP, _ := rlp.EncodeToBytes(neighbourHash)
+
+	return neighbourNodeRLP, nil
 }
 
 func (t *Trie) GetNodeByNibbles(key []byte) ([]byte, error) {
