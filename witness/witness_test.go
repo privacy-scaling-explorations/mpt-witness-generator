@@ -1211,7 +1211,76 @@ func TestStorageDeleteBranchLong(t *testing.T) {
 	updateStorageAndGetProofs(ks[:], values, toBeModified, v)
 }
 
+func TestStorageAddBranchTwoLevels(t *testing.T) {
+	// Test for case when branch is added in the second level. So, instead of having only
+	// branch1 with some nodes and then one of this nodes is replaced with a branch (that's
+	// the case of TestStorageAddBranch), we have here branch1 and then inside it another
+	// branch: branch2. Inside brach2 we have a node which gets replaced by a branch.
+	// This is to test cases when the key contains odd number of nibbles as well as
+	// even number of nibbles.
+
+	a := 1
+	b := 1
+	h := fmt.Sprintf("0xaa%d%d", a, b)
+	ks := []common.Hash{common.HexToHash(h)}
+	for i := 0; i < 33; i++ {
+		// just some values to get the added branch in second level (found out trying different values)
+		if i % 2 == 0 {
+			a += 1
+		} else {
+			b += 1
+		}
+		if a == 4 && b == 3 {
+			continue
+		}
+		h := fmt.Sprintf("0xaa%d%d", a, b)
+		fmt.Println("=--------==")
+		fmt.Println(h)
+		ks = append(ks, common.HexToHash(h))
+	}
+	
+	var values []common.Hash
+	for i := 0; i < len(ks); i++ {
+		values = append(values, common.BigToHash(big.NewInt(int64(i + 1)))) // don't put 0 value because otherwise nothing will be set (if 0 is prev value), see state_object.go line 279
+	}
+
+	toBeModified := common.HexToHash("0xaa43")
+
+	v := common.BigToHash(big.NewInt(int64(17)))
+	updateStorageAndGetProofs(ks[:], values, toBeModified, v)
+}
+
+/*
 func TestStorageExtension(t *testing.T) {
+	a := 1
+	b := 1
+	h := fmt.Sprintf("0x%d%d", a, b)
+	ks := []common.Hash{common.HexToHash(h)}
+	for i := 0; i < 33; i++ {
+		// just some values to get the added branch in second level (found out trying different values)
+		if i % 2 == 0 {
+			a += 1
+		} else {
+			b += 1
+		}
+		h := fmt.Sprintf("0x%d%d", a, b)
+		fmt.Println("=--------==")
+		fmt.Println(h)
+		ks = append(ks, common.HexToHash(h))
+	}
+	
+	var values []common.Hash
+	for i := 0; i < len(ks); i++ {
+		values = append(values, common.BigToHash(big.NewInt(int64(i + 1)))) // don't put 0 value because otherwise nothing will be set (if 0 is prev value), see state_object.go line 279
+	}
+
+	toBeModified := common.HexToHash("0x1818")
+
+	v := common.BigToHash(big.NewInt(int64(17)))
+	updateStorageAndGetProofs(ks[:], values, toBeModified, v)
+}
+
+func TestStorageExtension1(t *testing.T) {
 	ks := [...]common.Hash{
 		common.HexToHash("0x11"),
 		common.HexToHash("0x12"),
@@ -1254,3 +1323,4 @@ func TestStorageExtension(t *testing.T) {
 	v := common.BigToHash(big.NewInt(int64(17)))
 	updateStorageAndGetProofs(ks[:], values, toBeModified, v)
 }
+*/

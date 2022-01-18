@@ -256,7 +256,8 @@ func (t *Trie) Update(key, value []byte) {
 // If a node was not found in the database, a MissingNodeError is returned.
 func (t *Trie) TryUpdate(key, value []byte) error {
 	t.unhashed++
-	k := KeybytesToHex(key)
+	k := KeybytesToHex(key)	
+
 	if len(value) != 0 {
 		_, n, err := t.insert(t.root, nil, k, ValueNode(value))
 		if err != nil {
@@ -318,6 +319,7 @@ func (t *Trie) insert(n Node, prefix, key []byte, value Node) (bool, Node, error
 		}
 		n = n.copy()
 		n.flags = t.newFlag()
+
 		n.Children[key[0]] = nn
 		return true, n, nil
 

@@ -42,14 +42,18 @@ func hexToCompact(hex []byte) []byte {
 		terminator = 1
 		hex = hex[:len(hex)-1]
 	} else {
-		fmt.Println("extension")
+		fmt.Println("extension" )
 	}
+
 	buf := make([]byte, len(hex)/2+1)
 	buf[0] = terminator << 5 // the flag byte
 	if len(hex)&1 == 1 {
 		buf[0] |= 1 << 4 // odd flag
 		buf[0] |= hex[0] // first nibble is contained in the first byte
 		hex = hex[1:]
+		fmt.Println("odd")
+	} else {
+		fmt.Println("even")
 	}
 	decodeNibbles(hex, buf[1:])
 	return buf
