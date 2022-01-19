@@ -1234,8 +1234,6 @@ func TestStorageAddBranchTwoLevels(t *testing.T) {
 			continue
 		}
 		h := fmt.Sprintf("0xaa%d%d", a, b)
-		fmt.Println("=--------==")
-		fmt.Println(h)
 		ks = append(ks, common.HexToHash(h))
 	}
 	
@@ -1247,6 +1245,94 @@ func TestStorageAddBranchTwoLevels(t *testing.T) {
 	toBeModified := common.HexToHash("0xaa43")
 
 	v := common.BigToHash(big.NewInt(int64(17)))
+	updateStorageAndGetProofs(ks[:], values, toBeModified, v)
+}
+
+func TestStorageAddBranchTwoLevelsLong(t *testing.T) {
+	a := 1
+	b := 1
+	h := fmt.Sprintf("0xaa%d%d", a, b)
+	ks := []common.Hash{common.HexToHash(h)}
+	for i := 0; i < 33; i++ {
+		// just some values to get the added branch in second level (found out trying different values)
+		if i % 2 == 0 {
+			a += 1
+		} else {
+			b += 1
+		}
+		if a == 4 && b == 3 {
+			continue
+		}
+		h := fmt.Sprintf("0xaa%d%d", a, b)
+		ks = append(ks, common.HexToHash(h))
+	}
+	
+	var values []common.Hash
+	v1 := common.FromHex("0xbbefaa12580138bc263c95757826df4e24eb81c9aaaaaaaaaaaaaaaaaaaaaaaa")
+	v2 := common.BytesToHash(v1)
+	for i := 0; i < len(ks); i++ {
+		values = append(values, v2)
+	}
+
+	toBeModified := common.HexToHash("0xaa43")
+
+	v := common.BigToHash(big.NewInt(int64(17)))
+	updateStorageAndGetProofs(ks[:], values, toBeModified, v)
+}
+
+func TestStorageDeleteBranchTwoLevels(t *testing.T) {
+	a := 1
+	b := 1
+	h := fmt.Sprintf("0xaa%d%d", a, b)
+	ks := []common.Hash{common.HexToHash(h)}
+	for i := 0; i < 33; i++ {
+		// just some values to get the added branch in second level (found out trying different values)
+		if i % 2 == 0 {
+			a += 1
+		} else {
+			b += 1
+		}
+		h := fmt.Sprintf("0xaa%d%d", a, b)
+		ks = append(ks, common.HexToHash(h))
+	}
+	
+	var values []common.Hash
+	for i := 0; i < len(ks); i++ {
+		values = append(values, common.BigToHash(big.NewInt(int64(i + 1)))) // don't put 0 value because otherwise nothing will be set (if 0 is prev value), see state_object.go line 279
+	}
+
+	toBeModified := common.HexToHash("0xaa43")
+
+	v := common.Hash{}
+	updateStorageAndGetProofs(ks[:], values, toBeModified, v)
+}
+
+func TestStorageDeleteBranchTwoLevelsLong(t *testing.T) {
+	a := 1
+	b := 1
+	h := fmt.Sprintf("0xaa%d%d", a, b)
+	ks := []common.Hash{common.HexToHash(h)}
+	for i := 0; i < 33; i++ {
+		// just some values to get the added branch in second level (found out trying different values)
+		if i % 2 == 0 {
+			a += 1
+		} else {
+			b += 1
+		}
+		h := fmt.Sprintf("0xaa%d%d", a, b)
+		ks = append(ks, common.HexToHash(h))
+	}
+	
+	var values []common.Hash
+	v1 := common.FromHex("0xbbefaa12580138bc263c95757826df4e24eb81c9aaaaaaaaaaaaaaaaaaaaaaaa")
+	v2 := common.BytesToHash(v1)
+	for i := 0; i < len(ks); i++ {
+		values = append(values, v2)
+	}
+
+	toBeModified := common.HexToHash("0xaa43")
+
+	v := common.Hash{}
 	updateStorageAndGetProofs(ks[:], values, toBeModified, v)
 }
 
