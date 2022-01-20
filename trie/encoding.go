@@ -51,9 +51,6 @@ func hexToCompact(hex []byte) []byte {
 		buf[0] |= 1 << 4 // odd flag
 		buf[0] |= hex[0] // first nibble is contained in the first byte
 		hex = hex[1:]
-		fmt.Println("odd")
-	} else {
-		fmt.Println("even")
 	}
 	decodeNibbles(hex, buf[1:])
 	return buf

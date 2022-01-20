@@ -221,8 +221,7 @@ func preparePlaceholderRows() [][]byte {
 	return [][]byte{leaf_in_added_branch}
 }
 
-func prepareExtensionRows() [][]byte {
-	// TODO: extension node key in s_advices, hash of branch in c_advices
+func prepareEmptyExtensionRows() [][]byte {
 	ext_row1 := make([]byte, rowLen)
 	ext_row1 = append(ext_row1, 16)
 
@@ -335,9 +334,6 @@ func prepareTwoBranchesWitness(branch1, branch2 []byte, key byte, isBranchSPlace
 	prepareBranchWitness(rows, branch1, 0, branch1RLPOffset)
 	prepareBranchWitness(rows, branch2, 2+32, branch2RLPOffset)
 
-	eRows := prepareExtensionRows()
-	rows = append(rows, eRows...)
-
 	return rows
 }
 
@@ -378,13 +374,89 @@ func prepareWitness(storageProof1, storageProof2 [][]byte, key []byte, neighbour
 		upTo = minLen - 1
 	}
 
+	ignoreCheck := false
+	var extensionRowS []byte
+	var extensionRowC []byte
 	for i := 0; i < upTo; i++ {
 		elems, _, err := rlp.SplitList(storageProof1[i])
 		if err != nil {
 			fmt.Println("decode error", err)
 		}
+
 		switch c, _ := rlp.CountValues(elems); c {
 		case 2:
+			if i < len(storageProof1) - 1 {
+				// If extension node, abort check. To implement check for
+				// extension nodes, extension node key would need to be taken into account.
+				ignoreCheck = true
+
+				// storageProof[i]:
+				// [228,130,0,149,160,114,253,150,133,18,192,156,19,241,162,51,210,24,1,151,16,48,7,177,42,60,49,34,230,254,242,79,132,165,90,75,249]
+				// elems:
+				// [130,0,149,160,114,253,150,133,18,192,156,19,241,162,51,210,24,1,151,16,48,7,177,42,60,49,34,230,254,242,79,132,165,90,75,249]
+				// rlp.SplitList doesn't return tag (228).
+
+				// If only one byte in key:
+				// [226,16,160,172,105,12...
+				// [16,160,172,105,12...
+
+				// Let's put hash of a branch in c_advices:
+				tag1 := storageProof1[i][0]
+				tag2 := storageProof2[i][0]
+
+				extRows := prepareEmptyExtensionRows()
+				extRows[0][0] = tag1
+				extRows[1][0] = tag2
+				extensionRowS = extRows[0]
+				extensionRowC = extRows[1]
+				extensionRowS[1] = storageProof1[i][1]
+				extensionRowC[1] = storageProof2[i][1]
+
+				// TODO: prepare function for S and C
+				if tag1 == 226 {
+					if storageProof1[i][2] != 160 {
+						panic("Extension node should be 160 S short")
+					}
+					for j := 0; j < 33; j++ {
+						extensionRowS[branch2start+branchNodeRLPLen+j-1] = storageProof1[i][2+j]
+					}
+				} else {
+					lenK := int(storageProof1[i][1] - 128)
+					for j := 0; j < lenK; j++ {
+						extensionRowS[2+j] = storageProof1[i][2+j]
+					}
+					if storageProof2[i][2+lenK] != 160 {
+						panic("Extension node should be 160 S")
+					}
+					extensionRowS[branch2start+branchNodeRLPLen-1] = storageProof1[i][2+lenK]
+					for j := 0; j < 32; j++ {
+						extensionRowS[branch2start+branchNodeRLPLen+j] = storageProof1[i][3+lenK+j]
+					}
+				}
+				if tag2 == 226 {
+					if storageProof2[i][2] != 160 {
+						panic("Extension node should be 160 C short")
+					}
+					for j := 0; j < 33; j++ {
+						extensionRowC[branch2start+branchNodeRLPLen+j-1] = storageProof2[i][2+j]
+					}
+				} else {
+					lenK := int(storageProof2[i][1] - 128)
+					for j := 0; j < lenK; j++ {
+						extensionRowC[2+j] = storageProof2[i][2+j]
+					}
+					if storageProof2[i][2+lenK] != 160 {
+						panic("Extension node should be 160 C")
+					}
+					extensionRowC[branch2start+branchNodeRLPLen-1] = storageProof2[i][2+lenK]
+					for j := 0; j < 32; j++ {
+						extensionRowC[branch2start+branchNodeRLPLen+j] = storageProof2[i][3+lenK+j]
+					}
+				}
+
+				continue
+			}
+
 			if isAccountProof {
 				l := len(storageProof1)
 				leafS := storageProof1[l-1]
@@ -463,8 +535,6 @@ func prepareWitness(storageProof1, storageProof2 [][]byte, key []byte, neighbour
 					storageCodeHashRowS[branch2start+1+i] = codeHash[i] // start from c_rlp2
 				}
 
-				// TODO: delete operation
-
 				// Only storage root is different in S and C.
 				storageCodeHashRowC := make([]byte, rowLen)
 				copy(storageCodeHashRowC, storageCodeHashRowS)
@@ -499,27 +569,38 @@ func prepareWitness(storageProof1, storageProof2 [][]byte, key []byte, neighbour
 			}
 		case 17:
 			bRows := prepareTwoBranchesWitness(storageProof1[i], storageProof2[i], key[i], false, false)
+			// extension node rows
+			if extensionRowS != nil {
+				bRows = append(bRows, extensionRowS)
+				bRows = append(bRows, extensionRowC)
+			} else {
+				extRows := prepareEmptyExtensionRows()
+				bRows = append(bRows, extRows...)
+			}
+
 			rows = append(rows, bRows...)
 
-			branch1Ext := make([]byte, len(storageProof1[i]))
-			copy(branch1Ext, storageProof1[i])
-			branch1Ext = append(branch1Ext, 5) // 5 means it needs to be hashed
+			branch1ForHashing := make([]byte, len(storageProof1[i]))
+			copy(branch1ForHashing, storageProof1[i])
+			branch1ForHashing = append(branch1ForHashing, 5) // 5 means it needs to be hashed
 
-			branch2Ext := make([]byte, len(storageProof2[i]))
-			copy(branch2Ext, storageProof2[i])
-			branch2Ext = append(branch2Ext, 5) // 5 means it needs to be hashed
+			branch2ForHashing := make([]byte, len(storageProof2[i]))
+			copy(branch2ForHashing, storageProof2[i])
+			branch2ForHashing = append(branch2ForHashing, 5) // 5 means it needs to be hashed
 
-			toBeHashed = append(toBeHashed, branch1Ext)
-			toBeHashed = append(toBeHashed, branch2Ext)
+			toBeHashed = append(toBeHashed, branch1ForHashing)
+			toBeHashed = append(toBeHashed, branch2ForHashing)
 
 			// check the two branches
-			for k := 1; k < 17; k++ {
-				if k-1 == int(key[i]) {
-					continue
-				}
-				for j := 0; j < branchNodeRLPLen+32; j++ {
-					if bRows[k][j] != bRows[k][branch2start+j] {
-						panic("witness not properly generated")
+			if !ignoreCheck {
+				for k := 1; k < 17; k++ {
+					if k-1 == int(key[i]) {
+						continue
+					}
+					for j := 0; j < branchNodeRLPLen+32; j++ {
+						if bRows[k][j] != bRows[k][branch2start+j] {
+							panic("witness not properly generated")
+						}
 					}
 				}
 			}
@@ -1336,37 +1417,7 @@ func TestStorageDeleteBranchTwoLevelsLong(t *testing.T) {
 	updateStorageAndGetProofs(ks[:], values, toBeModified, v)
 }
 
-/*
-func TestStorageExtension(t *testing.T) {
-	a := 1
-	b := 1
-	h := fmt.Sprintf("0x%d%d", a, b)
-	ks := []common.Hash{common.HexToHash(h)}
-	for i := 0; i < 33; i++ {
-		// just some values to get the added branch in second level (found out trying different values)
-		if i % 2 == 0 {
-			a += 1
-		} else {
-			b += 1
-		}
-		h := fmt.Sprintf("0x%d%d", a, b)
-		fmt.Println("=--------==")
-		fmt.Println(h)
-		ks = append(ks, common.HexToHash(h))
-	}
-	
-	var values []common.Hash
-	for i := 0; i < len(ks); i++ {
-		values = append(values, common.BigToHash(big.NewInt(int64(i + 1)))) // don't put 0 value because otherwise nothing will be set (if 0 is prev value), see state_object.go line 279
-	}
-
-	toBeModified := common.HexToHash("0x1818")
-
-	v := common.BigToHash(big.NewInt(int64(17)))
-	updateStorageAndGetProofs(ks[:], values, toBeModified, v)
-}
-
-func TestStorageExtension1(t *testing.T) {
+func TestStorageExtensionOneKeyByte(t *testing.T) {
 	ks := [...]common.Hash{
 		common.HexToHash("0x11"),
 		common.HexToHash("0x12"),
@@ -1409,4 +1460,61 @@ func TestStorageExtension1(t *testing.T) {
 	v := common.BigToHash(big.NewInt(int64(17)))
 	updateStorageAndGetProofs(ks[:], values, toBeModified, v)
 }
+
+/*
+func TestStorageAddedExtension(t *testing.T) {
+	a := 1
+	b := 1
+	h := fmt.Sprintf("0x%d%d", a, b)
+	ks := []common.Hash{common.HexToHash(h)}
+	for i := 0; i < 33; i++ {
+		// just some values to get the added branch in second level (found out trying different values)
+		if i % 2 == 0 {
+			a += 1
+		} else {
+			b += 1
+		}
+		h := fmt.Sprintf("0x%d%d", a, b)
+		fmt.Println(h)
+		ks = append(ks, common.HexToHash(h))
+	}
+	
+	var values []common.Hash
+	for i := 0; i < len(ks); i++ {
+		values = append(values, common.BigToHash(big.NewInt(int64(i + 1)))) // don't put 0 value because otherwise nothing will be set (if 0 is prev value), see state_object.go line 279
+	}
+
+	toBeModified := common.HexToHash("0x1818")
+
+	v := common.BigToHash(big.NewInt(int64(17)))
+	updateStorageAndGetProofs(ks[:], values, toBeModified, v)
+}
 */
+
+func TestStorageExtensionTwoKeyBytes(t *testing.T) {
+	// Extension node which has key longer than 1 (2 in this test). This is needed because RLP takes
+	// different positions.
+	// Key length > 1 (130 means there are two bytes for key; 160 means there are 32 hash values after it):
+	// [228 130 0 149 160 ...
+	// Key length = 1 (no byte specifying the length of key):
+	// [226 16 160 ...
+	a := 0
+	h := fmt.Sprintf("0x%d", a)
+	ks := []common.Hash{common.HexToHash(h)}
+	for i := 0; i < 176; i++ {
+		// just some values to get the extension with key length > 1 (found out trying different values)
+		a += 1
+		h := fmt.Sprintf("0x%d", a)
+		ks = append(ks, common.HexToHash(h))
+	}
+	
+	var values []common.Hash
+	for i := 0; i < len(ks); i++ {
+		values = append(values, common.BigToHash(big.NewInt(int64(i + 1)))) // don't put 0 value because otherwise nothing will be set (if 0 is prev value), see state_object.go line 279
+	}
+
+	toBeModified := common.HexToHash("0x172")
+
+	v := common.BigToHash(big.NewInt(int64(17)))
+	updateStorageAndGetProofs(ks[:], values, toBeModified, v)
+}
