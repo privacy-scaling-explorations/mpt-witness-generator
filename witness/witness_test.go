@@ -231,6 +231,52 @@ func prepareEmptyExtensionRows() [][]byte {
 	return [][]byte{ext_row1, ext_row2}
 }
 
+func getExtensionNodeKeyLen(proofEl []byte) byte {
+	tag := proofEl[0]
+	if tag == 226 {
+		return 1
+	} else {
+		return proofEl[1] - 128
+	}
+}
+
+func prepareExtensionRow(witnessRow, proofEl []byte) {
+	// storageProof[i]:
+	// [228,130,0,149,160,114,253,150,133,18,192,156,19,241,162,51,210,24,1,151,16,48,7,177,42,60,49,34,230,254,242,79,132,165,90,75,249]
+	// elems:
+	// [130,0,149,160,114,253,150,133,18,192,156,19,241,162,51,210,24,1,151,16,48,7,177,42,60,49,34,230,254,242,79,132,165,90,75,249]
+	// rlp.SplitList doesn't return tag (228).
+
+	// If only one byte in key:
+	// [226,16,160,172,105,12...
+	// [16,160,172,105,12...
+
+	tag := proofEl[0]
+	witnessRow[0] = tag
+	witnessRow[1] = proofEl[1]
+
+	if tag == 226 {
+		if proofEl[2] != 160 {
+			panic("Extension node should be 160 S short")
+		}
+		for j := 0; j < 33; j++ {
+			witnessRow[branch2start+branchNodeRLPLen+j-1] = proofEl[2+j]
+		}
+	} else {
+		lenK := int(proofEl[1] - 128)
+		for j := 0; j < lenK; j++ {
+			witnessRow[2+j] = proofEl[2+j]
+		}
+		if proofEl[2+lenK] != 160 {
+			panic("Extension node should be 160 S")
+		}
+		witnessRow[branch2start+branchNodeRLPLen-1] = proofEl[2+lenK]
+		for j := 0; j < 32; j++ {
+			witnessRow[branch2start+branchNodeRLPLen+j] = proofEl[3+lenK+j]
+		}
+	}
+}
+
 func prepareLeafRows(row []byte, typ byte) ([][]byte, []byte) {
 	// Avoid directly changing the row as it might introduce some bugs later on.
 	leaf1 := make([]byte, rowLen)
@@ -337,7 +383,7 @@ func prepareTwoBranchesWitness(branch1, branch2 []byte, key byte, isBranchSPlace
 	return rows
 }
 
-func prepareWitness(storageProof1, storageProof2 [][]byte, key []byte, neighbourNode []byte, addr common.Address, statedb *state.StateDB, isAccountProof bool) ([][]byte, [][]byte) {
+func prepareWitness(storageProof1, storageProof2 [][]byte, key []byte, neighbourNode []byte, addr common.Address, statedb *state.StateDB, isAccountProof bool) ([][]byte, [][]byte, bool) {
 	rows := make([][]byte, 0)
 	toBeHashed := make([][]byte, 0)
 
@@ -346,6 +392,7 @@ func prepareWitness(storageProof1, storageProof2 [][]byte, key []byte, neighbour
 		minLen = len(storageProof2)
 	}
 
+	keyIndex := 0
 	len1 := len(storageProof1)
 	len2 := len(storageProof2)
 
@@ -374,7 +421,7 @@ func prepareWitness(storageProof1, storageProof2 [][]byte, key []byte, neighbour
 		upTo = minLen - 1
 	}
 
-	ignoreCheck := false
+	hasExtensionNode := false
 	var extensionRowS []byte
 	var extensionRowC []byte
 	for i := 0; i < upTo; i++ {
@@ -388,71 +435,14 @@ func prepareWitness(storageProof1, storageProof2 [][]byte, key []byte, neighbour
 			if i < len(storageProof1) - 1 {
 				// If extension node, abort check. To implement check for
 				// extension nodes, extension node key would need to be taken into account.
-				ignoreCheck = true
-
-				// storageProof[i]:
-				// [228,130,0,149,160,114,253,150,133,18,192,156,19,241,162,51,210,24,1,151,16,48,7,177,42,60,49,34,230,254,242,79,132,165,90,75,249]
-				// elems:
-				// [130,0,149,160,114,253,150,133,18,192,156,19,241,162,51,210,24,1,151,16,48,7,177,42,60,49,34,230,254,242,79,132,165,90,75,249]
-				// rlp.SplitList doesn't return tag (228).
-
-				// If only one byte in key:
-				// [226,16,160,172,105,12...
-				// [16,160,172,105,12...
-
-				// Let's put hash of a branch in c_advices:
-				tag1 := storageProof1[i][0]
-				tag2 := storageProof2[i][0]
-
+				hasExtensionNode = true
+	
 				extRows := prepareEmptyExtensionRows()
-				extRows[0][0] = tag1
-				extRows[1][0] = tag2
 				extensionRowS = extRows[0]
 				extensionRowC = extRows[1]
-				extensionRowS[1] = storageProof1[i][1]
-				extensionRowC[1] = storageProof2[i][1]
-
-				// TODO: prepare function for S and C
-				if tag1 == 226 {
-					if storageProof1[i][2] != 160 {
-						panic("Extension node should be 160 S short")
-					}
-					for j := 0; j < 33; j++ {
-						extensionRowS[branch2start+branchNodeRLPLen+j-1] = storageProof1[i][2+j]
-					}
-				} else {
-					lenK := int(storageProof1[i][1] - 128)
-					for j := 0; j < lenK; j++ {
-						extensionRowS[2+j] = storageProof1[i][2+j]
-					}
-					if storageProof2[i][2+lenK] != 160 {
-						panic("Extension node should be 160 S")
-					}
-					extensionRowS[branch2start+branchNodeRLPLen-1] = storageProof1[i][2+lenK]
-					for j := 0; j < 32; j++ {
-						extensionRowS[branch2start+branchNodeRLPLen+j] = storageProof1[i][3+lenK+j]
-					}
-				}
-				if tag2 == 226 {
-					if storageProof2[i][2] != 160 {
-						panic("Extension node should be 160 C short")
-					}
-					for j := 0; j < 33; j++ {
-						extensionRowC[branch2start+branchNodeRLPLen+j-1] = storageProof2[i][2+j]
-					}
-				} else {
-					lenK := int(storageProof2[i][1] - 128)
-					for j := 0; j < lenK; j++ {
-						extensionRowC[2+j] = storageProof2[i][2+j]
-					}
-					if storageProof2[i][2+lenK] != 160 {
-						panic("Extension node should be 160 C")
-					}
-					extensionRowC[branch2start+branchNodeRLPLen-1] = storageProof2[i][2+lenK]
-					for j := 0; j < 32; j++ {
-						extensionRowC[branch2start+branchNodeRLPLen+j] = storageProof2[i][3+lenK+j]
-					}
-				}
+				prepareExtensionRow(extensionRowS, storageProof1[i])
+				prepareExtensionRow(extensionRowC, storageProof2[i])
+				keyIndex += int(getExtensionNodeKeyLen(storageProof1[i]))
 
 				continue
 			}
@@ -568,7 +558,9 @@ func prepareWitness(storageProof1, storageProof2 [][]byte, key []byte, neighbour
 				toBeHashed = append(toBeHashed, leafForHashing)
 			}
 		case 17:
-			bRows := prepareTwoBranchesWitness(storageProof1[i], storageProof2[i], key[i], false, false)
+			bRows := prepareTwoBranchesWitness(storageProof1[i], storageProof2[i], key[keyIndex], false, false)
+			keyIndex += 1
+
 			// extension node rows
 			if extensionRowS != nil {
 				bRows = append(bRows, extensionRowS)
@@ -592,7 +584,7 @@ func prepareWitness(storageProof1, storageProof2 [][]byte, key []byte, neighbour
 			toBeHashed = append(toBeHashed, branch2ForHashing)
 
 			// check the two branches
-			if !ignoreCheck {
+			if !hasExtensionNode {
 				for k := 1; k < 17; k++ {
 					if k-1 == int(key[i]) {
 						continue
@@ -653,7 +645,9 @@ func prepareWitness(storageProof1, storageProof2 [][]byte, key []byte, neighbour
 	if len1 > len2 {
 		if additionalBranch {
 			// C branch is just a placeholder here.
-			addBranch(storageProof1[len1-2], storageProof1[len1-2], key[len1-2], true)
+			addBranch(storageProof1[len1-2], storageProof1[len1-2], key[keyIndex], true)
+			extRows := prepareEmptyExtensionRows()
+			rows = append(rows, extRows...)
 
 			leafRows, leafForHashing := prepareLeafRows(storageProof1[len1-1], 2)
 			rows = append(rows, leafRows...)
@@ -697,7 +691,9 @@ func prepareWitness(storageProof1, storageProof2 [][]byte, key []byte, neighbour
 	} else if len2 > len1 {
 		if additionalBranch {
 			// S branch is just a placeholder here.
-			addBranch(storageProof2[len2-2], storageProof2[len2-2], key[len2-2], false)
+			addBranch(storageProof2[len2-2], storageProof2[len2-2], key[keyIndex], false)
+			extRows := prepareEmptyExtensionRows()
+			rows = append(rows, extRows...)
 
 			// Note that this is not just reversed order compared to
 			// len1 > len2 case - the first leaf is always from proof S
@@ -745,7 +741,7 @@ func prepareWitness(storageProof1, storageProof2 [][]byte, key []byte, neighbour
 		rows = append(rows, pRows...)
 	}
 
-	return rows, toBeHashed
+	return rows, toBeHashed, hasExtensionNode
 }
 
 func updateStorageAndGetProofs(keys []common.Hash, values []common.Hash, toBeModified common.Hash, value common.Hash) {
@@ -808,47 +804,50 @@ func updateStorageAndGetProofs(keys []common.Hash, values []common.Hash, toBeMod
 		node = neighbourNode1
 	}
 
-	rows, toBeHashed := prepareWitness(storageProof, storageProof1, key, node, addr, statedb, false)
+	rows, toBeHashed, hasExtensionNode :=
+		prepareWitness(storageProof, storageProof1, key, node, addr, statedb, false)
 	rows = append(rows, toBeHashed...)
 	fmt.Println(matrixToJson(rows))
 
 	len1 := len(storageProof)
 	len2 := len(storageProof1)
-	if len1 == len2 {
-		if !VerifyTwoProofsAndPath(storageProof, storageProof1, key) {
-			panic("proof not valid")
-		}
-	} else {
-		minLen := len2
-		if len1 > len2 {
-			storageProof = storageProof[:len1-1]
-		} else {
-			storageProof1 = storageProof1[:len2-1]
-			minLen = len1
-		}
-
-		if !VerifyProof(storageProof, key) {
-			panic("proof not valid")
-		}
-		if !VerifyProof(storageProof1, key) {
-			panic("proof 1 not valid")
-		}
-
-		hasher := trie.NewHasher(false)
-
-		for i := 0; i < minLen-1; i++ {
-			rootHash := hasher.HashData(storageProof[i])
-			root, err := trie.DecodeNode(rootHash, storageProof[i])
-			check(err)
-			r := root.(*trie.FullNode)
-
-			rootHash1 := hasher.HashData(storageProof1[i])
-			root1, err := trie.DecodeNode(rootHash1, storageProof1[i])
-			check(err)
-			r1 := root1.(*trie.FullNode)
-
-			if !VerifyElementsInTwoBranches(r, r1, key[i]) {
+	if !hasExtensionNode {
+		if len1 == len2 {
+			if !VerifyTwoProofsAndPath(storageProof, storageProof1, key) {
 				panic("proof not valid")
+			}
+		} else {
+			minLen := len2
+			if len1 > len2 {
+				storageProof = storageProof[:len1-1]
+			} else {
+				storageProof1 = storageProof1[:len2-1]
+				minLen = len1
+			}
+
+			if !VerifyProof(storageProof, key) {
+				panic("proof not valid")
+			}
+			if !VerifyProof(storageProof1, key) {
+				panic("proof 1 not valid")
+			}
+
+			hasher := trie.NewHasher(false)
+
+			for i := 0; i < minLen-1; i++ {
+				rootHash := hasher.HashData(storageProof[i])
+				root, err := trie.DecodeNode(rootHash, storageProof[i])
+				check(err)
+				r := root.(*trie.FullNode)
+
+				rootHash1 := hasher.HashData(storageProof1[i])
+				root1, err := trie.DecodeNode(rootHash1, storageProof1[i])
+				check(err)
+				r1 := root1.(*trie.FullNode)
+
+				if !VerifyElementsInTwoBranches(r, r1, key[i]) {
+					panic("proof not valid")
+				}
 			}
 		}
 	}
@@ -959,8 +958,10 @@ func updateStateAndGetProofs(keys []common.Hash, toBeModified common.Hash, addr 
 		node = neighbourNode1
 	}
 
-	rowsState, toBeHashedAcc := prepareWitness(accountProof, accountProof1, accountAddr, nil, addr, statedb, true)
-	rowsStorage, toBeHashedStorage := prepareWitness(storageProof, storageProof1, key, node, addr, statedb, false)
+	rowsState, toBeHashedAcc, hasExtensionNodeAccount :=
+		prepareWitness(accountProof, accountProof1, accountAddr, nil, addr, statedb, true)
+	rowsStorage, toBeHashedStorage, hasExtensionNode :=
+		prepareWitness(storageProof, storageProof1, key, node, addr, statedb, false)
 	rowsState = append(rowsState, rowsStorage...)
 
 	// Put rows that just need to be hashed at the end, because circuit assign function
@@ -976,12 +977,15 @@ func updateStateAndGetProofs(keys []common.Hash, toBeModified common.Hash, addr 
 
 	fmt.Println(matrixToJson(rowsState))
 
-	if !VerifyTwoProofsAndPath(accountProof, accountProof1, accountAddr) {
-		panic("proof not valid")
+	if !hasExtensionNodeAccount {
+		if !VerifyTwoProofsAndPath(accountProof, accountProof1, accountAddr) {
+			panic("proof not valid")
+		}
 	}
-
-	if !VerifyTwoProofsAndPath(storageProof, storageProof1, key) {
-		panic("proof not valid")
+	if !hasExtensionNode {
+		if !VerifyTwoProofsAndPath(storageProof, storageProof1, key) {
+			panic("proof not valid")
+		}
 	}
 }
 
