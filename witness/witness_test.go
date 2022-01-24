@@ -25,6 +25,9 @@ const keyPos = 10
 const isBranchSPlaceholderPos = 11
 const isBranchCPlaceholderPos = 12
 const firstNibblePos = 13
+const isExtensionPos = 14
+const isExtensionEvenKeyLen = 15
+const isExtensionOddKeyLen = 16
 
 /*
 Info about row type (given as the last element of the row):
@@ -231,10 +234,28 @@ func prepareEmptyExtensionRows() [][]byte {
 	return [][]byte{ext_row1, ext_row2}
 }
 
+func isExtensionNode(proofEl []byte) byte {
+	// see encoding.go hexToCompact
+	tag := proofEl[0]
+	if tag == 226 {
+		if proofEl[1] < 32 {
+			return 1
+		} else {
+			return 0
+		}
+	} else {
+		if proofEl[2] < 32 { 
+			return 1
+		} else {
+			return 0
+		}
+	}
+}
+
 func getExtensionNodeKeyLen(proofEl []byte) byte {
 	tag := proofEl[0]
 	if tag == 226 {
-		return 1
+		return 1 // branch has always first byte >= 248
 	} else {
 		return proofEl[1] - 128
 	}
@@ -433,16 +454,21 @@ func prepareWitness(storageProof1, storageProof2 [][]byte, key []byte, neighbour
 		switch c, _ := rlp.CountValues(elems); c {
 		case 2:
 			if i < len(storageProof1) - 1 {
-				// If extension node, abort check. To implement check for
-				// extension nodes, extension node key would need to be taken into account.
-				hasExtensionNode = true
-	
+				// If extension node, abort internal check down below.
+				// To implement check the check for extension nodes,
+				// extension node key would need to be taken into account.
+				hasExtensionNode = true // proof contains at least one extension node
+			}
+
+			if isExtensionNode(storageProof1[i]) == 1 {
 				extRows := prepareEmptyExtensionRows()
 				extensionRowS = extRows[0]
 				extensionRowC = extRows[1]
 				prepareExtensionRow(extensionRowS, storageProof1[i])
 				prepareExtensionRow(extensionRowC, storageProof2[i])
-				keyIndex += int(getExtensionNodeKeyLen(storageProof1[i]))
+
+				keyLen := getExtensionNodeKeyLen(storageProof1[i])
+				keyIndex += int(keyLen)
 
 				continue
 			}
@@ -471,7 +497,7 @@ func prepareWitness(storageProof1, storageProof2 [][]byte, key []byte, neighbour
 				// 184 - 183 = 1 means length of the second part of a string.
 				// 80 means length of a string.
 				// 248 - 247 = 1 means length of the second part of a list.
-				// 78 means lenght of a list.
+				// 78 means length of a list.
 
 				rlpListSecondPartLen := leafS[3+keyLen+1+1] - 247
 				if rlpListSecondPartLen != 1 {
@@ -565,6 +591,27 @@ func prepareWitness(storageProof1, storageProof2 [][]byte, key []byte, neighbour
 			if extensionRowS != nil {
 				bRows = append(bRows, extensionRowS)
 				bRows = append(bRows, extensionRowC)
+
+				// Set isExtension to 1 in branch init.
+				bRows[0][isExtensionPos] = 1
+
+				keyLen := getExtensionNodeKeyLen(storageProof1[i])
+				// Set whether key extension is of even or odd length.
+				if keyLen % 2 == 0 {
+					bRows[0][isExtensionEvenKeyLen] = 1
+				} else {
+					bRows[0][isExtensionOddKeyLen] = 1
+				}
+
+				ext1ForHashing := make([]byte, len(storageProof1[i-1]))
+				copy(ext1ForHashing, storageProof1[i-1])
+				ext1ForHashing = append(ext1ForHashing, 5) // 5 means it needs to be hashed
+				toBeHashed = append(toBeHashed, ext1ForHashing)
+
+				ext2ForHashing := make([]byte, len(storageProof2[i-1]))
+				copy(ext2ForHashing, storageProof2[i-1])
+				ext2ForHashing = append(ext2ForHashing, 5) // 5 means it needs to be hashed
+				toBeHashed = append(toBeHashed, ext2ForHashing)
 			} else {
 				extRows := prepareEmptyExtensionRows()
 				bRows = append(bRows, extRows...)
