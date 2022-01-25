@@ -224,6 +224,13 @@ func preparePlaceholderRows() [][]byte {
 	return [][]byte{leaf_in_added_branch}
 }
 
+func addForHashing(toBeHashed []byte, toBeHashedCollection *[][]byte) {
+	forHashing := make([]byte, len(toBeHashed))
+	copy(forHashing, toBeHashed)
+	forHashing = append(forHashing, 5) // 5 means it needs to be hashed
+	*toBeHashedCollection = append(*toBeHashedCollection, forHashing)
+}
+
 func prepareEmptyExtensionRows() [][]byte {
 	ext_row1 := make([]byte, rowLen)
 	ext_row1 = append(ext_row1, 16)
@@ -603,32 +610,16 @@ func prepareWitness(storageProof1, storageProof2 [][]byte, key []byte, neighbour
 					bRows[0][isExtensionOddKeyLen] = 1
 				}
 
-				ext1ForHashing := make([]byte, len(storageProof1[i-1]))
-				copy(ext1ForHashing, storageProof1[i-1])
-				ext1ForHashing = append(ext1ForHashing, 5) // 5 means it needs to be hashed
-				toBeHashed = append(toBeHashed, ext1ForHashing)
-
-				ext2ForHashing := make([]byte, len(storageProof2[i-1]))
-				copy(ext2ForHashing, storageProof2[i-1])
-				ext2ForHashing = append(ext2ForHashing, 5) // 5 means it needs to be hashed
-				toBeHashed = append(toBeHashed, ext2ForHashing)
+				addForHashing(storageProof1[i-1], &toBeHashed)
+				addForHashing(storageProof2[i-1], &toBeHashed)
 			} else {
 				extRows := prepareEmptyExtensionRows()
 				bRows = append(bRows, extRows...)
 			}
 
 			rows = append(rows, bRows...)
-
-			branch1ForHashing := make([]byte, len(storageProof1[i]))
-			copy(branch1ForHashing, storageProof1[i])
-			branch1ForHashing = append(branch1ForHashing, 5) // 5 means it needs to be hashed
-
-			branch2ForHashing := make([]byte, len(storageProof2[i]))
-			copy(branch2ForHashing, storageProof2[i])
-			branch2ForHashing = append(branch2ForHashing, 5) // 5 means it needs to be hashed
-
-			toBeHashed = append(toBeHashed, branch1ForHashing)
-			toBeHashed = append(toBeHashed, branch2ForHashing)
+			addForHashing(storageProof1[i], &toBeHashed)
+			addForHashing(storageProof2[i], &toBeHashed)
 
 			// check the two branches
 			if !hasExtensionNode {
@@ -663,10 +654,7 @@ func prepareWitness(storageProof1, storageProof2 [][]byte, key []byte, neighbour
 		if !isCPlaceholder {
 			branchToBeHashed = branch2
 		}
-		branchExt := make([]byte, len(branchToBeHashed))
-		copy(branchExt, branchToBeHashed)
-		branchExt = append(branchExt, 5) // 5 means it needs to be hashed
-		toBeHashed = append(toBeHashed, branchExt)
+		addForHashing(branchToBeHashed, &toBeHashed)
 	}
 
 	getFirstNibble := func(leafKeyRow []byte) byte {
@@ -711,10 +699,7 @@ func prepareWitness(storageProof1, storageProof2 [][]byte, key []byte, neighbour
 
 			// The branch contains hash of the neighbouring leaf, to be able
 			// to check it, we add node RLP to toBeHashed
-			leafRLP := make([]byte, len(neighbourNode))
-			copy(leafRLP, neighbourNode)
-			leafRLP = append(leafRLP, 5)
-			toBeHashed = append(toBeHashed, leafRLP)
+			addForHashing(neighbourNode, &toBeHashed)
 
 			sLeafRows, _ := prepareLeafRows(neighbourNode, 15)
 			// Neighbouring leaf - the leaf that used to be one level above,
@@ -761,11 +746,8 @@ func prepareWitness(storageProof1, storageProof2 [][]byte, key []byte, neighbour
 
 			// The branch contains hash of the neighbouring leaf, to be able
 			// to check it, we add node RLP to toBeHashed
-			leafRLP := make([]byte, len(neighbourNode))
-			copy(leafRLP, neighbourNode)
-			leafRLP = append(leafRLP, 5)
-			toBeHashed = append(toBeHashed, leafRLP)
-
+			addForHashing(neighbourNode, &toBeHashed)
+			
 			sLeafRows, _ := prepareLeafRows(neighbourNode, 15)
 			// Neighbouring leaf - the leaf that used to be one level above,
 			// but it was "drifted down" when additional branch was added.
