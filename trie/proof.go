@@ -34,7 +34,7 @@ import (
 // If the trie does not contain a value for key, the returned proof contains all
 // nodes of the longest existing prefix of the key (at least the root node), ending
 // with the node that proves the absence of the key.
-func (t *Trie) Prove(key []byte, fromLevel uint, proofDb ethdb.KeyValueWriter) ([]byte, error) {
+func (t *Trie) Prove(key []byte, fromLevel uint, proofDb ethdb.KeyValueWriter) ([]byte, [][]byte, error) {
 	// Collect all nodes on the path to key.
 	key = KeybytesToHex(key)
 	var nodes []Node
@@ -76,7 +76,7 @@ func (t *Trie) Prove(key []byte, fromLevel uint, proofDb ethdb.KeyValueWriter) (
 			tn, err = t.resolveHash(n, nil)
 			if err != nil {
 				log.Error(fmt.Sprintf("Unhandled trie error: %v", err))
-				return nil, err
+				return nil, nil, err
 			}
 		default:
 			panic(fmt.Sprintf("%T: invalid node: %v", tn, tn))
@@ -85,12 +85,25 @@ func (t *Trie) Prove(key []byte, fromLevel uint, proofDb ethdb.KeyValueWriter) (
 	hasher := NewHasher(false)
 	defer returnHasherToPool(hasher)
 
+	var extNibbles [][]byte
+
 	for i, n := range nodes {
 		if fromLevel > 0 {
 			fromLevel--
 			continue
 		}
 		var hn Node
+
+		// We need nibbles in witness for extension keys.
+ 		// copy n.Key before it gets changed in ProofHash
+		var nCopy []byte
+		if short, ok := n.(*ShortNode); ok {
+			if !hasTerm(short.Key) { // only for extension keys
+				nCopy = make([]byte, len(short.Key))
+				copy(nCopy, short.Key)
+				extNibbles = append(extNibbles, nCopy)
+			}
+		}
 
 		n, hn = hasher.ProofHash(n)
 		if hash, ok := hn.(HashNode); ok || i == 0 {
@@ -107,7 +120,7 @@ func (t *Trie) Prove(key []byte, fromLevel uint, proofDb ethdb.KeyValueWriter) (
 	neighbourHash, _ := hasher.ProofHash(neighbourNode)
 	neighbourNodeRLP, _ := rlp.EncodeToBytes(neighbourHash)
 
-	return neighbourNodeRLP, nil
+	return neighbourNodeRLP, extNibbles, nil
 }
 
 func (t *Trie) GetNodeByNibbles(key []byte) ([]byte, error) {
@@ -155,7 +168,7 @@ func (t *Trie) GetNodeByNibbles(key []byte) ([]byte, error) {
 // If the trie does not contain a value for key, the returned proof contains all
 // nodes of the longest existing prefix of the key (at least the root node), ending
 // with the node that proves the absence of the key.
-func (t *SecureTrie) Prove(key []byte, fromLevel uint, proofDb ethdb.KeyValueWriter) ([]byte, error) {
+func (t *SecureTrie) Prove(key []byte, fromLevel uint, proofDb ethdb.KeyValueWriter) ([]byte, [][]byte, error) {
 	return t.trie.Prove(key, fromLevel, proofDb)
 }
 

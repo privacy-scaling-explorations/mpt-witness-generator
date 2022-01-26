@@ -26,8 +26,12 @@ const isBranchSPlaceholderPos = 11
 const isBranchCPlaceholderPos = 12
 const firstNibblePos = 13
 const isExtensionPos = 14
-const isExtensionEvenKeyLen = 15
-const isExtensionOddKeyLen = 16
+// extension key even or odd is about nibbles - that determines whether the first byte (not
+// considering RLP bytes) is 0 or 1 (see encoding.go hexToCompact)
+const isExtensionEvenKeyLenPos = 15
+const isExtensionOddKeyLenPos = 16
+const isExtensionKeyShortPos = 17
+const isExtensionKeyLongPos = 18
 
 /*
 Info about row type (given as the last element of the row):
@@ -411,7 +415,7 @@ func prepareTwoBranchesWitness(branch1, branch2 []byte, key byte, isBranchSPlace
 	return rows
 }
 
-func prepareWitness(storageProof1, storageProof2 [][]byte, key []byte, neighbourNode []byte, addr common.Address, statedb *state.StateDB, isAccountProof bool) ([][]byte, [][]byte, bool) {
+func prepareWitness(storageProof1, storageProof2, extNibbles [][]byte, key []byte, neighbourNode []byte, addr common.Address, statedb *state.StateDB, isAccountProof bool) ([][]byte, [][]byte, bool) {
 	rows := make([][]byte, 0)
 	toBeHashed := make([][]byte, 0)
 
@@ -449,9 +453,9 @@ func prepareWitness(storageProof1, storageProof2 [][]byte, key []byte, neighbour
 		upTo = minLen - 1
 	}
 
-	hasExtensionNode := false
 	var extensionRowS []byte
 	var extensionRowC []byte
+	extensionNodeInd := 0
 	for i := 0; i < upTo; i++ {
 		elems, _, err := rlp.SplitList(storageProof1[i])
 		if err != nil {
@@ -460,23 +464,25 @@ func prepareWitness(storageProof1, storageProof2 [][]byte, key []byte, neighbour
 
 		switch c, _ := rlp.CountValues(elems); c {
 		case 2:
-			if i < len(storageProof1) - 1 {
-				// If extension node, abort internal check down below.
-				// To implement check the check for extension nodes,
-				// extension node key would need to be taken into account.
-				hasExtensionNode = true // proof contains at least one extension node
-			}
-
 			if isExtensionNode(storageProof1[i]) == 1 {
+
 				extRows := prepareEmptyExtensionRows()
 				extensionRowS = extRows[0]
 				extensionRowC = extRows[1]
 				prepareExtensionRow(extensionRowS, storageProof1[i])
 				prepareExtensionRow(extensionRowC, storageProof2[i])
 
+				// We need nibbles as witness to compute key RLC, so we set them
+				// into extensionRowC s_advices (we can do this because both extension
+				// nodes have the same key, so we can have this info only in one).
+				for j := 0; j < len(extNibbles[extensionNodeInd]); j++ {
+					extensionRowC[branchNodeRLPLen + j] = extNibbles[extensionNodeInd][j]
+				}
+
 				keyLen := getExtensionNodeKeyLen(storageProof1[i])
 				keyIndex += int(keyLen)
 
+				extensionNodeInd++
 				continue
 			}
 
@@ -602,12 +608,18 @@ func prepareWitness(storageProof1, storageProof2 [][]byte, key []byte, neighbour
 				// Set isExtension to 1 in branch init.
 				bRows[0][isExtensionPos] = 1
 
-				keyLen := getExtensionNodeKeyLen(storageProof1[i])
-				// Set whether key extension is of even or odd length.
-				if keyLen % 2 == 0 {
-					bRows[0][isExtensionEvenKeyLen] = 1
+				keyLen := getExtensionNodeKeyLen(storageProof1[i-1])
+				// Set whether key extension nibbles are of even or odd length.
+				if keyLen == 1 {
+					bRows[0][isExtensionOddKeyLenPos] = 1
+					bRows[0][isExtensionKeyShortPos] = 1
 				} else {
-					bRows[0][isExtensionOddKeyLen] = 1
+					bRows[0][isExtensionKeyLongPos] = 1
+					if storageProof1[i-1][2] == 0 {
+						bRows[0][isExtensionEvenKeyLenPos] = 1
+					} else {
+						bRows[0][isExtensionOddKeyLenPos] = 1
+					}
 				}
 
 				addForHashing(storageProof1[i-1], &toBeHashed)
@@ -622,7 +634,7 @@ func prepareWitness(storageProof1, storageProof2 [][]byte, key []byte, neighbour
 			addForHashing(storageProof2[i], &toBeHashed)
 
 			// check the two branches
-			if !hasExtensionNode {
+			if extensionNodeInd == 0 {
 				for k := 1; k < 17; k++ {
 					if k-1 == int(key[i]) {
 						continue
@@ -770,7 +782,7 @@ func prepareWitness(storageProof1, storageProof2 [][]byte, key []byte, neighbour
 		rows = append(rows, pRows...)
 	}
 
-	return rows, toBeHashed, hasExtensionNode
+	return rows, toBeHashed, extensionNodeInd > 0
 }
 
 func updateStorageAndGetProofs(keys []common.Hash, values []common.Hash, toBeModified common.Hash, value common.Hash) {
@@ -793,7 +805,7 @@ func updateStorageAndGetProofs(keys []common.Hash, values []common.Hash, toBeMod
 	// in state_object.go, because originStorage stays set to 0 and value = 0.
 	statedb.IntermediateRoot(false)
 	// Let's say above state is our starting position.
-	storageProof, neighbourNode1, err := statedb.GetStorageProof(addr, toBeModified)
+	storageProof, neighbourNode1, _, err := statedb.GetStorageProof(addr, toBeModified)
 	check(err)
 
 	kh := crypto.Keccak256(toBeModified.Bytes())
@@ -816,7 +828,7 @@ func updateStorageAndGetProofs(keys []common.Hash, values []common.Hash, toBeMod
 
 	// We ask for a proof for the modified slot:
 	statedb.IntermediateRoot(false)
-	storageProof1, neighbourNode2, err := statedb.GetStorageProof(addr, toBeModified)
+	storageProof1, neighbourNode2, extNibbles, err := statedb.GetStorageProof(addr, toBeModified)
 	check(err)
 
 	// Neighbouring node (neighbour to the node that is being added or deleted) is used
@@ -833,8 +845,9 @@ func updateStorageAndGetProofs(keys []common.Hash, values []common.Hash, toBeMod
 		node = neighbourNode1
 	}
 
+	// TODO: extNibbles are different in case of added/deleted extension
 	rows, toBeHashed, hasExtensionNode :=
-		prepareWitness(storageProof, storageProof1, key, node, addr, statedb, false)
+		prepareWitness(storageProof, storageProof1, extNibbles, key, node, addr, statedb, false)
 	rows = append(rows, toBeHashed...)
 	fmt.Println(matrixToJson(rows))
 
@@ -905,9 +918,9 @@ func updateStateAndGetProofs(keys []common.Hash, toBeModified common.Hash, addr 
 	// This first proof will actually be retrieved by RPC eth_getProof (see oracle.PrefetchStorage function).
 	// All other proofs (after modifications) will be generated internally by buildig the internal state.
 
-	accountProof, _, err := statedb.GetProof(addr)
+	accountProof, _, _, err := statedb.GetProof(addr)
 	check(err)
-	storageProof, neighbourNode1, err := statedb.GetStorageProof(addr, toBeModified)
+	storageProof, neighbourNode1, _, err := statedb.GetStorageProof(addr, toBeModified)
 	check(err)
 
 	// By calling RPC eth_getProof we will get accountProof and storageProof.
@@ -975,10 +988,10 @@ func updateStateAndGetProofs(keys []common.Hash, toBeModified common.Hash, addr 
 	// We ask for a proof for the modified slot:
 	statedb.IntermediateRoot(false)
 
-	accountProof1, _, err := statedb.GetProof(addr)
+	accountProof1, _, extNibblesAccount, err := statedb.GetProof(addr)
 	check(err)
 
-	storageProof1, neighbourNode2, err := statedb.GetStorageProof(addr, toBeModified)
+	storageProof1, neighbourNode2, extNibbles, err := statedb.GetStorageProof(addr, toBeModified)
 	check(err)
 
 	node := neighbourNode2
@@ -986,11 +999,13 @@ func updateStateAndGetProofs(keys []common.Hash, toBeModified common.Hash, addr 
 		// delete operation
 		node = neighbourNode1
 	}
+	
+	// TODO: extNibbles not the same for storage when extension is added/deleted
 
 	rowsState, toBeHashedAcc, hasExtensionNodeAccount :=
-		prepareWitness(accountProof, accountProof1, accountAddr, nil, addr, statedb, true)
+		prepareWitness(accountProof, accountProof1, extNibblesAccount, accountAddr, nil, addr, statedb, true)
 	rowsStorage, toBeHashedStorage, hasExtensionNode :=
-		prepareWitness(storageProof, storageProof1, key, node, addr, statedb, false)
+		prepareWitness(storageProof, storageProof1, extNibbles, key, node, addr, statedb, false)
 	rowsState = append(rowsState, rowsStorage...)
 
 	// Put rows that just need to be hashed at the end, because circuit assign function
@@ -1550,4 +1565,29 @@ func TestStorageExtensionTwoKeyBytes(t *testing.T) {
 
 	v := common.BigToHash(big.NewInt(int64(17)))
 	updateStorageAndGetProofs(ks[:], values, toBeModified, v)
+}
+
+func TestFindExtensionInFirstLevel(t *testing.T) {
+	blockNum := 13284469
+	blockNumberParent := big.NewInt(int64(blockNum))
+	blockHeaderParent := oracle.PrefetchBlock(blockNumberParent, true, nil)
+	database := state.NewDatabase(blockHeaderParent)
+	statedb, _ := state.New(blockHeaderParent.Root, database, nil)
+	addr := common.HexToAddress("0x50efbf12580138bc263c95757826df4e24eb81c9")
+
+	key1 := common.HexToHash("0x12")
+	val1 := common.BigToHash(big.NewInt(int64(1)))
+
+	statedb.SetState(addr, key1, val1)
+
+	// Let's get a key which makes extension node at the first level.
+	for i := 0; i < 100; i++ {
+		h := fmt.Sprintf("0x%d", i)
+		key2 := common.HexToHash(h)
+		statedb.SetState(addr, key2, val1)
+		statedb.IntermediateRoot(false)
+
+		v := common.Hash{} // empty value deletes the key
+		statedb.SetState(addr, key2, v)
+	}
 }
