@@ -272,7 +272,7 @@ func getExtensionNodeKeyLen(proofEl []byte) byte {
 	}
 }
 
-func prepareExtensionRow(witnessRow, proofEl []byte) {
+func prepareExtensionRow(witnessRow, proofEl []byte, setKey bool) {
 	// storageProof[i]:
 	// [228,130,0,149,160,114,253,150,133,18,192,156,19,241,162,51,210,24,1,151,16,48,7,177,42,60,49,34,230,254,242,79,132,165,90,75,249]
 	// elems:
@@ -284,8 +284,10 @@ func prepareExtensionRow(witnessRow, proofEl []byte) {
 	// [16,160,172,105,12...
 
 	tag := proofEl[0]
-	witnessRow[0] = tag
-	witnessRow[1] = proofEl[1]
+	if setKey {
+		witnessRow[0] = tag
+		witnessRow[1] = proofEl[1]
+	}
 
 	if tag == 226 {
 		if proofEl[2] != 160 {
@@ -296,8 +298,10 @@ func prepareExtensionRow(witnessRow, proofEl []byte) {
 		}
 	} else {
 		lenK := int(proofEl[1] - 128)
-		for j := 0; j < lenK; j++ {
-			witnessRow[2+j] = proofEl[2+j]
+		if setKey {
+			for j := 0; j < lenK; j++ {
+				witnessRow[2+j] = proofEl[2+j]
+			}
 		}
 		if proofEl[2+lenK] != 160 {
 			panic("Extension node should be 160 S")
@@ -469,18 +473,31 @@ func prepareWitness(storageProof1, storageProof2, extNibbles [][]byte, key []byt
 				extRows := prepareEmptyExtensionRows()
 				extensionRowS = extRows[0]
 				extensionRowC = extRows[1]
-				prepareExtensionRow(extensionRowS, storageProof1[i])
-				prepareExtensionRow(extensionRowC, storageProof2[i])
+				prepareExtensionRow(extensionRowS, storageProof1[i], true)
+				prepareExtensionRow(extensionRowC, storageProof2[i], false)
+
+				keyLen := getExtensionNodeKeyLen(storageProof1[i])
+				keyIndex += int(keyLen)
 
 				// We need nibbles as witness to compute key RLC, so we set them
 				// into extensionRowC s_advices (we can do this because both extension
 				// nodes have the same key, so we can have this info only in one).
-				for j := 0; j < len(extNibbles[extensionNodeInd]); j++ {
-					extensionRowC[branchNodeRLPLen + j] = extNibbles[extensionNodeInd][j]
+				// There can be more up to 64 nibbles, but there is only 32 bytes
+				// in xtensionRowC s_advices. So we store every second nibble (having
+				// the whole byte and one nibble is enough to compute the other nibble).
+				startNibblePos := 2 // we don't need any nibbles for case keyLen = 1
+				if keyLen > 1 {
+					if storageProof1[i-1][2] == 0 { // even number of nibbles
+						startNibblePos = 1 // 
+					} else {
+						startNibblePos = 2
+					}
+				}
+				for j := startNibblePos; j < len(extNibbles[extensionNodeInd]); j += 2 {
+					extensionRowC[branchNodeRLPLen + j] =
+						extNibbles[extensionNodeInd][startNibblePos + j]
 				}
 
-				keyLen := getExtensionNodeKeyLen(storageProof1[i])
-				keyIndex += int(keyLen)
 
 				extensionNodeInd++
 				continue
@@ -1539,7 +1556,7 @@ func TestStorageAddedExtension(t *testing.T) {
 }
 */
 
-func TestStorageExtensionTwoKeyBytes(t *testing.T) {
+func TestStateExtensionTwoKeyBytes(t *testing.T) {
 	// Extension node which has key longer than 1 (2 in this test). This is needed because RLP takes
 	// different positions.
 	// Key length > 1 (130 means there are two bytes for key; 160 means there are 32 hash values after it):
@@ -1556,15 +1573,10 @@ func TestStorageExtensionTwoKeyBytes(t *testing.T) {
 		ks = append(ks, common.HexToHash(h))
 	}
 	
-	var values []common.Hash
-	for i := 0; i < len(ks); i++ {
-		values = append(values, common.BigToHash(big.NewInt(int64(i + 1)))) // don't put 0 value because otherwise nothing will be set (if 0 is prev value), see state_object.go line 279
-	}
-
 	toBeModified := common.HexToHash("0x172")
+	addr := common.HexToAddress("0x50efbf12580138bc263c95757826df4e24eb81c9")
 
-	v := common.BigToHash(big.NewInt(int64(17)))
-	updateStorageAndGetProofs(ks[:], values, toBeModified, v)
+	updateStateAndGetProofs(ks[:], toBeModified, addr)
 }
 
 func TestFindExtensionInFirstLevel(t *testing.T) {
