@@ -419,7 +419,7 @@ func prepareTwoBranchesWitness(branch1, branch2 []byte, key byte, isBranchSPlace
 	return rows
 }
 
-func prepareWitness(storageProof1, storageProof2, extNibbles [][]byte, key []byte, neighbourNode []byte, addr common.Address, statedb *state.StateDB, isAccountProof bool) ([][]byte, [][]byte, bool) {
+func prepareWitness(storageProof1, storageProof2, extNibbles [][]byte, key []byte, neighbourNode []byte, isAccountProof bool) ([][]byte, [][]byte, bool) {
 	rows := make([][]byte, 0)
 	toBeHashed := make([][]byte, 0)
 
@@ -802,7 +802,7 @@ func prepareWitness(storageProof1, storageProof2, extNibbles [][]byte, key []byt
 	return rows, toBeHashed, extensionNodeInd > 0
 }
 
-func updateStorageAndGetProofs(keys []common.Hash, values []common.Hash, toBeModified common.Hash, value common.Hash) {
+func updateStorageAndGetProofs(keys, values []common.Hash, toBeModified common.Hash, value common.Hash) {
 	blockNum := 13284469
 	blockNumberParent := big.NewInt(int64(blockNum))
 	blockHeaderParent := oracle.PrefetchBlock(blockNumberParent, true, nil)
@@ -830,8 +830,10 @@ func updateStorageAndGetProofs(keys []common.Hash, values []common.Hash, toBeMod
 
 	// Just to check key RLC (rand = 1)
 	kh_sum := 0
+	mult := 1
 	for i := 0; i < len(kh); i++ {
-		kh_sum += int(kh[i])
+		kh_sum += int(kh[i]) * mult
+		mult *= 2
 	}
 	fmt.Println("key sum:")
 	fmt.Println(kh_sum)
@@ -864,7 +866,7 @@ func updateStorageAndGetProofs(keys []common.Hash, values []common.Hash, toBeMod
 
 	// TODO: extNibbles are different in case of added/deleted extension
 	rows, toBeHashed, hasExtensionNode :=
-		prepareWitness(storageProof, storageProof1, extNibbles, key, node, addr, statedb, false)
+		prepareWitness(storageProof, storageProof1, extNibbles, key, node, false)
 	rows = append(rows, toBeHashed...)
 	fmt.Println(matrixToJson(rows))
 
@@ -912,7 +914,7 @@ func updateStorageAndGetProofs(keys []common.Hash, values []common.Hash, toBeMod
 	}
 }
 
-func updateStateAndGetProofs(keys []common.Hash, toBeModified common.Hash, addr common.Address) {
+func updateStateAndGetProofs(keys, values []common.Hash, toBeModified, value common.Hash, addr common.Address) {
 	// Here we are checking the whole state trie, not only a storage trie for some account as in above tests.
 	blockNum := 13284469
 	blockNumberParent := big.NewInt(int64(blockNum))
@@ -921,9 +923,7 @@ func updateStateAndGetProofs(keys []common.Hash, toBeModified common.Hash, addr 
 	statedb, _ := state.New(blockHeaderParent.Root, database, nil)
 
 	for i := 0; i < len(keys); i++ {
-		k := keys[i]
-		v := common.BigToHash(big.NewInt(int64(i + 1))) // don't put 0 value because otherwise nothing will be set (if 0 is prev value), see state_object.go line 279
-		statedb.SetState(addr, k, v)
+		statedb.SetState(addr, keys[i], values[i])
 	}
 
 	// If we don't call IntermediateRoot, obj.data.Root will be hash(emptyRoot).
@@ -981,26 +981,18 @@ func updateStateAndGetProofs(keys []common.Hash, toBeModified common.Hash, addr 
 	h := t.Hash()
 	fmt.Println(h)
 
-	accountAddr := trie.KeybytesToHex(crypto.Keccak256(addr.Bytes()))
+	addrh := crypto.Keccak256(addr.Bytes())
+	accountAddr := trie.KeybytesToHex(addrh)
 
 	kh := crypto.Keccak256(toBeModified.Bytes())
 	key := trie.KeybytesToHex(kh)
-
-	// Just to check key RLC (rand = 1)
-	kh_sum := 0
-	for i := 0; i < len(kh); i++ {
-		kh_sum += int(kh[i])
-	}
-	fmt.Println("key sum:")
-	fmt.Println(kh_sum)
-
+	
 	/*
 		Modifying storage:
 	*/
 
 	// We now change one existing storage slot:
-	v := common.BigToHash(big.NewInt(int64(17)))
-	statedb.SetState(addr, toBeModified, v)
+	statedb.SetState(addr, toBeModified, value)
 
 	// We ask for a proof for the modified slot:
 	statedb.IntermediateRoot(false)
@@ -1020,9 +1012,9 @@ func updateStateAndGetProofs(keys []common.Hash, toBeModified common.Hash, addr 
 	// TODO: extNibbles not the same for storage when extension is added/deleted
 
 	rowsState, toBeHashedAcc, hasExtensionNodeAccount :=
-		prepareWitness(accountProof, accountProof1, extNibblesAccount, accountAddr, nil, addr, statedb, true)
+		prepareWitness(accountProof, accountProof1, extNibblesAccount, accountAddr, nil, true)
 	rowsStorage, toBeHashedStorage, hasExtensionNode :=
-		prepareWitness(storageProof, storageProof1, extNibbles, key, node, addr, statedb, false)
+		prepareWitness(storageProof, storageProof1, extNibbles, key, node, false)
 	rowsState = append(rowsState, rowsStorage...)
 
 	// Put rows that just need to be hashed at the end, because circuit assign function
@@ -1038,6 +1030,19 @@ func updateStateAndGetProofs(keys []common.Hash, toBeModified common.Hash, addr 
 
 	fmt.Println(matrixToJson(rowsState))
 
+	// Just to check key RLC (rand = 1)
+	kh_sum := 0
+	addr_sum := 0
+	mult := 1
+	for i := 0; i < len(kh); i++ {
+		kh_sum += int(kh[i]) * mult
+		addr_sum += int(addrh[i]) * mult
+		mult *= 2 // just some value that is not 1 to enable testing the multiplier too
+	}
+	fmt.Println("address/key RLC:")
+	fmt.Println(addr_sum)
+	fmt.Println(kh_sum)
+
 	if !hasExtensionNodeAccount {
 		if !VerifyTwoProofsAndPath(accountProof, accountProof1, accountAddr) {
 			panic("proof not valid")
@@ -1050,7 +1055,7 @@ func updateStateAndGetProofs(keys []common.Hash, toBeModified common.Hash, addr 
 	}
 }
 
-func TestStorageUpdateOneLevel(t *testing.T) {
+func TestUpdateOneLevel(t *testing.T) {
 	ks := [...]common.Hash{common.HexToHash("0x12"), common.HexToHash("0x21")}
 	// hexed keys:
 	// [3,1,14,12,12,...
@@ -1066,10 +1071,11 @@ func TestStorageUpdateOneLevel(t *testing.T) {
 	// odd and even length are handled differently)
 	toBeModified := ks[0]
 	v := common.BigToHash(big.NewInt(int64(17)))
-	updateStorageAndGetProofs(ks[:], values, toBeModified, v)
+	addr := common.HexToAddress("0xaaaccf12580138bc2bbceeeaa111df4e42ab81ff")
+	updateStateAndGetProofs(ks[:], values, toBeModified, v, addr)
 }
 
-func TestStorageUpdateOneLevelBigVal(t *testing.T) {
+func TestUpdateOneLevelBigVal(t *testing.T) {
 	ks := [...]common.Hash{common.HexToHash("0x12"), common.HexToHash("0x21")}
 	// hexed keys:
 	// [3,1,14,12,12,...
@@ -1087,10 +1093,11 @@ func TestStorageUpdateOneLevelBigVal(t *testing.T) {
 	// big value so that RLP is longer than 55 bytes
 	v1 := common.FromHex("0xbbefaa12580138bc263c95757826df4e24eb81c9aaaaaaaaaaaaaaaaaaaaaaaa")
 	v2 := common.BytesToHash(v1)
-	updateStorageAndGetProofs(ks[:], values, toBeModified, v2)
+	addr := common.HexToAddress("0xaaaccf12580138bc2bbceeeaa826df4e42ab81ff")
+	updateStateAndGetProofs(ks[:], values, toBeModified, v2, addr)
 }
 
-func TestStorageUpdateTwoLevels(t *testing.T) {
+func TestUpdateTwoLevels(t *testing.T) {
 	ks := [...]common.Hash{common.HexToHash("0x11"), common.HexToHash("0x12"), common.HexToHash("0x21")} // this has three levels
 	// hexed keys:
 	// [3,1,14,12,12,...
@@ -1110,10 +1117,11 @@ func TestStorageUpdateTwoLevels(t *testing.T) {
 	// odd and even length are handled differently)
 	toBeModified := ks[0]
 	v := common.BigToHash(big.NewInt(int64(17)))
-	updateStorageAndGetProofs(ks[:], values, toBeModified, v)
+	addr := common.HexToAddress("0xaaaccf12580138bc2bbc957aa826df4e42ab81ff")
+	updateStateAndGetProofs(ks[:], values, toBeModified, v, addr)
 }
 
-func TestStorageUpdateTwoLevelsBigVal(t *testing.T) {
+func TestUpdateTwoLevelsBigVal(t *testing.T) {
 	ks := [...]common.Hash{common.HexToHash("0x11"), common.HexToHash("0x12"), common.HexToHash("0x21")} // this has three levels
 	// hexed keys:
 	// [3,1,14,12,12,...
@@ -1135,10 +1143,11 @@ func TestStorageUpdateTwoLevelsBigVal(t *testing.T) {
 
 	v1 := common.FromHex("0xbbefaa12580138bc263c95757826df4e24eb81c9aaaaaaaaaaaaaaaaaaaaaaaa")
 	v2 := common.BytesToHash(v1)
-	updateStorageAndGetProofs(ks[:], values, toBeModified, v2)
+	addr := common.HexToAddress("0xaaaccf12580138bc2bbc957aa826df4e42ab81ff")
+	updateStateAndGetProofs(ks[:], values, toBeModified, v2, addr)
 }
 
-func TestStorageUpdateThreeLevels1(t *testing.T) {
+func TestUpdateThreeLevels(t *testing.T) {
 	ks := [...]common.Hash{
 		common.HexToHash("0x11"),
 		common.HexToHash("0x12"),
@@ -1182,10 +1191,11 @@ func TestStorageUpdateThreeLevels1(t *testing.T) {
 	toBeModified := ks[10]
 
 	v := common.BigToHash(big.NewInt(int64(17)))
-	updateStorageAndGetProofs(ks[:], values, toBeModified, v)
+	addr := common.HexToAddress("0xaaaccf12580138bc263c95757826df4e42ab81ff")
+	updateStateAndGetProofs(ks[:], values, toBeModified, v, addr)
 }
 
-func TestStorageFromNilToValue(t *testing.T) {
+func TestFromNilToValue(t *testing.T) {
 	ks := [...]common.Hash{
 		common.HexToHash("0x11"),
 		common.HexToHash("0x12"),
@@ -1209,10 +1219,11 @@ func TestStorageFromNilToValue(t *testing.T) {
 	toBeModified := common.HexToHash("0x38")
 
 	v := common.BigToHash(big.NewInt(int64(17)))
-	updateStorageAndGetProofs(ks[:], values, toBeModified, v)
+	addr := common.HexToAddress("0x50efbf12580138bc263c95757826df4e42ab81ff")
+	updateStateAndGetProofs(ks[:], values, toBeModified, v, addr)
 }
 
-func TestStorageDelete(t *testing.T) {
+func TestDelete(t *testing.T) {
 	ks := [...]common.Hash{
 		common.HexToHash("0xaaaabbbbabab"),
 		common.HexToHash("0xbaaabbbbabab"),
@@ -1227,35 +1238,44 @@ func TestStorageDelete(t *testing.T) {
 
 	toBeModified := common.HexToHash("0xdaaabbbbabab")
 
-	v := common.Hash{} // empty value deletes the key
-	updateStorageAndGetProofs(ks[:], values, toBeModified, v)
+	val := common.Hash{} // empty value deletes the key
+	addr := common.HexToAddress("0x50efbf12580138bc263c95757826df4e24eb81ff")
+	updateStateAndGetProofs(ks[:], values, toBeModified, val, addr)
 }
 
-func TestStateUpdateOneLevel(t *testing.T) {
+func TestUpdateOneLevel1(t *testing.T) {
 	addr := common.HexToAddress("0x50efbf12580138bc263c95757826df4e24eb81c9")
 	// This address is turned into odd length (see hexToCompact in encoding.go to see
 	// odd and even length are handled differently)
 	ks := [...]common.Hash{common.HexToHash("0x12"), common.HexToHash("0x21")}
+	var values []common.Hash
+	for i := 0; i < len(ks); i++ {
+		values = append(values, common.BigToHash(big.NewInt(int64(i + 1)))) // don't put 0 value because otherwise nothing will be set (if 0 is prev value), see state_object.go line 279
+	}
 
 	// This is a storage slot that will be modified (the list will come from bus-mapping):
 	toBeModified := ks[1]
-
-	updateStateAndGetProofs(ks[:], toBeModified, addr)
+	val := common.BigToHash(big.NewInt(int64(17)))
+	updateStateAndGetProofs(ks[:], values, toBeModified, val, addr)
 }
 
-func TestStateUpdateOneLevelEvenAddress(t *testing.T) {
+func TestUpdateOneLevelEvenAddress(t *testing.T) {
 	addr := common.HexToAddress("0x25efbf12580138bc263c95757826df4e24eb81c9")
 	// This address is turned into even length (see hexToCompact in encoding.go to see
 	// odd and even length are handled differently)
 	ks := [...]common.Hash{common.HexToHash("0x12"), common.HexToHash("0x21")}
+	var values []common.Hash
+	for i := 0; i < len(ks); i++ {
+		values = append(values, common.BigToHash(big.NewInt(int64(i + 1)))) // don't put 0 value because otherwise nothing will be set (if 0 is prev value), see state_object.go line 279
+	}
 
 	// This is a storage slot that will be modified (the list will come from bus-mapping):
 	toBeModified := ks[1]
-
-	updateStateAndGetProofs(ks[:], toBeModified, addr)
+	val := common.BigToHash(big.NewInt(int64(17)))
+	updateStateAndGetProofs(ks[:], values, toBeModified, val, addr)
 }
 
-func TestStorageAddBranch(t *testing.T) {
+func TestAddBranch(t *testing.T) {
 	ks := [...]common.Hash{common.HexToHash("0x11"), common.HexToHash("0x12")}
 	// hexed keys:
 	// [3,1,14,12,12,...
@@ -1274,10 +1294,11 @@ func TestStorageAddBranch(t *testing.T) {
 	toBeModified := common.HexToHash("0x21")
 
 	v := common.BigToHash(big.NewInt(int64(17)))
-	updateStorageAndGetProofs(ks[:], values, toBeModified, v)
+	addr := common.HexToAddress("0x75acef12a01883c2b3fc57957826df4e24e8baaa")
+	updateStateAndGetProofs(ks[:], values, toBeModified, v, addr)
 }
 
-func TestStorageAddBranchLong(t *testing.T) {
+func TestAddBranchLong(t *testing.T) {
 	ks := [...]common.Hash{common.HexToHash("0x11"), common.HexToHash("0x12")}
 	// hexed keys:
 	// [3,1,14,12,12,...
@@ -1299,10 +1320,11 @@ func TestStorageAddBranchLong(t *testing.T) {
 	toBeModified := common.HexToHash("0x21")
 
 	v := common.BigToHash(big.NewInt(int64(17)))
-	updateStorageAndGetProofs(ks[:], values, toBeModified, v)
+	addr := common.HexToAddress("0x75acef12a01883c2b3fc57957826df4e24e8b19c")
+	updateStateAndGetProofs(ks[:], values, toBeModified, v, addr)
 }
 
-func TestStorageDeleteBranch(t *testing.T) {
+func TestDeleteBranch(t *testing.T) {
 	h := common.HexToHash("0x11dd2277aa")
 
 	ks := [...]common.Hash{
@@ -1325,10 +1347,11 @@ func TestStorageDeleteBranch(t *testing.T) {
 	toBeModified := h
 
 	v := common.Hash{} // empty value deletes the key
-	updateStorageAndGetProofs(ks[:], values, toBeModified, v)
+	addr := common.HexToAddress("0x75acef12a0188c32b36c57957826df4e24e8b19c")
+	updateStateAndGetProofs(ks[:], values, toBeModified, v, addr)
 }
 
-func TestStorageDeleteBranchLong(t *testing.T) {
+func TestDeleteBranchLong(t *testing.T) {
 	h := common.HexToHash("0x11dd2277aa")
 
 	ks := [...]common.Hash{
@@ -1354,13 +1377,14 @@ func TestStorageDeleteBranchLong(t *testing.T) {
 	toBeModified := h
 
 	v := common.Hash{} // empty value deletes the key
-	updateStorageAndGetProofs(ks[:], values, toBeModified, v)
+	addr := common.HexToAddress("0x75acef12a0188c32b36c57957826df4e24e8b19c")
+	updateStateAndGetProofs(ks[:], values, toBeModified, v, addr)
 }
 
-func TestStorageAddBranchTwoLevels(t *testing.T) {
+func TestAddBranchTwoLevels(t *testing.T) {
 	// Test for case when branch is added in the second level. So, instead of having only
 	// branch1 with some nodes and then one of this nodes is replaced with a branch (that's
-	// the case of TestStorageAddBranch), we have here branch1 and then inside it another
+	// the case of TestAddBranch), we have here branch1 and then inside it another
 	// branch: branch2. Inside brach2 we have a node which gets replaced by a branch.
 	// This is to test cases when the key contains odd number of nibbles as well as
 	// even number of nibbles.
@@ -1391,10 +1415,11 @@ func TestStorageAddBranchTwoLevels(t *testing.T) {
 	toBeModified := common.HexToHash("0xaa43")
 
 	v := common.BigToHash(big.NewInt(int64(17)))
-	updateStorageAndGetProofs(ks[:], values, toBeModified, v)
+	addr := common.HexToAddress("0x75fbef12a0188c32b36c57957826df4e24e8b19c")
+	updateStateAndGetProofs(ks[:], values, toBeModified, v, addr)
 }
 
-func TestStorageAddBranchTwoLevelsLong(t *testing.T) {
+func TestAddBranchTwoLevelsLong(t *testing.T) {
 	a := 1
 	b := 1
 	h := fmt.Sprintf("0xaa%d%d", a, b)
@@ -1423,10 +1448,11 @@ func TestStorageAddBranchTwoLevelsLong(t *testing.T) {
 	toBeModified := common.HexToHash("0xaa43")
 
 	v := common.BigToHash(big.NewInt(int64(17)))
-	updateStorageAndGetProofs(ks[:], values, toBeModified, v)
+	addr := common.HexToAddress("0x75fbef1250188c32b63c57957826df4e24e8b19c")
+	updateStateAndGetProofs(ks[:], values, toBeModified, v, addr)
 }
 
-func TestStorageDeleteBranchTwoLevels(t *testing.T) {
+func TestDeleteBranchTwoLevels(t *testing.T) {
 	a := 1
 	b := 1
 	h := fmt.Sprintf("0xaa%d%d", a, b)
@@ -1450,10 +1476,11 @@ func TestStorageDeleteBranchTwoLevels(t *testing.T) {
 	toBeModified := common.HexToHash("0xaa43")
 
 	v := common.Hash{}
-	updateStorageAndGetProofs(ks[:], values, toBeModified, v)
+	addr := common.HexToAddress("0x75fbef1250188c32b63c57957826df4e24eb81c9")
+	updateStateAndGetProofs(ks[:], values, toBeModified, v, addr)
 }
 
-func TestStorageDeleteBranchTwoLevelsLong(t *testing.T) {
+func TestDeleteBranchTwoLevelsLong(t *testing.T) {
 	a := 1
 	b := 1
 	h := fmt.Sprintf("0xaa%d%d", a, b)
@@ -1479,10 +1506,11 @@ func TestStorageDeleteBranchTwoLevelsLong(t *testing.T) {
 	toBeModified := common.HexToHash("0xaa43")
 
 	v := common.Hash{}
-	updateStorageAndGetProofs(ks[:], values, toBeModified, v)
+	addr := common.HexToAddress("0x75fbef21508183c2b63c57957826df4e24eb81c9")
+	updateStateAndGetProofs(ks[:], values, toBeModified, v, addr)
 }
 
-func TestStorageExtensionOneKeyByte(t *testing.T) {
+func TestExtensionOneKeyByte(t *testing.T) {
 	ks := [...]common.Hash{
 		common.HexToHash("0x11"),
 		common.HexToHash("0x12"),
@@ -1519,11 +1547,11 @@ func TestStorageExtensionOneKeyByte(t *testing.T) {
 	for i := 0; i < len(ks); i++ {
 		values = append(values, common.BigToHash(big.NewInt(int64(i + 1)))) // don't put 0 value because otherwise nothing will be set (if 0 is prev value), see state_object.go line 279
 	}
-
+	
 	toBeModified := ks[len(ks)-1]
-
-	v := common.BigToHash(big.NewInt(int64(17)))
-	updateStorageAndGetProofs(ks[:], values, toBeModified, v)
+	addr := common.HexToAddress("0x75fbef21508183c2b63c57957826df4e24eb81c9")
+	val := common.BigToHash(big.NewInt(int64(17)))
+	updateStateAndGetProofs(ks[:], values, toBeModified, val, addr)
 }
 
 /*
@@ -1573,19 +1601,24 @@ func TestStateExtensionTwoKeyBytes(t *testing.T) {
 		ks = append(ks, common.HexToHash(h))
 	}
 	
-	toBeModified := common.HexToHash("0x172")
-	addr := common.HexToAddress("0x50efbf12580138bc263c95757826df4e24eb81c9")
+	var values []common.Hash
+	for i := 0; i < len(ks); i++ {
+		values = append(values, common.BigToHash(big.NewInt(int64(i + 1)))) // don't put 0 value because otherwise nothing will be set (if 0 is prev value), see state_object.go line 279
+	}
 
-	updateStateAndGetProofs(ks[:], toBeModified, addr)
+	toBeModified := common.HexToHash("0x172")
+	addr := common.HexToAddress("0x75fbef21508183c2b63c59757826df4e24eb81c9")
+	val := common.BigToHash(big.NewInt(int64(17)))
+	updateStateAndGetProofs(ks[:], values, toBeModified, val, addr)
 }
 
-func TestFindExtensionInFirstLevel(t *testing.T) {
+func TestFindStorage(t *testing.T) {
 	blockNum := 13284469
 	blockNumberParent := big.NewInt(int64(blockNum))
 	blockHeaderParent := oracle.PrefetchBlock(blockNumberParent, true, nil)
 	database := state.NewDatabase(blockHeaderParent)
 	statedb, _ := state.New(blockHeaderParent.Root, database, nil)
-	addr := common.HexToAddress("0x50efbf12580138bc263c95757826df4e24eb81c9")
+	addr := common.HexToAddress("0x50efbf12580138bc623c95757286df4e24eb81c9")
 
 	key1 := common.HexToHash("0x12")
 	val1 := common.BigToHash(big.NewInt(int64(1)))
@@ -1602,4 +1635,29 @@ func TestFindExtensionInFirstLevel(t *testing.T) {
 		v := common.Hash{} // empty value deletes the key
 		statedb.SetState(addr, key2, v)
 	}
+}
+
+func TestFindAccount(t *testing.T) {
+	blockNum := 13284469
+	blockNumberParent := big.NewInt(int64(blockNum))
+	blockHeaderParent := oracle.PrefetchBlock(blockNumberParent, true, nil)
+	database := state.NewDatabase(blockHeaderParent)
+	statedb, _ := state.New(blockHeaderParent.Root, database, nil)
+	
+	for i := 0; i < 1000; i++ {
+		h := fmt.Sprintf("0x%d", i)
+		addr := common.HexToAddress(h)
+		// statedb.IntermediateRoot(false)
+		statedb.CreateAccount(addr)
+
+		accountProof, _, _, err := statedb.GetProof(addr)
+		check(err)
+		// fmt.Println(accountProof)
+		if len(accountProof) < 3 {
+			fmt.Println(len(accountProof))
+			fmt.Println("asdfsadf")
+		}
+
+	}
+
 }
