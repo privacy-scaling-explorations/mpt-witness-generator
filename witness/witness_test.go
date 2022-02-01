@@ -487,15 +487,17 @@ func prepareWitness(storageProof1, storageProof2, extNibbles [][]byte, key []byt
 				// the whole byte and one nibble is enough to compute the other nibble).
 				startNibblePos := 2 // we don't need any nibbles for case keyLen = 1
 				if keyLen > 1 {
-					if storageProof1[i-1][2] == 0 { // even number of nibbles
+					if storageProof1[i][2] == 0 { // even number of nibbles
 						startNibblePos = 1 // 
 					} else {
 						startNibblePos = 2
 					}
 				}
+				ind := 0
 				for j := startNibblePos; j < len(extNibbles[extensionNodeInd]); j += 2 {
-					extensionRowC[branchNodeRLPLen + j] =
-						extNibbles[extensionNodeInd][startNibblePos + j]
+					extensionRowC[branchNodeRLPLen + ind] =
+						extNibbles[extensionNodeInd][j]
+					ind++
 				}
 
 
@@ -828,7 +830,7 @@ func updateStorageAndGetProofs(keys, values []common.Hash, toBeModified common.H
 	kh := crypto.Keccak256(toBeModified.Bytes())
 	key := trie.KeybytesToHex(kh)
 
-	// Just to check key RLC (rand = 1)
+	// Just to check key RLC (rand = 2)
 	kh_sum := 0
 	mult := 1
 	for i := 0; i < len(kh); i++ {
@@ -1030,7 +1032,7 @@ func updateStateAndGetProofs(keys, values []common.Hash, toBeModified, value com
 
 	fmt.Println(matrixToJson(rowsState))
 
-	// Just to check key RLC (rand = 1)
+	// Just to check key RLC (rand = 2)
 	kh_sum := 0
 	addr_sum := 0
 	mult := 1
@@ -1510,7 +1512,7 @@ func TestDeleteBranchTwoLevelsLong(t *testing.T) {
 	updateStateAndGetProofs(ks[:], values, toBeModified, v, addr)
 }
 
-func TestExtensionOneKeyByte(t *testing.T) {
+func TestExtensionOneKeyByteSel1(t *testing.T) {
 	ks := [...]common.Hash{
 		common.HexToHash("0x11"),
 		common.HexToHash("0x12"),
@@ -1584,7 +1586,7 @@ func TestStorageAddedExtension(t *testing.T) {
 }
 */
 
-func TestStateExtensionTwoKeyBytes(t *testing.T) {
+func TestStateExtensionTwoKeyBytesSel1(t *testing.T) {
 	// Extension node which has key longer than 1 (2 in this test). This is needed because RLP takes
 	// different positions.
 	// Key length > 1 (130 means there are two bytes for key; 160 means there are 32 hash values after it):
@@ -1612,6 +1614,69 @@ func TestStateExtensionTwoKeyBytes(t *testing.T) {
 	updateStateAndGetProofs(ks[:], values, toBeModified, val, addr)
 }
 
+func TestStateExtensionOneKeyByteSel2(t *testing.T) {
+	a := 0
+	h := fmt.Sprintf("0xca%d", a)
+	ks := []common.Hash{common.HexToHash(h)}
+	for i := 0; i < 876; i++ {
+		a += 1
+		h := fmt.Sprintf("0xca%d", a)
+		ks = append(ks, common.HexToHash(h))
+	}
+	
+	var values []common.Hash
+	for i := 0; i < len(ks); i++ {
+		values = append(values, common.BigToHash(big.NewInt(int64(i + 1)))) // don't put 0 value because otherwise nothing will be set (if 0 is prev value), see state_object.go line 279
+	}
+
+	toBeModified := common.HexToHash("0xca644")
+	addr := common.HexToAddress("0x75fbef2150818c32b36c57957226df4e24eb81c9")
+	val := common.BigToHash(big.NewInt(int64(17)))
+	updateStateAndGetProofs(ks[:], values, toBeModified, val, addr)
+}
+
+func TestStateExtensionTwoKeyBytesSel2(t *testing.T) {
+	a := 0
+	h := fmt.Sprintf("0x2ea%d", a)
+	ks := []common.Hash{common.HexToHash(h)}
+	for i := 0; i < 876; i++ {
+		a += 1
+		h := fmt.Sprintf("0x2ea%d", a)
+		ks = append(ks, common.HexToHash(h))
+	}
+	
+	var values []common.Hash
+	for i := 0; i < len(ks); i++ {
+		values = append(values, common.BigToHash(big.NewInt(int64(i + 1)))) // don't put 0 value because otherwise nothing will be set (if 0 is prev value), see state_object.go line 279
+	}
+
+	toBeModified := common.HexToHash("0x2ea772")
+	addr := common.HexToAddress("0x75fbef2150818c32b36c57957226df4e24eb81c9")
+	val := common.BigToHash(big.NewInt(int64(17)))
+	updateStateAndGetProofs(ks[:], values, toBeModified, val, addr)
+}
+
+func TestStateExtensionThreeBytesSel2(t *testing.T) {
+	a := 0
+	h := fmt.Sprintf("0x1a%d", a)
+	ks := []common.Hash{common.HexToHash(h)}
+	for i := 0; i < 1176; i++ {
+		a += 1
+		h := fmt.Sprintf("0x1a%d", a)
+		ks = append(ks, common.HexToHash(h))
+	}
+	
+	var values []common.Hash
+	for i := 0; i < len(ks); i++ {
+		values = append(values, common.BigToHash(big.NewInt(int64(i + 1)))) // don't put 0 value because otherwise nothing will be set (if 0 is prev value), see state_object.go line 279
+	}
+
+	toBeModified := common.HexToHash("0xea67")
+	addr := common.HexToAddress("0x75fbef2150818c32b36c57957226df4e24eb81c9")
+	val := common.BigToHash(big.NewInt(int64(17)))
+	updateStateAndGetProofs(ks[:], values, toBeModified, val, addr)
+}
+
 func TestFindStorage(t *testing.T) {
 	blockNum := 13284469
 	blockNumberParent := big.NewInt(int64(blockNum))
@@ -1626,7 +1691,8 @@ func TestFindStorage(t *testing.T) {
 	statedb.SetState(addr, key1, val1)
 
 	// Let's get a key which makes extension node at the first level.
-	for i := 0; i < 100; i++ {
+	// (set the breakpoint in trie.go, line 313)
+	for i := 0; i < 1000; i++ {
 		h := fmt.Sprintf("0x%d", i)
 		key2 := common.HexToHash(h)
 		statedb.SetState(addr, key2, val1)
