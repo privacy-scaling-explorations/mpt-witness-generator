@@ -1586,7 +1586,7 @@ func TestStorageAddedExtension(t *testing.T) {
 }
 */
 
-func TestStateExtensionTwoKeyBytesSel1(t *testing.T) {
+func TestExtensionTwoKeyBytesSel1(t *testing.T) {
 	// Extension node which has key longer than 1 (2 in this test). This is needed because RLP takes
 	// different positions.
 	// Key length > 1 (130 means there are two bytes for key; 160 means there are 32 hash values after it):
@@ -1614,7 +1614,7 @@ func TestStateExtensionTwoKeyBytesSel1(t *testing.T) {
 	updateStateAndGetProofs(ks[:], values, toBeModified, val, addr)
 }
 
-func TestStateExtensionOneKeyByteSel2(t *testing.T) {
+func TestExtensionOneKeyByteSel2(t *testing.T) {
 	a := 0
 	h := fmt.Sprintf("0xca%d", a)
 	ks := []common.Hash{common.HexToHash(h)}
@@ -1635,7 +1635,7 @@ func TestStateExtensionOneKeyByteSel2(t *testing.T) {
 	updateStateAndGetProofs(ks[:], values, toBeModified, val, addr)
 }
 
-func TestStateExtensionTwoKeyBytesSel2(t *testing.T) {
+func TestExtensionTwoKeyBytesSel2(t *testing.T) {
 	a := 0
 	h := fmt.Sprintf("0x2ea%d", a)
 	ks := []common.Hash{common.HexToHash(h)}
@@ -1656,13 +1656,14 @@ func TestStateExtensionTwoKeyBytesSel2(t *testing.T) {
 	updateStateAndGetProofs(ks[:], values, toBeModified, val, addr)
 }
 
-func TestStateExtensionThreeBytesSel2(t *testing.T) {
+func TestExtensionThreeBytesSel2(t *testing.T) {
+	// still searching for the right values
 	a := 0
-	h := fmt.Sprintf("0x1a%d", a)
+	h := fmt.Sprintf("0xf8a%d", a)
 	ks := []common.Hash{common.HexToHash(h)}
-	for i := 0; i < 1176; i++ {
+	for i := 0; i < 1000; i++ {
 		a += 1
-		h := fmt.Sprintf("0x1a%d", a)
+		h := fmt.Sprintf("0xf8a%d", a)
 		ks = append(ks, common.HexToHash(h))
 	}
 	
@@ -1671,7 +1672,26 @@ func TestStateExtensionThreeBytesSel2(t *testing.T) {
 		values = append(values, common.BigToHash(big.NewInt(int64(i + 1)))) // don't put 0 value because otherwise nothing will be set (if 0 is prev value), see state_object.go line 279
 	}
 
-	toBeModified := common.HexToHash("0xea67")
+	toBeModified := common.HexToHash("0xfa935")
+	addr := common.HexToAddress("0x75fbef2150818c32b36c57957226df4e24eb81c9")
+	val := common.BigToHash(big.NewInt(int64(17)))
+	updateStateAndGetProofs(ks[:], values, toBeModified, val, addr)
+}
+
+func TestExtensionInFirstStorageLevel(t *testing.T) {
+	ks := []common.Hash{common.HexToHash("0x12")}
+
+	for i := 0; i < 10; i++ {
+		h := fmt.Sprintf("0x%d", i)
+		ks = append(ks, common.HexToHash(h))
+	}
+	
+	var values []common.Hash
+	for i := 0; i < len(ks); i++ {
+		values = append(values, common.BigToHash(big.NewInt(int64(i + 1)))) // don't put 0 value because otherwise nothing will be set (if 0 is prev value), see state_object.go line 279
+	}
+
+	toBeModified := common.HexToHash("0x1")
 	addr := common.HexToAddress("0x75fbef2150818c32b36c57957226df4e24eb81c9")
 	val := common.BigToHash(big.NewInt(int64(17)))
 	updateStateAndGetProofs(ks[:], values, toBeModified, val, addr)
@@ -1692,7 +1712,8 @@ func TestFindStorage(t *testing.T) {
 
 	// Let's get a key which makes extension node at the first level.
 	// (set the breakpoint in trie.go, line 313)
-	for i := 0; i < 1000; i++ {
+	/*
+	for i := 0; i < 4; i++ {
 		h := fmt.Sprintf("0x%d", i)
 		key2 := common.HexToHash(h)
 		statedb.SetState(addr, key2, val1)
@@ -1701,6 +1722,11 @@ func TestFindStorage(t *testing.T) {
 		v := common.Hash{} // empty value deletes the key
 		statedb.SetState(addr, key2, v)
 	}
+	*/
+	h := fmt.Sprintf("0x%d", 4)
+	key2 := common.HexToHash(h)
+	statedb.SetState(addr, key2, val1)
+	statedb.IntermediateRoot(false)
 }
 
 func TestFindAccount(t *testing.T) {
