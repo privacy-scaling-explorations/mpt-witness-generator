@@ -927,7 +927,10 @@ func updateStateAndGetProofs(keys, values []common.Hash, toBeModified, value com
 	for i := 0; i < len(keys); i++ {
 		statedb.SetState(addr, keys[i], values[i])
 	}
+	getProofs(toBeModified, value, addr, statedb)
+}
 
+func getProofs(toBeModified, value common.Hash, addr common.Address, statedb *state.StateDB) {
 	// If we don't call IntermediateRoot, obj.data.Root will be hash(emptyRoot).
 	statedb.IntermediateRoot(false)
 
@@ -1697,7 +1700,7 @@ func TestExtensionInFirstStorageLevel(t *testing.T) {
 	updateStateAndGetProofs(ks[:], values, toBeModified, val, addr)
 }
 
-func TestFindStorage(t *testing.T) {
+func TestExtensionInFirstStorageLevelOneKeyByte(t *testing.T) {
 	blockNum := 13284469
 	blockNumberParent := big.NewInt(int64(blockNum))
 	blockHeaderParent := oracle.PrefetchBlock(blockNumberParent, true, nil)
@@ -1710,23 +1713,70 @@ func TestFindStorage(t *testing.T) {
 
 	statedb.SetState(addr, key1, val1)
 
-	// Let's get a key which makes extension node at the first level.
-	// (set the breakpoint in trie.go, line 313)
-	/*
-	for i := 0; i < 4; i++ {
+	h := fmt.Sprintf("0x%d", 1)
+	key2 := common.HexToHash(h)
+	statedb.SetState(addr, key2, val1)
+	statedb.IntermediateRoot(false)
+
+	toBeModified := common.HexToHash("0x1")
+	val := common.BigToHash(big.NewInt(int64(17)))
+	getProofs(toBeModified, val, addr, statedb)
+}
+
+func TestExtensionInFirstStorageLevelTwoKeyBytes(t *testing.T) {
+	blockNum := 13284469
+	blockNumberParent := big.NewInt(int64(blockNum))
+	blockHeaderParent := oracle.PrefetchBlock(blockNumberParent, true, nil)
+	database := state.NewDatabase(blockHeaderParent)
+	statedb, _ := state.New(blockHeaderParent.Root, database, nil)
+	addr := common.HexToAddress("0x50efbf12580138bc623c95757286df4e24eb81c9")
+
+	key1 := common.HexToHash("0x12")
+	val1 := common.BigToHash(big.NewInt(int64(1)))
+
+	statedb.SetState(addr, key1, val1)
+
+	h := "0xa617"
+	key2 := common.HexToHash(h)
+	statedb.SetState(addr, key2, val1)
+	statedb.IntermediateRoot(false)
+
+	toBeModified := common.HexToHash("0xa617")
+	val := common.BigToHash(big.NewInt(int64(17)))
+	getProofs(toBeModified, val, addr, statedb)
+}
+
+func TestExtensionInFirstStorageLevelThreeKeyBytes(t *testing.T) {
+	blockNum := 13284469
+	blockNumberParent := big.NewInt(int64(blockNum))
+	blockHeaderParent := oracle.PrefetchBlock(blockNumberParent, true, nil)
+	database := state.NewDatabase(blockHeaderParent)
+	statedb, _ := state.New(blockHeaderParent.Root, database, nil)
+	addr := common.HexToAddress("0x50feb1f2580138bc623c97557286df4e24eb81c9")
+
+	for i := 0; i < 10; i++ {
 		h := fmt.Sprintf("0x%d", i)
 		key2 := common.HexToHash(h)
+		val1 := common.BigToHash(big.NewInt(int64(1)))
+		statedb.SetState(addr, key2, val1)
+	}
+
+	// Let's get a key which makes extension node at the first level.
+	// (set the breakpoint in trie.go, line 313)
+	for i := 0; i < 1000; i++ {
+		h := fmt.Sprintf("0x11%d", i)
+		key2 := common.HexToHash(h)
+		val1 := common.BigToHash(big.NewInt(int64(1)))
 		statedb.SetState(addr, key2, val1)
 		statedb.IntermediateRoot(false)
 
 		v := common.Hash{} // empty value deletes the key
 		statedb.SetState(addr, key2, v)
 	}
-	*/
-	h := fmt.Sprintf("0x%d", 4)
-	key2 := common.HexToHash(h)
-	statedb.SetState(addr, key2, val1)
-	statedb.IntermediateRoot(false)
+
+	toBeModified := common.HexToHash("0x1")
+	val := common.BigToHash(big.NewInt(int64(17)))
+	getProofs(toBeModified, val, addr, statedb)
 }
 
 func TestFindAccount(t *testing.T) {
