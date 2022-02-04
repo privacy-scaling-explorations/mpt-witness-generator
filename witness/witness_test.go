@@ -476,8 +476,17 @@ func prepareWitness(storageProof1, storageProof2, extNibbles [][]byte, key []byt
 				prepareExtensionRow(extensionRowS, storageProof1[i], true)
 				prepareExtensionRow(extensionRowC, storageProof2[i], false)
 
+				evenNumberOfNibbles := storageProof1[i][2] == 0
+				numberOfNibbles := byte(0)
 				keyLen := getExtensionNodeKeyLen(storageProof1[i])
-				keyIndex += int(keyLen)
+				if keyLen == 1 {
+					numberOfNibbles = 1
+				} else if keyLen > 1 && evenNumberOfNibbles {
+					numberOfNibbles = (keyLen - 1) * 2
+				} else if keyLen > 1 && !evenNumberOfNibbles {
+					numberOfNibbles = (keyLen - 1) * 2 + 1
+				}
+				keyIndex += int(numberOfNibbles)
 
 				// We need nibbles as witness to compute key RLC, so we set them
 				// into extensionRowC s_advices (we can do this because both extension
@@ -487,8 +496,8 @@ func prepareWitness(storageProof1, storageProof2, extNibbles [][]byte, key []byt
 				// the whole byte and one nibble is enough to compute the other nibble).
 				startNibblePos := 2 // we don't need any nibbles for case keyLen = 1
 				if keyLen > 1 {
-					if storageProof1[i][2] == 0 { // even number of nibbles
-						startNibblePos = 1 // 
+					if evenNumberOfNibbles {
+						startNibblePos = 1
 					} else {
 						startNibblePos = 2
 					}
@@ -1746,7 +1755,7 @@ func TestExtensionInFirstStorageLevelTwoKeyBytes(t *testing.T) {
 	getProofs(toBeModified, val, addr, statedb)
 }
 
-func TestExtensionInFirstStorageLevelThreeKeyBytes(t *testing.T) {
+func TestExtensionThreeKeyBytesSel2(t *testing.T) {
 	blockNum := 13284469
 	blockNumberParent := big.NewInt(int64(blockNum))
 	blockHeaderParent := oracle.PrefetchBlock(blockNumberParent, true, nil)
@@ -1754,7 +1763,32 @@ func TestExtensionInFirstStorageLevelThreeKeyBytes(t *testing.T) {
 	statedb, _ := state.New(blockHeaderParent.Root, database, nil)
 	addr := common.HexToAddress("0x50feb1f2580138bc623c97557286df4e24eb81c9")
 
-	for i := 0; i < 10; i++ {
+	for i := 0; i < 14; i++ {
+		h := fmt.Sprintf("0x%d", i)
+		key2 := common.HexToHash(h)
+		val1 := common.BigToHash(big.NewInt(int64(1)))
+		statedb.SetState(addr, key2, val1)
+	}
+
+	h := fmt.Sprintf("0x13%d", 234)
+	key2 := common.HexToHash(h)
+	val1 := common.BigToHash(big.NewInt(int64(1)))
+	statedb.SetState(addr, key2, val1)
+
+	toBeModified := common.HexToHash("0x13234")
+	val := common.BigToHash(big.NewInt(int64(17)))
+	getProofs(toBeModified, val, addr, statedb)
+}
+
+func TestExtensionThreeKeyBytes(t *testing.T) {
+	blockNum := 13284469
+	blockNumberParent := big.NewInt(int64(blockNum))
+	blockHeaderParent := oracle.PrefetchBlock(blockNumberParent, true, nil)
+	database := state.NewDatabase(blockHeaderParent)
+	statedb, _ := state.New(blockHeaderParent.Root, database, nil)
+	addr := common.HexToAddress("0x50fbe1f25aa0843b623c97557286df4e24eb81c9")
+
+	for i := 0; i < 140; i++ {
 		h := fmt.Sprintf("0x%d", i)
 		key2 := common.HexToHash(h)
 		val1 := common.BigToHash(big.NewInt(int64(1)))
@@ -1764,17 +1798,17 @@ func TestExtensionInFirstStorageLevelThreeKeyBytes(t *testing.T) {
 	// Let's get a key which makes extension node at the first level.
 	// (set the breakpoint in trie.go, line 313)
 	for i := 0; i < 1000; i++ {
-		h := fmt.Sprintf("0x11%d", i)
+		h := fmt.Sprintf("0x2111d%d", i)
 		key2 := common.HexToHash(h)
 		val1 := common.BigToHash(big.NewInt(int64(1)))
 		statedb.SetState(addr, key2, val1)
 		statedb.IntermediateRoot(false)
 
-		v := common.Hash{} // empty value deletes the key
-		statedb.SetState(addr, key2, v)
+		// v := common.Hash{} // empty value deletes the key
+		// statedb.SetState(addr, key2, v)
 	}
 
-	toBeModified := common.HexToHash("0x1")
+	toBeModified := common.HexToHash("0x333")
 	val := common.BigToHash(big.NewInt(int64(17)))
 	getProofs(toBeModified, val, addr, statedb)
 }
