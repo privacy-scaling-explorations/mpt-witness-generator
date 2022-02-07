@@ -245,6 +245,51 @@ func prepareEmptyExtensionRows() [][]byte {
 	return [][]byte{ext_row1, ext_row2}
 }
 
+func prepareExtensionRows(extNibbles[][]byte, extensionNodeInd int, proofEl1, proofEl2 []byte) (byte, []byte, []byte) {
+	var extensionRowS []byte
+	var extensionRowC []byte
+
+	extRows := prepareEmptyExtensionRows()
+	extensionRowS = extRows[0]
+	extensionRowC = extRows[1]
+	prepareExtensionRow(extensionRowS, proofEl1, true)
+	prepareExtensionRow(extensionRowC, proofEl2, false)
+
+	evenNumberOfNibbles := proofEl1[2] == 0
+	numberOfNibbles := byte(0)
+	keyLen := getExtensionNodeKeyLen(proofEl1)
+	if keyLen == 1 {
+		numberOfNibbles = 1
+	} else if keyLen > 1 && evenNumberOfNibbles {
+		numberOfNibbles = (keyLen - 1) * 2
+	} else if keyLen > 1 && !evenNumberOfNibbles {
+		numberOfNibbles = (keyLen - 1) * 2 + 1
+	}
+
+	// We need nibbles as witness to compute key RLC, so we set them
+	// into extensionRowC s_advices (we can do this because both extension
+	// nodes have the same key, so we can have this info only in one).
+	// There can be more up to 64 nibbles, but there is only 32 bytes
+	// in xtensionRowC s_advices. So we store every second nibble (having
+	// the whole byte and one nibble is enough to compute the other nibble).
+	startNibblePos := 2 // we don't need any nibbles for case keyLen = 1
+	if keyLen > 1 {
+		if evenNumberOfNibbles {
+			startNibblePos = 1
+		} else {
+			startNibblePos = 2
+		}
+	}
+	ind := 0
+	for j := startNibblePos; j < len(extNibbles[extensionNodeInd]); j += 2 {
+		extensionRowC[branchNodeRLPLen + ind] =
+			extNibbles[extensionNodeInd][j]
+		ind++
+	}
+
+	return numberOfNibbles, extensionRowS, extensionRowC
+}
+
 func isExtensionNode(proofEl []byte) byte {
 	// see encoding.go hexToCompact
 	tag := proofEl[0]
@@ -469,47 +514,9 @@ func prepareWitness(storageProof1, storageProof2, extNibbles [][]byte, key []byt
 		switch c, _ := rlp.CountValues(elems); c {
 		case 2:
 			if isExtensionNode(storageProof1[i]) == 1 {
-
-				extRows := prepareEmptyExtensionRows()
-				extensionRowS = extRows[0]
-				extensionRowC = extRows[1]
-				prepareExtensionRow(extensionRowS, storageProof1[i], true)
-				prepareExtensionRow(extensionRowC, storageProof2[i], false)
-
-				evenNumberOfNibbles := storageProof1[i][2] == 0
-				numberOfNibbles := byte(0)
-				keyLen := getExtensionNodeKeyLen(storageProof1[i])
-				if keyLen == 1 {
-					numberOfNibbles = 1
-				} else if keyLen > 1 && evenNumberOfNibbles {
-					numberOfNibbles = (keyLen - 1) * 2
-				} else if keyLen > 1 && !evenNumberOfNibbles {
-					numberOfNibbles = (keyLen - 1) * 2 + 1
-				}
+				var numberOfNibbles byte
+				numberOfNibbles, extensionRowS, extensionRowC = prepareExtensionRows(extNibbles, extensionNodeInd, storageProof1[i], storageProof2[i])
 				keyIndex += int(numberOfNibbles)
-
-				// We need nibbles as witness to compute key RLC, so we set them
-				// into extensionRowC s_advices (we can do this because both extension
-				// nodes have the same key, so we can have this info only in one).
-				// There can be more up to 64 nibbles, but there is only 32 bytes
-				// in xtensionRowC s_advices. So we store every second nibble (having
-				// the whole byte and one nibble is enough to compute the other nibble).
-				startNibblePos := 2 // we don't need any nibbles for case keyLen = 1
-				if keyLen > 1 {
-					if evenNumberOfNibbles {
-						startNibblePos = 1
-					} else {
-						startNibblePos = 2
-					}
-				}
-				ind := 0
-				for j := startNibblePos; j < len(extNibbles[extensionNodeInd]); j += 2 {
-					extensionRowC[branchNodeRLPLen + ind] =
-						extNibbles[extensionNodeInd][j]
-					ind++
-				}
-
-
 				extensionNodeInd++
 				continue
 			}
@@ -697,31 +704,71 @@ func prepareWitness(storageProof1, storageProof2, extNibbles [][]byte, key []byt
 		addForHashing(branchToBeHashed, &toBeHashed)
 	}
 
-	getFirstNibble := func(leafKeyRow []byte) byte {
-		// Set first nibble in branch init:
-		firstNibble := byte(0)
+	getDriftedPosition := func(leafKeyRow []byte, numberOfNibbles int) byte {
+		// Get position to which a leaf drifted (to be set in branch init):
+		var nibbles []byte
 		if leafKeyRow[0] == 226 {
+			keyLen := int(leafKeyRow[1] - 128)
 			if leafKeyRow[2] == 32 {
-				firstNibble = leafKeyRow[3] / 16
+				for i := 0; i < keyLen - 1; i++ { // -1 because the first byte doesn't have any nibbles
+					b := leafKeyRow[3 + i]
+					n1 := b / 16
+					n2 := b - n1 * 16
+					nibbles = append(nibbles, n1)
+					nibbles = append(nibbles, n2)
+				}
 			} else {
-				firstNibble = leafKeyRow[2] - 48
+				nibbles = append(nibbles,leafKeyRow[2] - 48)
+				for i := 0; i < keyLen - 1; i++ { // -1 because the first byte has already been taken into account
+					b := leafKeyRow[3 + i]
+					n1 := b / 16
+					n2 := b - n1 * 16
+					nibbles = append(nibbles, n1)
+					nibbles = append(nibbles, n2)
+				}
 			}
 		} else {
+			keyLen := int(leafKeyRow[2] - 128)
 			if leafKeyRow[3] == 32 {
-				firstNibble = leafKeyRow[4] / 16
+				for i := 0; i < keyLen - 1; i++ { // -1 because the first byte doesn't have any nibbles
+					b := leafKeyRow[4 + i]
+					n1 := b / 16
+					n2 := b - n1 * 16
+					nibbles = append(nibbles, n1)
+					nibbles = append(nibbles, n2)
+				}
 			} else {
-				firstNibble = leafKeyRow[3] - 48
+				nibbles = append(nibbles,leafKeyRow[3] - 48)
+				for i := 0; i < keyLen - 1; i++ { // -1 because the first byte has already been taken into account
+					b := leafKeyRow[4 + i]
+					n1 := b / 16
+					n2 := b - n1 * 16
+					nibbles = append(nibbles, n1)
+					nibbles = append(nibbles, n2)
+				}
 			}
 		}
 
-		return firstNibble
+		return nibbles[numberOfNibbles]
 	}
 
 	if len1 > len2 {
 		if additionalBranch {
 			// C branch is just a placeholder here.
-			addBranch(storageProof1[len1-2], storageProof1[len1-2], key[keyIndex], true)
-			extRows := prepareEmptyExtensionRows()
+			numberOfNibbles := 0
+			var extRows [][]byte
+			isExtension := len2 == len1 + 2
+			if !isExtension {
+				extRows = prepareEmptyExtensionRows()
+			} else {
+				numNibbles, extensionRowS, extensionRowC :=
+					prepareExtensionRows(extNibbles, extensionNodeInd, storageProof1[len1 - 3], storageProof1[len1 - 3])
+				numberOfNibbles = int(numNibbles)
+				extRows = append(extRows, extensionRowS)
+				extRows = append(extRows, extensionRowC)
+			}
+
+			addBranch(storageProof1[len1-2], storageProof1[len1-2], key[keyIndex + numberOfNibbles], true)
 			rows = append(rows, extRows...)
 
 			leafRows, leafForHashing := prepareLeafRows(storageProof1[len1-1], 2)
@@ -732,8 +779,21 @@ func prepareWitness(storageProof1, storageProof2, extNibbles [][]byte, key []byt
 			// We now get the first nibble of the leaf that was turned into branch.
 			// This first nibble presents the position of the leaf once it moved
 			// into the new branch.
-			firstNibble := getFirstNibble(leafRows[0])
-			rows[len(rows)-branchRows-2][firstNibblePos] = firstNibble // -branchRows-2 lands into branch init
+			driftedPos := getDriftedPosition(leafRows[0], numberOfNibbles)
+			rows[len(rows)-branchRows-2][firstNibblePos] = driftedPos // -branchRows-2 lands into branch init
+			if isExtension {
+				rows[len(rows)-branchRows-2][isExtensionPos] = 1
+				if numberOfNibbles % 2 == 0 {
+					rows[len(rows)-branchRows-2][isExtensionEvenKeyLenPos] = 1
+				} else {
+					rows[len(rows)-branchRows-2][isExtensionOddKeyLenPos] = 1
+				}
+				if numberOfNibbles == 1 {
+					rows[len(rows)-branchRows-2][isExtensionKeyShortPos] = 1
+				} else {
+					rows[len(rows)-branchRows-2][isExtensionKeyLongPos] = 1
+				}
+			}
 			rows = append(rows, leafRows...)
 			toBeHashed = append(toBeHashed, leafForHashing)
 
@@ -763,8 +823,21 @@ func prepareWitness(storageProof1, storageProof2, extNibbles [][]byte, key []byt
 	} else if len2 > len1 {
 		if additionalBranch {
 			// S branch is just a placeholder here.
-			addBranch(storageProof2[len2-2], storageProof2[len2-2], key[keyIndex], false)
-			extRows := prepareEmptyExtensionRows()
+
+			numberOfNibbles := 0
+			var extRows [][]byte
+			isExtension := len2 == len1 + 2
+			if !isExtension {
+				extRows = prepareEmptyExtensionRows()
+			} else { // diff is 2 when extension node is added
+				numNibbles, extensionRowS, extensionRowC :=
+					prepareExtensionRows(extNibbles, extensionNodeInd, storageProof2[len2 - 3], storageProof2[len2 - 3])
+				numberOfNibbles = int(numNibbles)
+				extRows = append(extRows, extensionRowS)
+				extRows = append(extRows, extensionRowC)
+			}
+
+			addBranch(storageProof2[len2-2], storageProof2[len2-2], key[keyIndex + numberOfNibbles], false)
 			rows = append(rows, extRows...)
 
 			// Note that this is not just reversed order compared to
@@ -775,8 +848,21 @@ func prepareWitness(storageProof1, storageProof2, extNibbles [][]byte, key []byt
 			// We now get the first nibble of the leaf that was turned into branch.
 			// This first nibble presents the position of the leaf once it moved
 			// into the new branch.
-			firstNibble := getFirstNibble(leafRows[0])
-			rows[len(rows)-branchRows][firstNibblePos] = firstNibble // -branchRows lands into branch init
+			driftedPos := getDriftedPosition(leafRows[0], numberOfNibbles)
+			rows[len(rows)-branchRows][firstNibblePos] = driftedPos // -branchRows lands into branch init
+			if isExtension {
+				rows[len(rows)-branchRows][isExtensionPos] = 1
+				if numberOfNibbles % 2 == 0 {
+					rows[len(rows)-branchRows][isExtensionEvenKeyLenPos] = 1
+				} else {
+					rows[len(rows)-branchRows][isExtensionOddKeyLenPos] = 1
+				}
+				if numberOfNibbles == 1 {
+					rows[len(rows)-branchRows][isExtensionKeyShortPos] = 1
+				} else {
+					rows[len(rows)-branchRows][isExtensionKeyLongPos] = 1
+				}
+			}
 			rows = append(rows, leafRows...)
 			toBeHashed = append(toBeHashed, leafForHashing)
 
@@ -1568,8 +1654,7 @@ func TestExtensionOneKeyByteSel1(t *testing.T) {
 	updateStateAndGetProofs(ks[:], values, toBeModified, val, addr)
 }
 
-/*
-func TestStorageAddedExtension(t *testing.T) {
+func TestExtensionAdded(t *testing.T) {
 	a := 1
 	b := 1
 	h := fmt.Sprintf("0x%d%d", a, b)
@@ -1582,7 +1667,6 @@ func TestStorageAddedExtension(t *testing.T) {
 			b += 1
 		}
 		h := fmt.Sprintf("0x%d%d", a, b)
-		fmt.Println(h)
 		ks = append(ks, common.HexToHash(h))
 	}
 	
@@ -1593,10 +1677,10 @@ func TestStorageAddedExtension(t *testing.T) {
 
 	toBeModified := common.HexToHash("0x1818")
 
-	v := common.BigToHash(big.NewInt(int64(17)))
-	updateStorageAndGetProofs(ks[:], values, toBeModified, v)
+	addr := common.HexToAddress("0x50efbf12580138bc263c95757826df4e24eb81c9")
+	val := common.BigToHash(big.NewInt(int64(17)))
+	updateStateAndGetProofs(ks[:], values, toBeModified, val, addr)
 }
-*/
 
 func TestExtensionTwoKeyBytesSel1(t *testing.T) {
 	// Extension node which has key longer than 1 (2 in this test). This is needed because RLP takes
