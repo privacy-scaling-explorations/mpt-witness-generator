@@ -24,7 +24,7 @@ const rowLen = branch2start + 2 + 32 + 1 // +1 is for info about what type of ro
 const keyPos = 10
 const isBranchSPlaceholderPos = 11
 const isBranchCPlaceholderPos = 12
-const firstNibblePos = 13
+const driftedPos = 13
 const isExtensionPos = 14
 // extension key even or odd is about nibbles - that determines whether the first byte (not
 // considering RLP bytes) is 0 or 1 (see encoding.go hexToCompact)
@@ -657,6 +657,7 @@ func prepareWitness(storageProof1, storageProof2, extNibbles [][]byte, key []byt
 					}
 				}
 
+				// adding extension nodes for hashing:
 				addForHashing(storageProof1[i-1], &toBeHashed)
 				addForHashing(storageProof2[i-1], &toBeHashed)
 			} else {
@@ -766,6 +767,9 @@ func prepareWitness(storageProof1, storageProof2, extNibbles [][]byte, key []byt
 				numberOfNibbles = int(numNibbles)
 				extRows = append(extRows, extensionRowS)
 				extRows = append(extRows, extensionRowC)
+
+				// adding extension node for hashing:
+				addForHashing(storageProof1[len1-3], &toBeHashed)
 			}
 
 			addBranch(storageProof1[len1-2], storageProof1[len1-2], key[keyIndex + numberOfNibbles], true)
@@ -779,8 +783,8 @@ func prepareWitness(storageProof1, storageProof2, extNibbles [][]byte, key []byt
 			// We now get the first nibble of the leaf that was turned into branch.
 			// This first nibble presents the position of the leaf once it moved
 			// into the new branch.
-			driftedPos := getDriftedPosition(leafRows[0], numberOfNibbles)
-			rows[len(rows)-branchRows-2][firstNibblePos] = driftedPos // -branchRows-2 lands into branch init
+			rows[len(rows)-branchRows-2][driftedPos] =
+				getDriftedPosition(leafRows[0], numberOfNibbles) // -branchRows-2 lands into branch init
 			if isExtension {
 				rows[len(rows)-branchRows-2][isExtensionPos] = 1
 				if numberOfNibbles % 2 == 0 {
@@ -835,6 +839,9 @@ func prepareWitness(storageProof1, storageProof2, extNibbles [][]byte, key []byt
 				numberOfNibbles = int(numNibbles)
 				extRows = append(extRows, extensionRowS)
 				extRows = append(extRows, extensionRowC)
+
+				// adding extension node for hashing:
+				addForHashing(storageProof2[len2-3], &toBeHashed)
 			}
 
 			addBranch(storageProof2[len2-2], storageProof2[len2-2], key[keyIndex + numberOfNibbles], false)
@@ -848,8 +855,7 @@ func prepareWitness(storageProof1, storageProof2, extNibbles [][]byte, key []byt
 			// We now get the first nibble of the leaf that was turned into branch.
 			// This first nibble presents the position of the leaf once it moved
 			// into the new branch.
-			driftedPos := getDriftedPosition(leafRows[0], numberOfNibbles)
-			rows[len(rows)-branchRows][firstNibblePos] = driftedPos // -branchRows lands into branch init
+			rows[len(rows)-branchRows][driftedPos] = getDriftedPosition(leafRows[0], numberOfNibbles) // -branchRows lands into branch init
 			if isExtension {
 				rows[len(rows)-branchRows][isExtensionPos] = 1
 				if numberOfNibbles % 2 == 0 {
