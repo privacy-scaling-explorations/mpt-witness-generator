@@ -290,28 +290,16 @@ func prepareExtensionRows(extNibbles[][]byte, extensionNodeInd int, proofEl1, pr
 	return numberOfNibbles, extensionRowS, extensionRowC
 }
 
-func isExtensionNode(proofEl []byte) byte {
-	// see encoding.go hexToCompact
-	tag := proofEl[0]
-	if tag == 226 {
-		if proofEl[1] < 32 {
-			return 1
-		} else {
-			return 0
-		}
-	} else {
-		if proofEl[2] < 32 { 
-			return 1
-		} else {
-			return 0
-		}
-	}
+func isExtensionNode(proofEl []byte) bool {
+	return proofEl[0] < 248
 }
 
 func getExtensionNodeKeyLen(proofEl []byte) byte {
-	tag := proofEl[0]
-	if tag == 226 {
-		return 1 // branch has always first byte >= 248
+	// is_long means there is more than one extension node key - there is one addition RLP
+	// byte to start an array (at position 1).
+	is_long := proofEl[1] > 128
+	if !is_long {
+		return 1
 	} else {
 		return proofEl[1] - 128
 	}
@@ -328,13 +316,15 @@ func prepareExtensionRow(witnessRow, proofEl []byte, setKey bool) {
 	// [226,16,160,172,105,12...
 	// [16,160,172,105,12...
 
-	tag := proofEl[0]
+	// is_long means there is more than one extension node key - there is one addition RLP
+	// byte to start an array (at position 1).
+	is_long := proofEl[1] > 128
 	if setKey {
-		witnessRow[0] = tag
+		witnessRow[0] = proofEl[0]
 		witnessRow[1] = proofEl[1]
 	}
 
-	if tag == 226 {
+	if !is_long {
 		if proofEl[2] != 160 {
 			panic("Extension node should be 160 S short")
 		}
@@ -513,7 +503,7 @@ func prepareWitness(storageProof1, storageProof2, extNibbles [][]byte, key []byt
 
 		switch c, _ := rlp.CountValues(elems); c {
 		case 2:
-			if isExtensionNode(storageProof1[i]) == 1 {
+			if isExtensionNode(storageProof1[i]) {
 				var numberOfNibbles byte
 				numberOfNibbles, extensionRowS, extensionRowC = prepareExtensionRows(extNibbles, extensionNodeInd, storageProof1[i], storageProof2[i])
 				keyIndex += int(numberOfNibbles)
@@ -708,45 +698,23 @@ func prepareWitness(storageProof1, storageProof2, extNibbles [][]byte, key []byt
 	getDriftedPosition := func(leafKeyRow []byte, numberOfNibbles int) byte {
 		// Get position to which a leaf drifted (to be set in branch init):
 		var nibbles []byte
-		if leafKeyRow[0] == 226 {
-			keyLen := int(leafKeyRow[1] - 128)
-			if leafKeyRow[2] == 32 {
-				for i := 0; i < keyLen - 1; i++ { // -1 because the first byte doesn't have any nibbles
-					b := leafKeyRow[3 + i]
-					n1 := b / 16
-					n2 := b - n1 * 16
-					nibbles = append(nibbles, n1)
-					nibbles = append(nibbles, n2)
-				}
-			} else {
-				nibbles = append(nibbles,leafKeyRow[2] - 48)
-				for i := 0; i < keyLen - 1; i++ { // -1 because the first byte has already been taken into account
-					b := leafKeyRow[3 + i]
-					n1 := b / 16
-					n2 := b - n1 * 16
-					nibbles = append(nibbles, n1)
-					nibbles = append(nibbles, n2)
-				}
+		keyLen := int(leafKeyRow[1] - 128)
+		if leafKeyRow[2] == 32 {
+			for i := 0; i < keyLen - 1; i++ { // -1 because the first byte doesn't have any nibbles
+				b := leafKeyRow[3 + i]
+				n1 := b / 16
+				n2 := b - n1 * 16
+				nibbles = append(nibbles, n1)
+				nibbles = append(nibbles, n2)
 			}
 		} else {
-			keyLen := int(leafKeyRow[2] - 128)
-			if leafKeyRow[3] == 32 {
-				for i := 0; i < keyLen - 1; i++ { // -1 because the first byte doesn't have any nibbles
-					b := leafKeyRow[4 + i]
-					n1 := b / 16
-					n2 := b - n1 * 16
-					nibbles = append(nibbles, n1)
-					nibbles = append(nibbles, n2)
-				}
-			} else {
-				nibbles = append(nibbles,leafKeyRow[3] - 48)
-				for i := 0; i < keyLen - 1; i++ { // -1 because the first byte has already been taken into account
-					b := leafKeyRow[4 + i]
-					n1 := b / 16
-					n2 := b - n1 * 16
-					nibbles = append(nibbles, n1)
-					nibbles = append(nibbles, n2)
-				}
+			nibbles = append(nibbles,leafKeyRow[2] - 48)
+			for i := 0; i < keyLen - 1; i++ { // -1 because the first byte has already been taken into account
+				b := leafKeyRow[3 + i]
+				n1 := b / 16
+				n2 := b - n1 * 16
+				nibbles = append(nibbles, n1)
+				nibbles = append(nibbles, n2)
 			}
 		}
 
@@ -1660,7 +1628,7 @@ func TestExtensionOneKeyByteSel1(t *testing.T) {
 	updateStateAndGetProofs(ks[:], values, toBeModified, val, addr)
 }
 
-func TestExtensionAdded(t *testing.T) {
+func TestExtensionAddedOneKeyByteSel1(t *testing.T) {
 	a := 1
 	b := 1
 	h := fmt.Sprintf("0x%d%d", a, b)
@@ -1684,6 +1652,80 @@ func TestExtensionAdded(t *testing.T) {
 	toBeModified := common.HexToHash("0x1818")
 
 	addr := common.HexToAddress("0x50efbf12580138bc263c95757826df4e24eb81c9")
+	val := common.BigToHash(big.NewInt(int64(17)))
+	updateStateAndGetProofs(ks[:], values, toBeModified, val, addr)
+}
+
+func TestExtensionDeletedOneKeyByteSel1(t *testing.T) {
+	a := 1
+	b := 1
+	h := fmt.Sprintf("0x%d%d", a, b)
+	ks := []common.Hash{common.HexToHash(h)}
+	for i := 0; i < 33; i++ {
+		// just some values to get the added branch in second level (found out trying different values)
+		if i % 2 == 0 {
+			a += 1
+		} else {
+			b += 1
+		}
+		h := fmt.Sprintf("0x%d%d", a, b)
+		ks = append(ks, common.HexToHash(h))
+	}
+	toBeModified := common.HexToHash("0x1818")
+	ks = append(ks, toBeModified)
+	
+	var values []common.Hash
+	for i := 0; i < len(ks); i++ {
+		values = append(values, common.BigToHash(big.NewInt(int64(i + 1)))) // don't put 0 value because otherwise nothing will be set (if 0 is prev value), see state_object.go line 279
+	}
+
+	addr := common.HexToAddress("0x50efbf12580138bc263c95757826df4e24eb81c9")
+	val := common.Hash{} // empty value deletes the key
+	updateStateAndGetProofs(ks[:], values, toBeModified, val, addr)
+}
+
+func TestExtensionOneKeyByteSel2(t *testing.T) {
+	a := 0
+	h := fmt.Sprintf("0xca%d", a)
+	ks := []common.Hash{common.HexToHash(h)}
+	for i := 0; i < 876; i++ {
+		a += 1
+		h := fmt.Sprintf("0xca%d", a)
+		ks = append(ks, common.HexToHash(h))
+	}
+	
+	var values []common.Hash
+	for i := 0; i < len(ks); i++ {
+		values = append(values, common.BigToHash(big.NewInt(int64(i + 1)))) // don't put 0 value because otherwise nothing will be set (if 0 is prev value), see state_object.go line 279
+	}
+
+	toBeModified := common.HexToHash("0xca644")
+	addr := common.HexToAddress("0x75fbef2150818c32b36c57957226df4e24eb81c9")
+	val := common.BigToHash(big.NewInt(int64(17)))
+	updateStateAndGetProofs(ks[:], values, toBeModified, val, addr)
+}
+
+func TestExtensionAddedOneKeyByteSel2(t *testing.T) {
+	a := 0
+	h := fmt.Sprintf("0xca%d", a)
+	ks := []common.Hash{common.HexToHash(h)}
+	toBeModifiedStr := "0xca644"
+	toBeModified := common.HexToHash(toBeModifiedStr)
+	for i := 0; i < 876; i++ {
+		a += 1
+		h := fmt.Sprintf("0xca%d", a)
+		if h == toBeModifiedStr {
+			continue
+		}
+		ks = append(ks, common.HexToHash(h))
+	}
+	
+	var values []common.Hash
+	for i := 0; i < len(ks); i++ {
+		values = append(values, common.BigToHash(big.NewInt(int64(i + 1)))) // don't put 0 value because otherwise nothing will be set (if 0 is prev value), see state_object.go line 279
+	}
+
+	addr := common.HexToAddress("0x75fbef2150818c32b36c57957226df4e24eb81c9")
 	val := common.BigToHash(big.NewInt(int64(17)))
 	updateStateAndGetProofs(ks[:], values, toBeModified, val, addr)
 }
@@ -1712,27 +1754,6 @@ func TestExtensionTwoKeyBytesSel1(t *testing.T) {
 
 	toBeModified := common.HexToHash("0x172")
 	addr := common.HexToAddress("0x75fbef21508183c2b63c59757826df4e24eb81c9")
-	val := common.BigToHash(big.NewInt(int64(17)))
-	updateStateAndGetProofs(ks[:], values, toBeModified, val, addr)
-}
-
-func TestExtensionOneKeyByteSel2(t *testing.T) {
-	a := 0
-	h := fmt.Sprintf("0xca%d", a)
-	ks := []common.Hash{common.HexToHash(h)}
-	for i := 0; i < 876; i++ {
-		a += 1
-		h := fmt.Sprintf("0xca%d", a)
-		ks = append(ks, common.HexToHash(h))
-	}
-	
-	var values []common.Hash
-	for i := 0; i < len(ks); i++ {
-		values = append(values, common.BigToHash(big.NewInt(int64(i + 1)))) // don't put 0 value because otherwise nothing will be set (if 0 is prev value), see state_object.go line 279
-	}
-
-	toBeModified := common.HexToHash("0xca644")
-	addr := common.HexToAddress("0x75fbef2150818c32b36c57957226df4e24eb81c9")
 	val := common.BigToHash(big.NewInt(int64(17)))
 	updateStateAndGetProofs(ks[:], values, toBeModified, val, addr)
 }
