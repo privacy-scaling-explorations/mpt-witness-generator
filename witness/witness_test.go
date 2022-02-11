@@ -726,7 +726,7 @@ func prepareWitness(storageProof1, storageProof2, extNibbles [][]byte, key []byt
 			// C branch is just a placeholder here.
 			numberOfNibbles := 0
 			var extRows [][]byte
-			isExtension := len2 == len1 + 2
+			isExtension := len1 == len2 + 2
 			if !isExtension {
 				extRows = prepareEmptyExtensionRows()
 			} else {
@@ -893,7 +893,7 @@ func updateStorageAndGetProofs(keys, values []common.Hash, toBeModified common.H
 	// in state_object.go, because originStorage stays set to 0 and value = 0.
 	statedb.IntermediateRoot(false)
 	// Let's say above state is our starting position.
-	storageProof, neighbourNode1, _, err := statedb.GetStorageProof(addr, toBeModified)
+	storageProof, neighbourNode1, extNibbles1, err := statedb.GetStorageProof(addr, toBeModified)
 	check(err)
 
 	kh := crypto.Keccak256(toBeModified.Bytes())
@@ -918,7 +918,7 @@ func updateStorageAndGetProofs(keys, values []common.Hash, toBeModified common.H
 
 	// We ask for a proof for the modified slot:
 	statedb.IntermediateRoot(false)
-	storageProof1, neighbourNode2, extNibbles, err := statedb.GetStorageProof(addr, toBeModified)
+	storageProof1, neighbourNode2, extNibbles2, err := statedb.GetStorageProof(addr, toBeModified)
 	check(err)
 
 	// Neighbouring node (neighbour to the node that is being added or deleted) is used
@@ -930,9 +930,11 @@ func updateStorageAndGetProofs(keys, values []common.Hash, toBeModified common.H
 	// this neighbour replaces the branch.
 	// In MPT circuit, we check that the neighbouring node replaces the branch.
 	node := neighbourNode2
+	extNibbles := extNibbles2
 	if len(storageProof) > len(storageProof1) {
 		// delete operation
 		node = neighbourNode1
+		extNibbles = extNibbles1
 	}
 
 	// TODO: extNibbles are different in case of added/deleted extension
@@ -1011,7 +1013,7 @@ func getProofs(toBeModified, value common.Hash, addr common.Address, statedb *st
 
 	accountProof, _, _, err := statedb.GetProof(addr)
 	check(err)
-	storageProof, neighbourNode1, _, err := statedb.GetStorageProof(addr, toBeModified)
+	storageProof, neighbourNode1, extNibbles1, err := statedb.GetStorageProof(addr, toBeModified)
 	check(err)
 
 	// By calling RPC eth_getProof we will get accountProof and storageProof.
@@ -1074,13 +1076,15 @@ func getProofs(toBeModified, value common.Hash, addr common.Address, statedb *st
 	accountProof1, _, extNibblesAccount, err := statedb.GetProof(addr)
 	check(err)
 
-	storageProof1, neighbourNode2, extNibbles, err := statedb.GetStorageProof(addr, toBeModified)
+	storageProof1, neighbourNode2, extNibbles2, err := statedb.GetStorageProof(addr, toBeModified)
 	check(err)
 
 	node := neighbourNode2
+	extNibbles := extNibbles2
 	if len(storageProof) > len(storageProof1) {
 		// delete operation
 		node = neighbourNode1
+		extNibbles = extNibbles1
 	}
 	
 	// TODO: extNibbles not the same for storage when extension is added/deleted
@@ -1730,6 +1734,28 @@ func TestExtensionAddedOneKeyByteSel2(t *testing.T) {
 	updateStateAndGetProofs(ks[:], values, toBeModified, val, addr)
 }
 
+func TestExtensionDeletedOneKeyByteSel2(t *testing.T) {
+	a := 0
+	h := fmt.Sprintf("0xca%d", a)
+	ks := []common.Hash{common.HexToHash(h)}
+	toBeModifiedStr := "0xca644"
+	toBeModified := common.HexToHash(toBeModifiedStr)
+	for i := 0; i < 876; i++ {
+		a += 1
+		h := fmt.Sprintf("0xca%d", a)
+		ks = append(ks, common.HexToHash(h))
+	}
+	
+	var values []common.Hash
+	for i := 0; i < len(ks); i++ {
+		values = append(values, common.BigToHash(big.NewInt(int64(i + 1)))) // don't put 0 value because otherwise nothing will be set (if 0 is prev value), see state_object.go line 279
+	}
+
+	addr := common.HexToAddress("0x75fbef2150818c32b36c57957226df4e24eb81c9")
+	val := common.Hash{} // empty value deletes the key
+	updateStateAndGetProofs(ks[:], values, toBeModified, val, addr)
+}
+
 func TestExtensionTwoKeyBytesSel1(t *testing.T) {
 	// Extension node which has key longer than 1 (2 in this test). This is needed because RLP takes
 	// different positions.
@@ -1758,6 +1784,55 @@ func TestExtensionTwoKeyBytesSel1(t *testing.T) {
 	updateStateAndGetProofs(ks[:], values, toBeModified, val, addr)
 }
 
+func TestExtensionAddedTwoKeyBytesSel1(t *testing.T) {
+	a := 0
+	h := fmt.Sprintf("0x%d", a)
+	ks := []common.Hash{common.HexToHash(h)}
+	toBeModifiedStr := "0x172"
+	toBeModified := common.HexToHash(toBeModifiedStr)
+	for i := 0; i < 176; i++ {
+		// just some values to get the extension with key length > 1 (found out trying different values)
+		a += 1
+		h := fmt.Sprintf("0x%d", a)
+		if h == toBeModifiedStr {
+			continue
+		}
+		ks = append(ks, common.HexToHash(h))
+	}
+	
+	var values []common.Hash
+	for i := 0; i < len(ks); i++ {
+		values = append(values, common.BigToHash(big.NewInt(int64(i + 1)))) // don't put 0 value because otherwise nothing will be set (if 0 is prev value), see state_object.go line 279
+	}
+
+	addr := common.HexToAddress("0x75fbef21508183c2b63c59757826df4e24eb81c9")
+	val := common.BigToHash(big.NewInt(int64(17)))
+	updateStateAndGetProofs(ks[:], values, toBeModified, val, addr)
+}
+
+func TestExtensionDeletedTwoKeyBytesSel1(t *testing.T) {
+	a := 0
+	h := fmt.Sprintf("0x%d", a)
+	ks := []common.Hash{common.HexToHash(h)}
+	toBeModifiedStr := "0x172"
+	toBeModified := common.HexToHash(toBeModifiedStr)
+	for i := 0; i < 176; i++ {
+		// just some values to get the extension with key length > 1 (found out trying different values)
+		a += 1
+		h := fmt.Sprintf("0x%d", a)
+		ks = append(ks, common.HexToHash(h))
+	}
+	
+	var values []common.Hash
+	for i := 0; i < len(ks); i++ {
+		values = append(values, common.BigToHash(big.NewInt(int64(i + 1)))) // don't put 0 value because otherwise nothing will be set (if 0 is prev value), see state_object.go line 279
+	}
+
+	addr := common.HexToAddress("0x75fbef21508183c2b63c59757826df4e24eb81c9")
+	val := common.Hash{} // empty value deletes the key
+	updateStateAndGetProofs(ks[:], values, toBeModified, val, addr)
+}
+
 func TestExtensionTwoKeyBytesSel2(t *testing.T) {
 	a := 0
 	h := fmt.Sprintf("0x2ea%d", a)
@@ -1774,6 +1849,31 @@ func TestExtensionTwoKeyBytesSel2(t *testing.T) {
 	}
 
 	toBeModified := common.HexToHash("0x2ea772")
+	addr := common.HexToAddress("0x75fbef2150818c32b36c57957226df4e24eb81c9")
+	val := common.BigToHash(big.NewInt(int64(17)))
+	updateStateAndGetProofs(ks[:], values, toBeModified, val, addr)
+}
+
+func TestExtensionAddedTwoKeyBytesSel2(t *testing.T) {
+	a := 0
+	h := fmt.Sprintf("0x2ea%d", a)
+	ks := []common.Hash{common.HexToHash(h)}
+	toBeModifiedStr := "0x2ea772"
+	toBeModified := common.HexToHash(toBeModifiedStr)
+	for i := 0; i < 876; i++ {
+		a += 1
+		h := fmt.Sprintf("0x2ea%d", a)
+		if h == toBeModifiedStr {
+			continue
+		}
+		ks = append(ks, common.HexToHash(h))
+	}
+	
+	var values []common.Hash
+	for i := 0; i < len(ks); i++ {
+		values = append(values, common.BigToHash(big.NewInt(int64(i + 1)))) // don't put 0 value because otherwise nothing will be set (if 0 is prev value), see state_object.go line 279
+	}
+
 	addr := common.HexToAddress("0x75fbef2150818c32b36c57957226df4e24eb81c9")
 	val := common.BigToHash(big.NewInt(int64(17)))
 	updateStateAndGetProofs(ks[:], values, toBeModified, val, addr)
