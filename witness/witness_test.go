@@ -290,10 +290,6 @@ func prepareExtensionRows(extNibbles[][]byte, extensionNodeInd int, proofEl1, pr
 	return numberOfNibbles, extensionRowS, extensionRowC
 }
 
-func isExtensionNode(proofEl []byte) bool {
-	return proofEl[0] < 248
-}
-
 func getExtensionNodeKeyLen(proofEl []byte) byte {
 	// is_long means there is more than one extension node key - there is one addition RLP
 	// byte to start an array (at position 1).
@@ -503,7 +499,7 @@ func prepareWitness(storageProof1, storageProof2, extNibbles [][]byte, key []byt
 
 		switch c, _ := rlp.CountValues(elems); c {
 		case 2:
-			if isExtensionNode(storageProof1[i]) {
+			if storageProof1[i][0] < 248 && i != len1 - 1 {
 				var numberOfNibbles byte
 				numberOfNibbles, extensionRowS, extensionRowC = prepareExtensionRows(extNibbles, extensionNodeInd, storageProof1[i], storageProof2[i])
 				keyIndex += int(numberOfNibbles)
@@ -1943,6 +1939,27 @@ func TestExtensionInFirstStorageLevelOneKeyByte(t *testing.T) {
 	getProofs(toBeModified, val, addr, statedb)
 }
 
+func TestExtensionAddedInFirstStorageLevelOneKeyByte(t *testing.T) {
+	blockNum := 13284469
+	blockNumberParent := big.NewInt(int64(blockNum))
+	blockHeaderParent := oracle.PrefetchBlock(blockNumberParent, true, nil)
+	database := state.NewDatabase(blockHeaderParent)
+	statedb, _ := state.New(blockHeaderParent.Root, database, nil)
+	addr := common.HexToAddress("0x50efbf12580138bc623c95757286df4e24eb81c9")
+
+	key1 := common.HexToHash("0x12")
+	val1 := common.BigToHash(big.NewInt(int64(1)))
+
+	statedb.SetState(addr, key1, val1)
+
+	toBeModified := common.HexToHash("0x1")
+	// statedb.SetState(addr, toBeModified, val1)
+	statedb.IntermediateRoot(false)
+
+	val := common.BigToHash(big.NewInt(int64(17)))
+	getProofs(toBeModified, val, addr, statedb)
+}
+
 func TestExtensionInFirstStorageLevelTwoKeyBytes(t *testing.T) {
 	blockNum := 13284469
 	blockNumberParent := big.NewInt(int64(blockNum))
@@ -1956,15 +1973,35 @@ func TestExtensionInFirstStorageLevelTwoKeyBytes(t *testing.T) {
 
 	statedb.SetState(addr, key1, val1)
 
-	h := "0xa617"
-	key2 := common.HexToHash(h)
-	statedb.SetState(addr, key2, val1)
+	toBeModified := common.HexToHash("0xa617")
+	statedb.SetState(addr, toBeModified, val1)
 	statedb.IntermediateRoot(false)
 
-	toBeModified := common.HexToHash("0xa617")
 	val := common.BigToHash(big.NewInt(int64(17)))
 	getProofs(toBeModified, val, addr, statedb)
 }
+
+func TestExtensionAddedInFirstStorageLevelTwoKeyBytes(t *testing.T) {
+	blockNum := 13284469
+	blockNumberParent := big.NewInt(int64(blockNum))
+	blockHeaderParent := oracle.PrefetchBlock(blockNumberParent, true, nil)
+	database := state.NewDatabase(blockHeaderParent)
+	statedb, _ := state.New(blockHeaderParent.Root, database, nil)
+	addr := common.HexToAddress("0x50efbf12580138bc623c95757286df4e24eb81c9")
+
+	key1 := common.HexToHash("0x12")
+	val1 := common.BigToHash(big.NewInt(int64(1)))
+
+	statedb.SetState(addr, key1, val1)
+
+	toBeModified := common.HexToHash("0xa617")
+	// statedb.SetState(addr, toBeModified, val1)
+	statedb.IntermediateRoot(false)
+
+	val := common.BigToHash(big.NewInt(int64(17)))
+	getProofs(toBeModified, val, addr, statedb)
+}
+
 
 func TestExtensionThreeKeyBytesSel2(t *testing.T) {
 	blockNum := 13284469
