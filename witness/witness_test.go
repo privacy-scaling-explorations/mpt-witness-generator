@@ -1783,6 +1783,28 @@ func TestExtensionAddedTwoKeyBytesSel2(t *testing.T) {
 	updateStateAndGetProofs(ks[:], values, toBeModified, val, addr)
 }
 
+func TestExtensionDeletedTwoKeyBytesSel2(t *testing.T) {
+	a := 0
+	h := fmt.Sprintf("0x2ea%d", a)
+	ks := []common.Hash{common.HexToHash(h)}
+	toBeModifiedStr := "0x2ea772"
+	toBeModified := common.HexToHash(toBeModifiedStr)
+	for i := 0; i < 876; i++ {
+		a += 1
+		h := fmt.Sprintf("0x2ea%d", a)
+		ks = append(ks, common.HexToHash(h))
+	}
+	
+	var values []common.Hash
+	for i := 0; i < len(ks); i++ {
+		values = append(values, common.BigToHash(big.NewInt(int64(i + 1)))) // don't put 0 value because otherwise nothing will be set (if 0 is prev value), see state_object.go line 279
+	}
+
+	addr := common.HexToAddress("0x75fbef2150818c32b36c57957226df4e24eb81c9")
+	val := common.Hash{} // empty value deletes the key
+	updateStateAndGetProofs(ks[:], values, toBeModified, val, addr)
+}
+
 func TestExtensionThreeBytesSel2(t *testing.T) {
 	// still searching for the right values
 	a := 0
@@ -1926,13 +1948,55 @@ func TestExtensionThreeKeyBytesSel2(t *testing.T) {
 		statedb.SetState(addr, key2, val1)
 	}
 
-	h := fmt.Sprintf("0x13%d", 234)
-	key2 := common.HexToHash(h)
+	toBeModified := common.HexToHash("0x13234")
 	val1 := common.BigToHash(big.NewInt(int64(1)))
-	statedb.SetState(addr, key2, val1)
+	statedb.SetState(addr, toBeModified, val1)
+
+	val := common.BigToHash(big.NewInt(int64(17)))
+	getProofs(toBeModified, val, addr, statedb)
+}
+
+func TestExtensionAddedThreeKeyBytesSel2(t *testing.T) {
+	blockNum := 13284469
+	blockNumberParent := big.NewInt(int64(blockNum))
+	blockHeaderParent := oracle.PrefetchBlock(blockNumberParent, true, nil)
+	database := state.NewDatabase(blockHeaderParent)
+	statedb, _ := state.New(blockHeaderParent.Root, database, nil)
+	addr := common.HexToAddress("0x50feb1f2580138bc623c97557286df4e24eb81c9")
+
+	for i := 0; i < 14; i++ {
+		h := fmt.Sprintf("0x%d", i)
+		key2 := common.HexToHash(h)
+		val1 := common.BigToHash(big.NewInt(int64(1)))
+		statedb.SetState(addr, key2, val1)
+	}
 
 	toBeModified := common.HexToHash("0x13234")
+
 	val := common.BigToHash(big.NewInt(int64(17)))
+	getProofs(toBeModified, val, addr, statedb)
+}
+
+func TestExtensionDeletedThreeKeyBytesSel2(t *testing.T) {
+	blockNum := 13284469
+	blockNumberParent := big.NewInt(int64(blockNum))
+	blockHeaderParent := oracle.PrefetchBlock(blockNumberParent, true, nil)
+	database := state.NewDatabase(blockHeaderParent)
+	statedb, _ := state.New(blockHeaderParent.Root, database, nil)
+	addr := common.HexToAddress("0x50feb1f2580138bc623c97557286df4e24eb81c9")
+
+	for i := 0; i < 14; i++ {
+		h := fmt.Sprintf("0x%d", i)
+		key2 := common.HexToHash(h)
+		val1 := common.BigToHash(big.NewInt(int64(1)))
+		statedb.SetState(addr, key2, val1)
+	}
+
+	toBeModified := common.HexToHash("0x13234")
+	val1 := common.BigToHash(big.NewInt(int64(1)))
+	statedb.SetState(addr, toBeModified, val1)
+
+	val := common.Hash{} // empty value deletes the key
 	getProofs(toBeModified, val, addr, statedb)
 }
 
