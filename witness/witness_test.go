@@ -694,28 +694,50 @@ func prepareWitness(storageProof1, storageProof2, extNibbles [][]byte, key []byt
 	getDriftedPosition := func(leafKeyRow []byte, numberOfNibbles int) byte {
 		// Get position to which a leaf drifted (to be set in branch init):
 		var nibbles []byte
-		keyLen := int(leafKeyRow[1] - 128)
-		if leafKeyRow[2] == 32 {
-			for i := 0; i < keyLen - 1; i++ { // -1 because the first byte doesn't have any nibbles
-				b := leafKeyRow[3 + i]
-				n1 := b / 16
-				n2 := b - n1 * 16
-				nibbles = append(nibbles, n1)
-				nibbles = append(nibbles, n2)
+		if leafKeyRow[0] != 248 {
+			keyLen := int(leafKeyRow[1] - 128)
+			if leafKeyRow[2] == 32 {
+				for i := 0; i < keyLen - 1; i++ { // -1 because the first byte doesn't have any nibbles
+					b := leafKeyRow[3 + i]
+					n1 := b / 16
+					n2 := b - n1 * 16
+					nibbles = append(nibbles, n1)
+					nibbles = append(nibbles, n2)
+				}
+			} else {
+				nibbles = append(nibbles,leafKeyRow[2] - 48)
+				for i := 0; i < keyLen - 1; i++ { // -1 because the first byte has already been taken into account
+					b := leafKeyRow[3 + i]
+					n1 := b / 16
+					n2 := b - n1 * 16
+					nibbles = append(nibbles, n1)
+					nibbles = append(nibbles, n2)
+				}
 			}
 		} else {
-			nibbles = append(nibbles,leafKeyRow[2] - 48)
-			for i := 0; i < keyLen - 1; i++ { // -1 because the first byte has already been taken into account
-				b := leafKeyRow[3 + i]
-				n1 := b / 16
-				n2 := b - n1 * 16
-				nibbles = append(nibbles, n1)
-				nibbles = append(nibbles, n2)
+			keyLen := int(leafKeyRow[2] - 128)
+			if leafKeyRow[3] == 32 {
+				for i := 0; i < keyLen - 1; i++ { // -1 because the first byte doesn't have any nibbles
+					b := leafKeyRow[4 + i]
+					n1 := b / 16
+					n2 := b - n1 * 16
+					nibbles = append(nibbles, n1)
+					nibbles = append(nibbles, n2)
+				}
+			} else {
+				nibbles = append(nibbles,leafKeyRow[3] - 48)
+				for i := 0; i < keyLen - 1; i++ { // -1 because the first byte has already been taken into account
+					b := leafKeyRow[4 + i]
+					n1 := b / 16
+					n2 := b - n1 * 16
+					nibbles = append(nibbles, n1)
+					nibbles = append(nibbles, n2)
+				}
 			}
 		}
 
 		return nibbles[numberOfNibbles]
-	}
+	}	
 
 	if len1 > len2 {
 		if additionalBranch {
@@ -867,120 +889,6 @@ func prepareWitness(storageProof1, storageProof2, extNibbles [][]byte, key []byt
 	}
 
 	return rows, toBeHashed, extensionNodeInd > 0
-}
-
-func updateStorageAndGetProofs(keys, values []common.Hash, toBeModified common.Hash, value common.Hash) {
-	blockNum := 13284469
-	blockNumberParent := big.NewInt(int64(blockNum))
-	blockHeaderParent := oracle.PrefetchBlock(blockNumberParent, true, nil)
-	database := state.NewDatabase(blockHeaderParent)
-	statedb, _ := state.New(blockHeaderParent.Root, database, nil)
-	addr := common.HexToAddress("0x50efbf12580138bc263c95757826df4e24eb81c9")
-
-	for i := 0; i < len(keys); i++ {
-		statedb.SetState(addr, keys[i], values[i])
-	}
-
-	// Calling IntermediateRoot because of delete operation - without this call,
-	// delete doesn't happen, see
-	//if value == s.originStorage[key] {
-	//		continue
-	//}
-	// in state_object.go, because originStorage stays set to 0 and value = 0.
-	statedb.IntermediateRoot(false)
-	// Let's say above state is our starting position.
-	storageProof, neighbourNode1, extNibbles1, err := statedb.GetStorageProof(addr, toBeModified)
-	check(err)
-
-	kh := crypto.Keccak256(toBeModified.Bytes())
-	key := trie.KeybytesToHex(kh)
-
-	// Just to check key RLC (rand = 2)
-	kh_sum := 0
-	mult := 1
-	for i := 0; i < len(kh); i++ {
-		kh_sum += int(kh[i]) * mult
-		mult *= 2
-	}
-	fmt.Println("key sum:")
-	fmt.Println(kh_sum)
-
-	/*
-		Modifying storage:
-	*/
-
-	// We now change one existing storage slot:
-	statedb.SetState(addr, toBeModified, value)
-
-	// We ask for a proof for the modified slot:
-	statedb.IntermediateRoot(false)
-	storageProof1, neighbourNode2, extNibbles2, err := statedb.GetStorageProof(addr, toBeModified)
-	check(err)
-
-	// Neighbouring node (neighbour to the node that is being added or deleted) is used
-	// because when a node is added which causes some node to turn into a branch, then
-	// this "some" node moves into a branch and is neighbour to the node that has been added.
-	// In MPT circuit, when a node is added, we check that "some" node turns into "neighbour".
-
-	// Similarly, when a node is deleted and if it has only one neighbour in a branch,
-	// this neighbour replaces the branch.
-	// In MPT circuit, we check that the neighbouring node replaces the branch.
-	node := neighbourNode2
-	extNibbles := extNibbles2
-	if len(storageProof) > len(storageProof1) {
-		// delete operation
-		node = neighbourNode1
-		extNibbles = extNibbles1
-	}
-
-	// TODO: extNibbles are different in case of added/deleted extension
-	rows, toBeHashed, hasExtensionNode :=
-		prepareWitness(storageProof, storageProof1, extNibbles, key, node, false)
-	rows = append(rows, toBeHashed...)
-	fmt.Println(matrixToJson(rows))
-
-	len1 := len(storageProof)
-	len2 := len(storageProof1)
-	if !hasExtensionNode {
-		if len1 == len2 {
-			if !VerifyTwoProofsAndPath(storageProof, storageProof1, key) {
-				panic("proof not valid")
-			}
-		} else {
-			minLen := len2
-			if len1 > len2 {
-				storageProof = storageProof[:len1-1]
-			} else {
-				storageProof1 = storageProof1[:len2-1]
-				minLen = len1
-			}
-
-			if !VerifyProof(storageProof, key) {
-				panic("proof not valid")
-			}
-			if !VerifyProof(storageProof1, key) {
-				panic("proof 1 not valid")
-			}
-
-			hasher := trie.NewHasher(false)
-
-			for i := 0; i < minLen-1; i++ {
-				rootHash := hasher.HashData(storageProof[i])
-				root, err := trie.DecodeNode(rootHash, storageProof[i])
-				check(err)
-				r := root.(*trie.FullNode)
-
-				rootHash1 := hasher.HashData(storageProof1[i])
-				root1, err := trie.DecodeNode(rootHash1, storageProof1[i])
-				check(err)
-				r1 := root1.(*trie.FullNode)
-
-				if !VerifyElementsInTwoBranches(r, r1, key[i]) {
-					panic("proof not valid")
-				}
-			}
-		}
-	}
 }
 
 func updateStateAndGetProofs(keys, values []common.Hash, toBeModified, value common.Hash, addr common.Address) {
@@ -2062,7 +1970,7 @@ func TestExtensionThreeKeyBytes(t *testing.T) {
 }
 
 func TestFindAccount(t *testing.T) {
-	blockNum := 13284469
+	blockNum := 14209217
 	blockNumberParent := big.NewInt(int64(blockNum))
 	blockHeaderParent := oracle.PrefetchBlock(blockNumberParent, true, nil)
 	database := state.NewDatabase(blockHeaderParent)
@@ -2075,6 +1983,7 @@ func TestFindAccount(t *testing.T) {
 		statedb.CreateAccount(addr)
 
 		accountProof, _, _, err := statedb.GetProof(addr)
+		fmt.Println(len(accountProof))
 		check(err)
 		// fmt.Println(accountProof)
 		if len(accountProof) < 3 {
@@ -2085,3 +1994,4 @@ func TestFindAccount(t *testing.T) {
 	}
 
 }
+
