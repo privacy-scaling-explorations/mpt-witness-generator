@@ -892,7 +892,6 @@ func prepareWitness(storageProof1, storageProof2, extNibbles [][]byte, key []byt
 }
 
 func updateStateAndGetProofs(keys, values []common.Hash, toBeModified, value common.Hash, addr common.Address) {
-	// Here we are checking the whole state trie, not only a storage trie for some account as in above tests.
 	blockNum := 13284469
 	blockNumberParent := big.NewInt(int64(blockNum))
 	blockHeaderParent := oracle.PrefetchBlock(blockNumberParent, true, nil)
@@ -2033,27 +2032,77 @@ func TestExtensionThreeKeyBytes(t *testing.T) {
 	getProofs(toBeModified, val, addr, statedb)
 }
 
-func TestFindAccount(t *testing.T) {
+func TestOnlyLeafInStorageProof(t *testing.T) {
 	blockNum := 14209217
 	blockNumberParent := big.NewInt(int64(blockNum))
 	blockHeaderParent := oracle.PrefetchBlock(blockNumberParent, true, nil)
 	database := state.NewDatabase(blockHeaderParent)
 	statedb, _ := state.New(blockHeaderParent.Root, database, nil)
 	
-	for i := 0; i < 1000; i++ {
+	h := fmt.Sprintf("0x%d", 0)
+	addr := common.HexToAddress(h)
+	// statedb.IntermediateRoot(false)
+	statedb.CreateAccount(addr)
+
+	accountProof, _, _, err := statedb.GetProof(addr)
+	fmt.Println(len(accountProof))
+	check(err)
+	
+	h = fmt.Sprintf("0x2111d%d", 0)
+	key2 := common.HexToHash(h)
+	val1 := common.BigToHash(big.NewInt(int64(1)))
+	statedb.SetState(addr, key2, val1)
+	statedb.IntermediateRoot(false)
+
+	// storageProof, _, _, err := statedb.GetStorageProof(addr, key2)
+	// check(err)
+
+	val := common.BigToHash(big.NewInt(int64(17)))
+	getProofs(key2, val, addr, statedb)
+}
+
+func TestFindAccount(t *testing.T) {
+	blockNum := 0
+	blockNumberParent := big.NewInt(int64(blockNum))
+	blockHeaderParent := oracle.PrefetchBlock(blockNumberParent, true, nil)
+	database := state.NewDatabase(blockHeaderParent)
+	statedb, _ := state.New(blockHeaderParent.Root, database, nil)
+	
+	for i := 10000; i < 14000; i++ {
 		h := fmt.Sprintf("0x%d", i)
 		addr := common.HexToAddress(h)
 		// statedb.IntermediateRoot(false)
-		statedb.CreateAccount(addr)
+		// statedb.CreateAccount(addr)
 
+		if statedb.GetCode(addr) == nil {
+			continue
+		}
 		accountProof, _, _, err := statedb.GetProof(addr)
 		fmt.Println(len(accountProof))
 		check(err)
-		// fmt.Println(accountProof)
-		if len(accountProof) < 3 {
+		fmt.Println(len(accountProof))
+		if len(accountProof) < 2 {
 			fmt.Println(len(accountProof))
 			fmt.Println("asdfsadf")
 		}
+
+		/*
+		for i := 0; i < 1000; i++ {
+			h := fmt.Sprintf("0x2111d%d", i)
+			key2 := common.HexToHash(h)
+			val1 := common.BigToHash(big.NewInt(int64(1)))
+			statedb.SetState(addr, key2, val1)
+			statedb.IntermediateRoot(false)
+
+			storageProof, _, _, err := statedb.GetStorageProof(addr, key2)
+			check(err)
+			fmt.Println(len(storageProof))
+
+			v := common.Hash{} // empty value deletes the key
+			statedb.SetState(addr, key2, v)
+			statedb.IntermediateRoot(false)
+		}
+		*/
 
 	}
 
