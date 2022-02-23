@@ -18,8 +18,6 @@ What is changed compared to geth:
 
 Build:
 
-go build -buildmode=c-shared -o libmpt.a witness_gen_wrapper.go 
+go build -buildmode=c-archive -o libmpt.a witness_gen_wrapper.go 
 
-Copy libmpt.a to rust_call/build:
-
-cp libmpt.a rust_call/build
+Copy libmpt.a and libmpt.h to rust_call/build.

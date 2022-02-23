@@ -23,6 +23,6 @@ fn main() {
     };
     let result = unsafe { GetProofs(go_string) };
     let c_str = unsafe { CStr::from_ptr(result) };
-    let string = c_str.to_str().expect("Error translating SQIP from library");
+    let string = c_str.to_str().expect("Error translating from library");
     println!("{:?}", string);
 }

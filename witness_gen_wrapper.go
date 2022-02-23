@@ -6,7 +6,7 @@ import "C"
 // "github.com/miha-stopar/mpt/state"
 // "github.com/miha-stopar/mpt/witness"
 
-// export GetProofs
+//export GetProofs
 func GetProofs(path string) *C.char {
 // func GetProofs(keys, values []common.Hash, toBeModified, value common.Hash, addr common.Address) {
 	/*
