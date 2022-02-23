@@ -1,0 +1,2 @@
+cargo:rustc-link-search=native=./build
+cargo:rustc-link-lib=static=mpt
