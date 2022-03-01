@@ -32,6 +32,15 @@ const isExtensionOddKeyLenPos = 16
 const isExtensionKeyShortPos = 17
 const isExtensionKeyLongPos = 18
 
+const isBranchC16Pos = 19
+const isBranchC1Pos = 20
+const isExtShortC16Pos = 21
+const isExtShortC1Pos = 22
+const isExtLongEvenC16Pos = 23
+const isExtLongEvenC1Pos = 24
+const isExtLongOddC16Pos = 25
+const isExtLongOddC1Pos = 26
+
 /*
 Info about row type (given as the last element of the row):
 0: init branch (such a row contains RLP info about the branch node; key)
@@ -374,7 +383,7 @@ func prepareLeafRows(row []byte, typ byte) ([][]byte, []byte) {
 	return [][]byte{leaf1, leaf2}, leafForHashing
 }
 
-func prepareTwoBranchesWitness(branch1, branch2 []byte, key byte, isBranchSPlaceholder, isBranchCPlaceholder bool) [][]byte {
+func prepareTwoBranchesWitness(branch1, branch2 []byte, key, branchC16, branchC1 byte, isBranchSPlaceholder, isBranchCPlaceholder bool) [][]byte {
 	rows := make([][]byte, 17)
 	rows[0] = make([]byte, rowLen)
 
@@ -434,6 +443,9 @@ func prepareTwoBranchesWitness(branch1, branch2 []byte, key byte, isBranchSPlace
 		rows[0][isBranchCPlaceholderPos] = 1
 	}
 
+	rows[0][isBranchC16Pos] = branchC16
+	rows[0][isBranchC1Pos] = branchC1
+
 	for i := 1; i < 17; i++ {
 		rows[i] = make([]byte, rowLen)
 		// assign row type
@@ -490,6 +502,9 @@ func prepareWitness(storageProof1, storageProof2, extNibbles [][]byte, key []byt
 	var extensionRowS []byte
 	var extensionRowC []byte
 	extensionNodeInd := 0
+
+	branchC16 := byte(0); 
+	branchC1 := byte(1);
 	for i := 0; i < upTo; i++ {
 		elems, _, err := rlp.SplitList(storageProof1[i])
 		if err != nil {
@@ -617,7 +632,28 @@ func prepareWitness(storageProof1, storageProof2, extNibbles [][]byte, key []byt
 				toBeHashed = append(toBeHashed, leafForHashing)
 			}
 		case 17:
-			bRows := prepareTwoBranchesWitness(storageProof1[i], storageProof2[i], key[keyIndex], false, false)
+			switchC16 := true // If not extension node, switchC16 = true.
+			if extensionRowS != nil {
+				keyLen := getExtensionNodeKeyLen(storageProof1[i-1])
+				if keyLen == 1 {
+					switchC16 = false
+				} else {
+					if storageProof1[i-1][2] != 0 { // If even, switch16 = true.
+						switchC16 = false
+					}
+				}
+			}
+			if switchC16 {
+				if branchC16 == 1 {
+					branchC16 = 0
+					branchC1 = 1
+				} else {
+					branchC16 = 1
+					branchC1 = 0
+				}
+			}
+
+			bRows := prepareTwoBranchesWitness(storageProof1[i], storageProof2[i], key[keyIndex], branchC16, branchC1, false, false)
 			keyIndex += 1
 
 			// extension node rows
@@ -629,16 +665,37 @@ func prepareWitness(storageProof1, storageProof2, extNibbles [][]byte, key []byt
 				bRows[0][isExtensionPos] = 1
 
 				keyLen := getExtensionNodeKeyLen(storageProof1[i-1])
+				// TODO: remove old selectors below
 				// Set whether key extension nibbles are of even or odd length.
 				if keyLen == 1 {
+					// old:
 					bRows[0][isExtensionOddKeyLenPos] = 1
 					bRows[0][isExtensionKeyShortPos] = 1
-				} else {
-					bRows[0][isExtensionKeyLongPos] = 1
-					if storageProof1[i-1][2] == 0 {
-						bRows[0][isExtensionEvenKeyLenPos] = 1
+					// new selectors:
+					if branchC16 == 1 {
+						bRows[0][isExtShortC16Pos] = 1
 					} else {
+						bRows[0][isExtShortC1Pos] = 1
+					}
+				} else {
+					if storageProof1[i-1][2] == 0 {
+						// old:
+						bRows[0][isExtensionEvenKeyLenPos] = 1
+						// new selectors:
+						if branchC16 == 1 {
+							bRows[0][isExtLongEvenC16Pos] = 1
+						} else {
+							bRows[0][isExtLongEvenC1Pos] = 1
+						}
+					} else {
+						// old:
 						bRows[0][isExtensionOddKeyLenPos] = 1
+						// new selectors:
+						if branchC16 == 1 {
+							bRows[0][isExtLongOddC16Pos] = 1
+						} else {
+							bRows[0][isExtLongOddC1Pos] = 1
+						}
 					}
 				}
 
@@ -672,7 +729,7 @@ func prepareWitness(storageProof1, storageProof2, extNibbles [][]byte, key []byt
 		}
 	}
 
-	addBranch := func(branch1, branch2 []byte, modifiedIndex byte, isCPlaceholder bool) {
+	addBranch := func(branch1, branch2 []byte, modifiedIndex byte, isCPlaceholder bool, branchC16, branchC1 byte) {
 		isBranchSPlaceholder := false
 		isBranchCPlaceholder := false
 		if isCPlaceholder {
@@ -680,7 +737,7 @@ func prepareWitness(storageProof1, storageProof2, extNibbles [][]byte, key []byt
 		} else {
 			isBranchSPlaceholder = true
 		}
-		bRows := prepareTwoBranchesWitness(branch1, branch2, modifiedIndex, isBranchSPlaceholder, isBranchCPlaceholder)
+		bRows := prepareTwoBranchesWitness(branch1, branch2, modifiedIndex, branchC16, branchC1, isBranchSPlaceholder, isBranchCPlaceholder)
 		rows = append(rows, bRows...)
 
 		branchToBeHashed := branch1
@@ -746,6 +803,13 @@ func prepareWitness(storageProof1, storageProof2, extNibbles [][]byte, key []byt
 			isExtension := len1 == len2 + 2
 			if !isExtension {
 				extRows = prepareEmptyExtensionRows()
+				if branchC16 == 1 {
+					branchC16 = 0
+					branchC1 = 1
+				} else {
+					branchC16 = 1
+					branchC1 = 0
+				}
 			} else {
 				numNibbles, extensionRowS, extensionRowC :=
 					prepareExtensionRows(extNibbles, extensionNodeInd, storageProof1[len1 - 3], storageProof1[len1 - 3])
@@ -755,9 +819,19 @@ func prepareWitness(storageProof1, storageProof2, extNibbles [][]byte, key []byt
 
 				// adding extension node for hashing:
 				addForHashing(storageProof1[len1-3], &toBeHashed)
+
+				if numberOfNibbles % 2 == 1 {
+					if branchC16 == 1 {
+						branchC16 = 0
+						branchC1 = 1
+					} else {
+						branchC16 = 1
+						branchC1 = 0
+					}
+				}
 			}
 
-			addBranch(storageProof1[len1-2], storageProof1[len1-2], key[keyIndex + numberOfNibbles], true)
+			addBranch(storageProof1[len1-2], storageProof1[len1-2], key[keyIndex + numberOfNibbles], true, branchC16, branchC1)
 			rows = append(rows, extRows...)
 
 			leafRows, leafForHashing := prepareLeafRows(storageProof1[len1-1], 2)
@@ -770,10 +844,36 @@ func prepareWitness(storageProof1, storageProof2, extNibbles [][]byte, key []byt
 			// into the new branch.
 			rows[len(rows)-branchRows-2][driftedPos] =
 				getDriftedPosition(leafRows[0], numberOfNibbles) // -branchRows-2 lands into branch init
+
 			if isExtension {
 				rows[len(rows)-branchRows-2][isExtensionPos] = 1
+
+				// new selectors:
+				if numberOfNibbles == 1 {
+					if branchC16 == 1 {
+						rows[len(rows)-branchRows-2][isExtShortC16Pos] = 1
+					} else {
+						rows[len(rows)-branchRows-2][isExtShortC1Pos] = 1
+					}
+				} else {
+					if numberOfNibbles % 2 == 0 {
+						if branchC16 == 1 {
+							rows[len(rows)-branchRows-2][isExtLongEvenC16Pos] = 1
+						} else {
+							rows[len(rows)-branchRows-2][isExtLongEvenC1Pos] = 1
+						}
+					} else {
+						if branchC16 == 1 {
+							rows[len(rows)-branchRows-2][isExtLongOddC16Pos] = 1
+						} else {
+							rows[len(rows)-branchRows-2][isExtLongOddC1Pos] = 1
+						}
+					}
+				}
+
+				// old selectors:
 				if numberOfNibbles % 2 == 0 {
-					rows[len(rows)-branchRows-2][isExtensionEvenKeyLenPos] = 1
+					rows[len(rows)-branchRows-2][isExtensionEvenKeyLenPos] = 1	
 				} else {
 					rows[len(rows)-branchRows-2][isExtensionOddKeyLenPos] = 1
 				}
@@ -818,6 +918,13 @@ func prepareWitness(storageProof1, storageProof2, extNibbles [][]byte, key []byt
 			isExtension := len2 == len1 + 2
 			if !isExtension {
 				extRows = prepareEmptyExtensionRows()
+				if branchC16 == 1 {
+					branchC16 = 0
+					branchC1 = 1
+				} else {
+					branchC16 = 1
+					branchC1 = 0
+				}
 			} else { // diff is 2 when extension node is added
 				numNibbles, extensionRowS, extensionRowC :=
 					prepareExtensionRows(extNibbles, extensionNodeInd, storageProof2[len2 - 3], storageProof2[len2 - 3])
@@ -827,9 +934,19 @@ func prepareWitness(storageProof1, storageProof2, extNibbles [][]byte, key []byt
 
 				// adding extension node for hashing:
 				addForHashing(storageProof2[len2-3], &toBeHashed)
+
+				if numberOfNibbles % 2 == 1 {
+					if branchC16 == 1 {
+						branchC16 = 0
+						branchC1 = 1
+					} else {
+						branchC16 = 1
+						branchC1 = 0
+					}
+				}
 			}
 
-			addBranch(storageProof2[len2-2], storageProof2[len2-2], key[keyIndex + numberOfNibbles], false)
+			addBranch(storageProof2[len2-2], storageProof2[len2-2], key[keyIndex + numberOfNibbles], false, branchC16, branchC1)
 			rows = append(rows, extRows...)
 
 			// Note that this is not just reversed order compared to
@@ -843,6 +960,31 @@ func prepareWitness(storageProof1, storageProof2, extNibbles [][]byte, key []byt
 			rows[len(rows)-branchRows][driftedPos] = getDriftedPosition(leafRows[0], numberOfNibbles) // -branchRows lands into branch init
 			if isExtension {
 				rows[len(rows)-branchRows][isExtensionPos] = 1
+
+				// new selectors:
+				if numberOfNibbles == 1 {
+					if branchC16 == 1 {
+						rows[len(rows)-branchRows][isExtShortC16Pos] = 1
+					} else {
+						rows[len(rows)-branchRows][isExtShortC1Pos] = 1
+					}
+				} else {
+					if numberOfNibbles % 2 == 0 {
+						if branchC16 == 1 {
+							rows[len(rows)-branchRows][isExtLongEvenC16Pos] = 1
+						} else {
+							rows[len(rows)-branchRows][isExtLongEvenC1Pos] = 1
+						}
+					} else {
+						if branchC16 == 1 {
+							rows[len(rows)-branchRows][isExtLongOddC16Pos] = 1
+						} else {
+							rows[len(rows)-branchRows][isExtLongOddC1Pos] = 1
+						}
+					}
+				}
+
+				// old selectors:
 				if numberOfNibbles % 2 == 0 {
 					rows[len(rows)-branchRows][isExtensionEvenKeyLenPos] = 1
 				} else {
