@@ -27,7 +27,23 @@ func TestUpdateOneLevel(t *testing.T) {
 	toBeModified := ks[0]
 	v := common.BigToHash(big.NewInt(int64(17)))
 	addr := common.HexToAddress("0xaaaccf12580138bc2bbceeeaa111df4e42ab81ff")
-	updateStateAndGetProofs(ks[:], values, toBeModified, v, addr)
+	updateStateAndGenProofs("UpdateOneLevel", ks[:], values, toBeModified, v, addr)
+}
+
+func TestUpdateOneLevel1(t *testing.T) {
+	addr := common.HexToAddress("0x50efbf12580138bc263c95757826df4e24eb81c9")
+	// This address is turned into odd length (see hexToCompact in encoding.go to see
+	// odd and even length are handled differently)
+	ks := [...]common.Hash{common.HexToHash("0x12"), common.HexToHash("0x21")}
+	var values []common.Hash
+	for i := 0; i < len(ks); i++ {
+		values = append(values, common.BigToHash(big.NewInt(int64(i + 1)))) // don't put 0 value because otherwise nothing will be set (if 0 is prev value), see state_object.go line 279
+	}
+
+	// This is a storage slot that will be modified (the list will come from bus-mapping):
+	toBeModified := ks[1]
+	val := common.BigToHash(big.NewInt(int64(17)))
+	updateStateAndGenProofs("UpdateOneLevel", ks[:], values, toBeModified, val, addr)
 }
 
 func TestUpdateOneLevelBigVal(t *testing.T) {
@@ -49,7 +65,7 @@ func TestUpdateOneLevelBigVal(t *testing.T) {
 	v1 := common.FromHex("0xbbefaa12580138bc263c95757826df4e24eb81c9aaaaaaaaaaaaaaaaaaaaaaaa")
 	v2 := common.BytesToHash(v1)
 	addr := common.HexToAddress("0xaaaccf12580138bc2bbceeeaa826df4e42ab81ff")
-	updateStateAndGetProofs(ks[:], values, toBeModified, v2, addr)
+	updateStateAndGenProofs("UpdateOneLevelBigVal", ks[:], values, toBeModified, v2, addr)
 }
 
 func TestUpdateTwoLevels(t *testing.T) {
@@ -73,7 +89,7 @@ func TestUpdateTwoLevels(t *testing.T) {
 	toBeModified := ks[0]
 	v := common.BigToHash(big.NewInt(int64(17)))
 	addr := common.HexToAddress("0xaaaccf12580138bc2bbc957aa826df4e42ab81ff")
-	updateStateAndGetProofs(ks[:], values, toBeModified, v, addr)
+	updateStateAndGenProofs("UpdateTwoLevels", ks[:], values, toBeModified, v, addr)
 }
 
 func TestUpdateTwoLevelsBigVal(t *testing.T) {
@@ -99,7 +115,7 @@ func TestUpdateTwoLevelsBigVal(t *testing.T) {
 	v1 := common.FromHex("0xbbefaa12580138bc263c95757826df4e24eb81c9aaaaaaaaaaaaaaaaaaaaaaaa")
 	v2 := common.BytesToHash(v1)
 	addr := common.HexToAddress("0xaaaccf12580138bc2bbc957aa826df4e42ab81ff")
-	updateStateAndGetProofs(ks[:], values, toBeModified, v2, addr)
+	updateStateAndGenProofs("UpdateTwoLevelsBigVal", ks[:], values, toBeModified, v2, addr)
 }
 
 func TestUpdateThreeLevels(t *testing.T) {
@@ -147,7 +163,7 @@ func TestUpdateThreeLevels(t *testing.T) {
 
 	v := common.BigToHash(big.NewInt(int64(17)))
 	addr := common.HexToAddress("0xaaaccf12580138bc263c95757826df4e42ab81ff")
-	updateStateAndGetProofs(ks[:], values, toBeModified, v, addr)
+	updateStateAndGenProofs("UpdateThreeLevels", ks[:], values, toBeModified, v, addr)
 }
 
 func TestFromNilToValue(t *testing.T) {
@@ -175,7 +191,7 @@ func TestFromNilToValue(t *testing.T) {
 
 	v := common.BigToHash(big.NewInt(int64(17)))
 	addr := common.HexToAddress("0x50efbf12580138bc263c95757826df4e42ab81ff")
-	updateStateAndGetProofs(ks[:], values, toBeModified, v, addr)
+	updateStateAndGenProofs("FromNilToValue", ks[:], values, toBeModified, v, addr)
 }
 
 func TestDelete(t *testing.T) {
@@ -195,23 +211,7 @@ func TestDelete(t *testing.T) {
 
 	val := common.Hash{} // empty value deletes the key
 	addr := common.HexToAddress("0x50efbf12580138bc263c95757826df4e24eb81ff")
-	updateStateAndGetProofs(ks[:], values, toBeModified, val, addr)
-}
-
-func TestUpdateOneLevel1(t *testing.T) {
-	addr := common.HexToAddress("0x50efbf12580138bc263c95757826df4e24eb81c9")
-	// This address is turned into odd length (see hexToCompact in encoding.go to see
-	// odd and even length are handled differently)
-	ks := [...]common.Hash{common.HexToHash("0x12"), common.HexToHash("0x21")}
-	var values []common.Hash
-	for i := 0; i < len(ks); i++ {
-		values = append(values, common.BigToHash(big.NewInt(int64(i + 1)))) // don't put 0 value because otherwise nothing will be set (if 0 is prev value), see state_object.go line 279
-	}
-
-	// This is a storage slot that will be modified (the list will come from bus-mapping):
-	toBeModified := ks[1]
-	val := common.BigToHash(big.NewInt(int64(17)))
-	updateStateAndGetProofs(ks[:], values, toBeModified, val, addr)
+	updateStateAndGenProofs("Delete", ks[:], values, toBeModified, val, addr)
 }
 
 func TestUpdateOneLevelEvenAddress(t *testing.T) {
@@ -227,7 +227,7 @@ func TestUpdateOneLevelEvenAddress(t *testing.T) {
 	// This is a storage slot that will be modified (the list will come from bus-mapping):
 	toBeModified := ks[1]
 	val := common.BigToHash(big.NewInt(int64(17)))
-	updateStateAndGetProofs(ks[:], values, toBeModified, val, addr)
+	updateStateAndGenProofs("UpdateOneLevelEvenAddress", ks[:], values, toBeModified, val, addr)
 }
 
 func TestAddBranch(t *testing.T) {
@@ -250,7 +250,7 @@ func TestAddBranch(t *testing.T) {
 
 	v := common.BigToHash(big.NewInt(int64(17)))
 	addr := common.HexToAddress("0x75acef12a01883c2b3fc57957826df4e24e8baaa")
-	updateStateAndGetProofs(ks[:], values, toBeModified, v, addr)
+	updateStateAndGenProofs("AddBranch", ks[:], values, toBeModified, v, addr)
 }
 
 func TestAddBranchLong(t *testing.T) {
@@ -276,7 +276,7 @@ func TestAddBranchLong(t *testing.T) {
 
 	v := common.BigToHash(big.NewInt(int64(17)))
 	addr := common.HexToAddress("0x75acef12a01883c2b3fc57957826df4e24e8b19c")
-	updateStateAndGetProofs(ks[:], values, toBeModified, v, addr)
+	updateStateAndGenProofs("AddBranchLong", ks[:], values, toBeModified, v, addr)
 }
 
 func TestDeleteBranch(t *testing.T) {
@@ -303,7 +303,7 @@ func TestDeleteBranch(t *testing.T) {
 
 	v := common.Hash{} // empty value deletes the key
 	addr := common.HexToAddress("0x75acef12a0188c32b36c57957826df4e24e8b19c")
-	updateStateAndGetProofs(ks[:], values, toBeModified, v, addr)
+	updateStateAndGenProofs("DeleteBranch", ks[:], values, toBeModified, v, addr)
 }
 
 func TestDeleteBranchLong(t *testing.T) {
@@ -333,7 +333,7 @@ func TestDeleteBranchLong(t *testing.T) {
 
 	v := common.Hash{} // empty value deletes the key
 	addr := common.HexToAddress("0x75acef12a0188c32b36c57957826df4e24e8b19c")
-	updateStateAndGetProofs(ks[:], values, toBeModified, v, addr)
+	updateStateAndGenProofs("DeleteBranchLong", ks[:], values, toBeModified, v, addr)
 }
 
 func TestAddBranchTwoLevels(t *testing.T) {
@@ -371,7 +371,7 @@ func TestAddBranchTwoLevels(t *testing.T) {
 
 	v := common.BigToHash(big.NewInt(int64(17)))
 	addr := common.HexToAddress("0x75fbef12a0188c32b36c57957826df4e24e8b19c")
-	updateStateAndGetProofs(ks[:], values, toBeModified, v, addr)
+	updateStateAndGenProofs("AddBranchTwoLevels", ks[:], values, toBeModified, v, addr)
 }
 
 func TestAddBranchTwoLevelsLong(t *testing.T) {
@@ -404,7 +404,7 @@ func TestAddBranchTwoLevelsLong(t *testing.T) {
 
 	v := common.BigToHash(big.NewInt(int64(17)))
 	addr := common.HexToAddress("0x75fbef1250188c32b63c57957826df4e24e8b19c")
-	updateStateAndGetProofs(ks[:], values, toBeModified, v, addr)
+	updateStateAndGenProofs("AddBranchTwoLevelsLong", ks[:], values, toBeModified, v, addr)
 }
 
 func TestDeleteBranchTwoLevels(t *testing.T) {
@@ -432,7 +432,7 @@ func TestDeleteBranchTwoLevels(t *testing.T) {
 
 	v := common.Hash{}
 	addr := common.HexToAddress("0x75fbef1250188c32b63c57957826df4e24eb81c9")
-	updateStateAndGetProofs(ks[:], values, toBeModified, v, addr)
+	updateStateAndGenProofs("DeleteBranchTwoLevels", ks[:], values, toBeModified, v, addr)
 }
 
 func TestDeleteBranchTwoLevelsLong(t *testing.T) {
@@ -462,7 +462,7 @@ func TestDeleteBranchTwoLevelsLong(t *testing.T) {
 
 	v := common.Hash{}
 	addr := common.HexToAddress("0x75fbef21508183c2b63c57957826df4e24eb81c9")
-	updateStateAndGetProofs(ks[:], values, toBeModified, v, addr)
+	updateStateAndGenProofs("DeleteBranchTwoLevelsLong", ks[:], values, toBeModified, v, addr)
 }
 
 func TestExtensionOneKeyByteSel1(t *testing.T) {
@@ -506,7 +506,7 @@ func TestExtensionOneKeyByteSel1(t *testing.T) {
 	toBeModified := ks[len(ks)-1]
 	addr := common.HexToAddress("0x75fbef21508183c2b63c57957826df4e24eb81c9")
 	val := common.BigToHash(big.NewInt(int64(17)))
-	updateStateAndGetProofs(ks[:], values, toBeModified, val, addr)
+	updateStateAndGenProofs("ExtensionOneKeyByteSel1", ks[:], values, toBeModified, val, addr)
 }
 
 func TestExtensionAddedOneKeyByteSel1(t *testing.T) {
@@ -534,7 +534,7 @@ func TestExtensionAddedOneKeyByteSel1(t *testing.T) {
 
 	addr := common.HexToAddress("0x50efbf12580138bc263c95757826df4e24eb81c9")
 	val := common.BigToHash(big.NewInt(int64(17)))
-	updateStateAndGetProofs(ks[:], values, toBeModified, val, addr)
+	updateStateAndGenProofs("ExtensionAddedOneKeyByteSel1", ks[:], values, toBeModified, val, addr)
 }
 
 func TestExtensionDeletedOneKeyByteSel1(t *testing.T) {
@@ -562,7 +562,7 @@ func TestExtensionDeletedOneKeyByteSel1(t *testing.T) {
 
 	addr := common.HexToAddress("0x50efbf12580138bc263c95757826df4e24eb81c9")
 	val := common.Hash{} // empty value deletes the key
-	updateStateAndGetProofs(ks[:], values, toBeModified, val, addr)
+	updateStateAndGenProofs("ExtensionDeletedOneKeyByteSel1", ks[:], values, toBeModified, val, addr)
 }
 
 func TestExtensionOneKeyByteSel2(t *testing.T) {
@@ -583,7 +583,7 @@ func TestExtensionOneKeyByteSel2(t *testing.T) {
 	toBeModified := common.HexToHash("0xca644")
 	addr := common.HexToAddress("0x75fbef2150818c32b36c57957226df4e24eb81c9")
 	val := common.BigToHash(big.NewInt(int64(17)))
-	updateStateAndGetProofs(ks[:], values, toBeModified, val, addr)
+	updateStateAndGenProofs("ExtensionOneKeyByteSel2", ks[:], values, toBeModified, val, addr)
 }
 
 func TestExtensionAddedOneKeyByteSel2(t *testing.T) {
@@ -608,7 +608,7 @@ func TestExtensionAddedOneKeyByteSel2(t *testing.T) {
 
 	addr := common.HexToAddress("0x75fbef2150818c32b36c57957226df4e24eb81c9")
 	val := common.BigToHash(big.NewInt(int64(17)))
-	updateStateAndGetProofs(ks[:], values, toBeModified, val, addr)
+	updateStateAndGenProofs("ExtensionAddedOneKeyByteSel2", ks[:], values, toBeModified, val, addr)
 }
 
 func TestExtensionDeletedOneKeyByteSel2(t *testing.T) {
@@ -630,7 +630,7 @@ func TestExtensionDeletedOneKeyByteSel2(t *testing.T) {
 
 	addr := common.HexToAddress("0x75fbef2150818c32b36c57957226df4e24eb81c9")
 	val := common.Hash{} // empty value deletes the key
-	updateStateAndGetProofs(ks[:], values, toBeModified, val, addr)
+	updateStateAndGenProofs("ExtensionDeletedOneKeyByteSel2", ks[:], values, toBeModified, val, addr)
 }
 
 func TestExtensionTwoKeyBytesSel1(t *testing.T) {
@@ -658,7 +658,7 @@ func TestExtensionTwoKeyBytesSel1(t *testing.T) {
 	toBeModified := common.HexToHash("0x172")
 	addr := common.HexToAddress("0x75fbef21508183c2b63c59757826df4e24eb81c9")
 	val := common.BigToHash(big.NewInt(int64(17)))
-	updateStateAndGetProofs(ks[:], values, toBeModified, val, addr)
+	updateStateAndGenProofs("ExtensionTwoKeyBytesSel1", ks[:], values, toBeModified, val, addr)
 }
 
 func TestExtensionAddedTwoKeyBytesSel1(t *testing.T) {
@@ -684,7 +684,7 @@ func TestExtensionAddedTwoKeyBytesSel1(t *testing.T) {
 
 	addr := common.HexToAddress("0x75fbef21508183c2b63c59757826df4e24eb81c9")
 	val := common.BigToHash(big.NewInt(int64(17)))
-	updateStateAndGetProofs(ks[:], values, toBeModified, val, addr)
+	updateStateAndGenProofs("ExtensionAddedTwoKeyBytesSel1", ks[:], values, toBeModified, val, addr)
 }
 
 func TestExtensionDeletedTwoKeyBytesSel1(t *testing.T) {
@@ -707,7 +707,7 @@ func TestExtensionDeletedTwoKeyBytesSel1(t *testing.T) {
 
 	addr := common.HexToAddress("0x75fbef21508183c2b63c59757826df4e24eb81c9")
 	val := common.Hash{} // empty value deletes the key
-	updateStateAndGetProofs(ks[:], values, toBeModified, val, addr)
+	updateStateAndGenProofs("ExtensionDeletedTwoKeyBytesSel1", ks[:], values, toBeModified, val, addr)
 }
 
 func TestExtensionTwoKeyBytesSel2(t *testing.T) {
@@ -728,7 +728,7 @@ func TestExtensionTwoKeyBytesSel2(t *testing.T) {
 	toBeModified := common.HexToHash("0x2ea772")
 	addr := common.HexToAddress("0x75fbef2150818c32b36c57957226df4e24eb81c9")
 	val := common.BigToHash(big.NewInt(int64(17)))
-	updateStateAndGetProofs(ks[:], values, toBeModified, val, addr)
+	updateStateAndGenProofs("ExtensionTwoKeyBytesSel2", ks[:], values, toBeModified, val, addr)
 }
 
 func TestExtensionAddedTwoKeyBytesSel2(t *testing.T) {
@@ -753,7 +753,7 @@ func TestExtensionAddedTwoKeyBytesSel2(t *testing.T) {
 
 	addr := common.HexToAddress("0x75fbef2150818c32b36c57957226df4e24eb81c9")
 	val := common.BigToHash(big.NewInt(int64(17)))
-	updateStateAndGetProofs(ks[:], values, toBeModified, val, addr)
+	updateStateAndGenProofs("ExtensionAddedTwoKeyBytesSel2", ks[:], values, toBeModified, val, addr)
 }
 
 func TestExtensionDeletedTwoKeyBytesSel2(t *testing.T) {
@@ -775,9 +775,10 @@ func TestExtensionDeletedTwoKeyBytesSel2(t *testing.T) {
 
 	addr := common.HexToAddress("0x75fbef2150818c32b36c57957226df4e24eb81c9")
 	val := common.Hash{} // empty value deletes the key
-	updateStateAndGetProofs(ks[:], values, toBeModified, val, addr)
+	updateStateAndGenProofs("ExtensionDeletedTwoKeyBytesSel2", ks[:], values, toBeModified, val, addr)
 }
 
+/*
 func TestExtensionThreeBytesSel2(t *testing.T) {
 	// still searching for the right values
 	a := 0
@@ -797,8 +798,9 @@ func TestExtensionThreeBytesSel2(t *testing.T) {
 	toBeModified := common.HexToHash("0xfa935")
 	addr := common.HexToAddress("0x75fbef2150818c32b36c57957226df4e24eb81c9")
 	val := common.BigToHash(big.NewInt(int64(17)))
-	updateStateAndGetProofs(ks[:], values, toBeModified, val, addr)
+	updateStateAndGetProofs("ExtensionThreeBytesSel2", ks[:], values, toBeModified, val, addr)
 }
+*/
 
 func TestExtensionInFirstStorageLevel(t *testing.T) {
 	ks := []common.Hash{common.HexToHash("0x12")}
@@ -816,7 +818,7 @@ func TestExtensionInFirstStorageLevel(t *testing.T) {
 	toBeModified := common.HexToHash("0x1")
 	addr := common.HexToAddress("0x75fbef2150818c32b36c57957226df4e24eb81c9")
 	val := common.BigToHash(big.NewInt(int64(17)))
-	updateStateAndGetProofs(ks[:], values, toBeModified, val, addr)
+	updateStateAndGenProofs("ExtensionInFirstStorageLevel", ks[:], values, toBeModified, val, addr)
 }
 
 func TestExtensionInFirstStorageLevelOneKeyByte(t *testing.T) {
@@ -839,7 +841,7 @@ func TestExtensionInFirstStorageLevelOneKeyByte(t *testing.T) {
 
 	toBeModified := common.HexToHash("0x1")
 	val := common.BigToHash(big.NewInt(int64(17)))
-	GetBeforeAfterProof(toBeModified, val, addr, statedb)
+	GenBeforeAfterProof("ExtensionInFirstStorageLevelOneKeyByte", toBeModified, val, addr, statedb)
 }
 
 func TestExtensionAddedInFirstStorageLevelOneKeyByte(t *testing.T) {
@@ -860,7 +862,7 @@ func TestExtensionAddedInFirstStorageLevelOneKeyByte(t *testing.T) {
 	statedb.IntermediateRoot(false)
 
 	val := common.BigToHash(big.NewInt(int64(17)))
-	GetBeforeAfterProof(toBeModified, val, addr, statedb)
+	GenBeforeAfterProof("ExtensionAddedInFirstStorageLevelOneKeyByte", toBeModified, val, addr, statedb)
 }
 
 func TestExtensionInFirstStorageLevelTwoKeyBytes(t *testing.T) {
@@ -881,7 +883,7 @@ func TestExtensionInFirstStorageLevelTwoKeyBytes(t *testing.T) {
 	statedb.IntermediateRoot(false)
 
 	val := common.BigToHash(big.NewInt(int64(17)))
-	GetBeforeAfterProof(toBeModified, val, addr, statedb)
+	GenBeforeAfterProof("ExtensionInFirstStorageLevelTwoKeyBytes", toBeModified, val, addr, statedb)
 }
 
 func TestExtensionAddedInFirstStorageLevelTwoKeyBytes(t *testing.T) {
@@ -902,7 +904,7 @@ func TestExtensionAddedInFirstStorageLevelTwoKeyBytes(t *testing.T) {
 	statedb.IntermediateRoot(false)
 
 	val := common.BigToHash(big.NewInt(int64(17)))
-	GetBeforeAfterProof(toBeModified, val, addr, statedb)
+	GenBeforeAfterProof("ExtensionAddedInFirstStorageLevelTwoKeyBytes", toBeModified, val, addr, statedb)
 }
 
 
@@ -926,7 +928,7 @@ func TestExtensionThreeKeyBytesSel2(t *testing.T) {
 	statedb.SetState(addr, toBeModified, val1)
 
 	val := common.BigToHash(big.NewInt(int64(17)))
-	GetBeforeAfterProof(toBeModified, val, addr, statedb)
+	GenBeforeAfterProof("ExtensionThreeKeyBytesSel2", toBeModified, val, addr, statedb)
 }
 
 func TestExtensionAddedThreeKeyBytesSel2(t *testing.T) {
@@ -947,7 +949,7 @@ func TestExtensionAddedThreeKeyBytesSel2(t *testing.T) {
 	toBeModified := common.HexToHash("0x13234")
 
 	val := common.BigToHash(big.NewInt(int64(17)))
-	GetBeforeAfterProof(toBeModified, val, addr, statedb)
+	GenBeforeAfterProof("ExtensionAddedThreeKeyBytesSel2", toBeModified, val, addr, statedb)
 }
 
 func TestExtensionDeletedThreeKeyBytesSel2(t *testing.T) {
@@ -970,7 +972,7 @@ func TestExtensionDeletedThreeKeyBytesSel2(t *testing.T) {
 	statedb.SetState(addr, toBeModified, val1)
 
 	val := common.Hash{} // empty value deletes the key
-	GetBeforeAfterProof(toBeModified, val, addr, statedb)
+	GenBeforeAfterProof("ExtensionDeletedThreeKeyBytesSel2", toBeModified, val, addr, statedb)
 }
 
 func TestExtensionThreeKeyBytes(t *testing.T) {
@@ -1003,7 +1005,7 @@ func TestExtensionThreeKeyBytes(t *testing.T) {
 
 	toBeModified := common.HexToHash("0x333")
 	val := common.BigToHash(big.NewInt(int64(17)))
-	GetBeforeAfterProof(toBeModified, val, addr, statedb)
+	GenBeforeAfterProof("ExtensionThreeKeyBytes", toBeModified, val, addr, statedb)
 }
 
 func TestOnlyLeafInStorageProof(t *testing.T) {
@@ -1032,9 +1034,10 @@ func TestOnlyLeafInStorageProof(t *testing.T) {
 	// check(err)
 
 	val := common.BigToHash(big.NewInt(int64(17)))
-	GetBeforeAfterProof(key2, val, addr, statedb)
+	GenBeforeAfterProof("OnlyLeafInStorageProof", key2, val, addr, statedb)
 }
 
+/*
 func TestFindAccount(t *testing.T) {
 	blockNum := 0
 	blockNumberParent := big.NewInt(int64(blockNum))
@@ -1060,7 +1063,6 @@ func TestFindAccount(t *testing.T) {
 			fmt.Println("asdfsadf")
 		}
 
-		/*
 		for i := 0; i < 1000; i++ {
 			h := fmt.Sprintf("0x2111d%d", i)
 			key2 := common.HexToHash(h)
@@ -1076,9 +1078,7 @@ func TestFindAccount(t *testing.T) {
 			statedb.SetState(addr, key2, v)
 			statedb.IntermediateRoot(false)
 		}
-		*/
-
 	}
-
 }
+*/
 

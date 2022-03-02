@@ -14,7 +14,15 @@ What is changed compared to geth:
  * Some statedb and trie methods are made public to enable accessing internal structures.
  -->
 
- ## Calling from Rust
+## Generate witnesses
+
+To generate witnesses for MPT circuit, go into witness folder and execute:
+
+go test
+
+The witness files will appear in generated_witnesses folder.
+
+## Calling from Rust
 
 Build:
 

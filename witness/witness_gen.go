@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"math/big"
+	"os"
 	"strconv"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -820,7 +821,7 @@ func prepareWitness(storageProof1, storageProof2, extNibbles [][]byte, key []byt
 				// adding extension node for hashing:
 				addForHashing(storageProof1[len1-3], &toBeHashed)
 
-				if numberOfNibbles % 2 == 1 {
+				if numberOfNibbles % 2 == 0 {
 					if branchC16 == 1 {
 						branchC16 = 0
 						branchC1 = 1
@@ -935,7 +936,7 @@ func prepareWitness(storageProof1, storageProof2, extNibbles [][]byte, key []byt
 				// adding extension node for hashing:
 				addForHashing(storageProof2[len2-3], &toBeHashed)
 
-				if numberOfNibbles % 2 == 1 {
+				if numberOfNibbles % 2 == 0 {
 					if branchC16 == 1 {
 						branchC16 = 0
 						branchC1 = 1
@@ -1032,7 +1033,7 @@ func prepareWitness(storageProof1, storageProof2, extNibbles [][]byte, key []byt
 	return rows, toBeHashed, extensionNodeInd > 0
 }
 
-func updateStateAndGetProofs(keys, values []common.Hash, toBeModified, value common.Hash, addr common.Address) {
+func updateStateAndGenProofs(testName string, keys, values []common.Hash, toBeModified, value common.Hash, addr common.Address) {
 	blockNum := 13284469
 	blockNumberParent := big.NewInt(int64(blockNum))
 	blockHeaderParent := oracle.PrefetchBlock(blockNumberParent, true, nil)
@@ -1042,10 +1043,10 @@ func updateStateAndGetProofs(keys, values []common.Hash, toBeModified, value com
 	for i := 0; i < len(keys); i++ {
 		statedb.SetState(addr, keys[i], values[i])
 	}
-	GetBeforeAfterProof(toBeModified, value, addr, statedb)
+	GenBeforeAfterProof(testName, toBeModified, value, addr, statedb)
 }
 
-func GetBeforeAfterProof(toBeModified, value common.Hash, addr common.Address, statedb *state.StateDB) {
+func GenBeforeAfterProof(testName string, toBeModified, value common.Hash, addr common.Address, statedb *state.StateDB) {
 	// If we don't call IntermediateRoot, obj.data.Root will be hash(emptyRoot).
 	statedb.IntermediateRoot(false)
 
@@ -1131,8 +1132,6 @@ func GetBeforeAfterProof(toBeModified, value common.Hash, addr common.Address, s
 		extNibbles = extNibbles1
 	}
 	
-	// TODO: extNibbles not the same for storage when extension is added/deleted
-
 	rowsState, toBeHashedAcc, hasExtensionNodeAccount :=
 		prepareWitness(accountProof, accountProof1, extNibblesAccount, accountAddr, nil, true)
 	rowsStorage, toBeHashedStorage, hasExtensionNode :=
@@ -1143,14 +1142,6 @@ func GetBeforeAfterProof(toBeModified, value common.Hash, addr common.Address, s
 	// relies on index (for example when assigning s_keccak and c_keccak).
 	rowsState = append(rowsState, toBeHashedAcc...)
 	rowsState = append(rowsState, toBeHashedStorage...)
-
-	/*
-		// If only storage:
-		rowsStorage, toBeHashedStorage := prepareWitness(storageProof, storageProof1, key, false)
-		rowsState := append(rowsStorage, toBeHashedStorage...)
-	*/
-
-	fmt.Println(matrixToJson(rowsState))
 
 	// Just to check key RLC (rand = 2)
 	kh_sum := 0
@@ -1164,16 +1155,27 @@ func GetBeforeAfterProof(toBeModified, value common.Hash, addr common.Address, s
 	fmt.Println("address/key RLC:")
 	fmt.Println(addr_sum)
 	fmt.Println(kh_sum)
-
-	if !hasExtensionNodeAccount {
+	
+	if !hasExtensionNodeAccount && len(accountProof) == len(accountProof1) {
 		if !VerifyTwoProofsAndPath(accountProof, accountProof1, accountAddr) {
 			panic("proof not valid")
 		}
 	}
-	if !hasExtensionNode {
+	if !hasExtensionNode && len(storageProof) == len(storageProof1) {
 		if !VerifyTwoProofsAndPath(storageProof, storageProof1, key) {
 			panic("proof not valid")
 		}
 	}
+
+	w := matrixToJson(rowsState)
+	fmt.Println(w)
+
+	name := testName + "-" + strconv.Itoa(addr_sum) + "-" + strconv.Itoa(kh_sum) + ".json"
+	f, err := os.Create("../generated_witnesses/" + name)
+    check(err)
+	defer f.Close()
+	n3, err := f.WriteString(w)
+    check(err)
+    fmt.Printf("wrote %d bytes\n", n3)
 }
 
