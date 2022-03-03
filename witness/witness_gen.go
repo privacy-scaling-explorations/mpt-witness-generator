@@ -679,6 +679,8 @@ func prepareWitness(storageProof1, storageProof2, extNibbles [][]byte, key []byt
 						bRows[0][isExtShortC1Pos] = 1
 					}
 				} else {
+					// old:
+					bRows[0][isExtensionKeyLongPos] = 1
 					if storageProof1[i-1][2] == 0 {
 						// old:
 						bRows[0][isExtensionEvenKeyLenPos] = 1
