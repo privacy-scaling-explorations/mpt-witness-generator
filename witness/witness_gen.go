@@ -28,11 +28,6 @@ const driftedPos = 13
 const isExtensionPos = 14
 // extension key even or odd is about nibbles - that determines whether the first byte (not
 // considering RLP bytes) is 0 or 1 (see encoding.go hexToCompact)
-const isExtensionEvenKeyLenPos = 15
-const isExtensionOddKeyLenPos = 16
-const isExtensionKeyShortPos = 17
-const isExtensionKeyLongPos = 18
-
 const isBranchC16Pos = 19
 const isBranchC1Pos = 20
 const isExtShortC16Pos = 21
@@ -669,31 +664,19 @@ func prepareWitness(storageProof1, storageProof2, extNibbles [][]byte, key []byt
 				// TODO: remove old selectors below
 				// Set whether key extension nibbles are of even or odd length.
 				if keyLen == 1 {
-					// old:
-					bRows[0][isExtensionOddKeyLenPos] = 1
-					bRows[0][isExtensionKeyShortPos] = 1
-					// new selectors:
 					if branchC16 == 1 {
 						bRows[0][isExtShortC16Pos] = 1
 					} else {
 						bRows[0][isExtShortC1Pos] = 1
 					}
 				} else {
-					// old:
-					bRows[0][isExtensionKeyLongPos] = 1
 					if storageProof1[i-1][2] == 0 {
-						// old:
-						bRows[0][isExtensionEvenKeyLenPos] = 1
-						// new selectors:
 						if branchC16 == 1 {
 							bRows[0][isExtLongEvenC16Pos] = 1
 						} else {
 							bRows[0][isExtLongEvenC1Pos] = 1
 						}
 					} else {
-						// old:
-						bRows[0][isExtensionOddKeyLenPos] = 1
-						// new selectors:
 						if branchC16 == 1 {
 							bRows[0][isExtLongOddC16Pos] = 1
 						} else {
@@ -873,18 +856,6 @@ func prepareWitness(storageProof1, storageProof2, extNibbles [][]byte, key []byt
 						}
 					}
 				}
-
-				// old selectors:
-				if numberOfNibbles % 2 == 0 {
-					rows[len(rows)-branchRows-2][isExtensionEvenKeyLenPos] = 1	
-				} else {
-					rows[len(rows)-branchRows-2][isExtensionOddKeyLenPos] = 1
-				}
-				if numberOfNibbles == 1 {
-					rows[len(rows)-branchRows-2][isExtensionKeyShortPos] = 1
-				} else {
-					rows[len(rows)-branchRows-2][isExtensionKeyLongPos] = 1
-				}
 			}
 			rows = append(rows, leafRows...)
 			toBeHashed = append(toBeHashed, leafForHashing)
@@ -985,18 +956,6 @@ func prepareWitness(storageProof1, storageProof2, extNibbles [][]byte, key []byt
 							rows[len(rows)-branchRows][isExtLongOddC1Pos] = 1
 						}
 					}
-				}
-
-				// old selectors:
-				if numberOfNibbles % 2 == 0 {
-					rows[len(rows)-branchRows][isExtensionEvenKeyLenPos] = 1
-				} else {
-					rows[len(rows)-branchRows][isExtensionOddKeyLenPos] = 1
-				}
-				if numberOfNibbles == 1 {
-					rows[len(rows)-branchRows][isExtensionKeyShortPos] = 1
-				} else {
-					rows[len(rows)-branchRows][isExtensionKeyLongPos] = 1
 				}
 			}
 			rows = append(rows, leafRows...)
