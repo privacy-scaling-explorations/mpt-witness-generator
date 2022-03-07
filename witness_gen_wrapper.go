@@ -1,26 +1,49 @@
 package main
 
 import "C"
+import (
+	"encoding/json"
+	"fmt"
+	"math/big"
+
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/miha-stopar/mpt/witness"
+)
 
 // "github.com/miha-stopar/mpt/oracle"
 // "github.com/miha-stopar/mpt/state"
 // "github.com/miha-stopar/mpt/witness"
 
-//export GetProofs
-func GetProofs(path string) *C.char {
-// func GetProofs(keys, values []common.Hash, toBeModified, value common.Hash, addr common.Address) {
-	/*
-	blockNum := 13284469
-	blockNumberParent := big.NewInt(int64(blockNum))
-	blockHeaderParent := oracle.PrefetchBlock(blockNumberParent, true, nil)
-	database := state.NewDatabase(blockHeaderParent)
-	statedb, _ := state.New(blockHeaderParent.Root, database, nil)
+type Config struct {
+	Keys []string `json:"Keys"`
+	Values []string `json:"Values"`
+	ToBeModifiedKey string `json:"ToBeModifiedKey"`
+	ToBeModifiedValue string `json:"ToBeModifiedValue"`
+}
 
-	for i := 0; i < len(keys); i++ {
-		statedb.SetState(addr, keys[i], values[i])
+//export GetProofs
+func GetProofs(proofConf *C.char) *C.char {
+	var config Config
+
+	err := json.Unmarshal([]byte(C.GoString(proofConf)), &config)
+	fmt.Println(err)
+
+	fmt.Println(config)
+
+	keys := []common.Hash{}
+	values := []common.Hash{}
+
+	for i := 0; i < len(config.Keys); i++ {
+		keys = append(keys, common.HexToHash(config.Keys[i]))
+		values = append(values, common.HexToHash(config.Values[i]))
 	}
-	witness.GetBeforeAfterProof(toBeModified, value, addr, statedb)
-	*/
+
+	v := common.BigToHash(big.NewInt(int64(17)))
+	addr := common.HexToAddress("0xaaaccf12580138bc2bbceeeaa111df4e42ab81ff")
+
+	witness.UpdateStateAndGenProofs("UpdateOneLevel", keys[:], values,
+		common.HexToHash(config.ToBeModifiedKey), v, addr)
+
 	return C.CString("test")
 }
 

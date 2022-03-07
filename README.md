@@ -26,6 +26,20 @@ The witness files will appear in generated_witnesses folder.
 
 Build:
 
+```
 go build -buildmode=c-archive -o libmpt.a witness_gen_wrapper.go 
+```
 
-Copy libmpt.a and libmpt.h to rust_call/build.
+Copy libmpt.a and libmpt.h to rust_call/build:
+
+```
+mv libmpt.* rust_call/build
+```
+
+Note: to avoid the problem described [](https://github.com/golang/go/issues/42459),
+the following has been set in rust_call/.cargo/config:
+
+```
+[build]
+rustflags = ["-C", "link-args=-framework CoreFoundation -framework Security"]
+```

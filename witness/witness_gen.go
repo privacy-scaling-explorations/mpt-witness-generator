@@ -994,7 +994,7 @@ func prepareWitness(storageProof1, storageProof2, extNibbles [][]byte, key []byt
 	return rows, toBeHashed, extensionNodeInd > 0
 }
 
-func updateStateAndGenProofs(testName string, keys, values []common.Hash, toBeModified, value common.Hash, addr common.Address) {
+func UpdateStateAndGenProofs(testName string, keys, values []common.Hash, toBeModifiedKey, toBeModifiedValue common.Hash, addr common.Address) {
 	blockNum := 13284469
 	blockNumberParent := big.NewInt(int64(blockNum))
 	blockHeaderParent := oracle.PrefetchBlock(blockNumberParent, true, nil)
@@ -1004,10 +1004,10 @@ func updateStateAndGenProofs(testName string, keys, values []common.Hash, toBeMo
 	for i := 0; i < len(keys); i++ {
 		statedb.SetState(addr, keys[i], values[i])
 	}
-	GenBeforeAfterProof(testName, toBeModified, value, addr, statedb)
+	GenBeforeAfterProof(testName, toBeModifiedKey, toBeModifiedValue, addr, statedb)
 }
 
-func GenBeforeAfterProof(testName string, toBeModified, value common.Hash, addr common.Address, statedb *state.StateDB) {
+func GenBeforeAfterProof(testName string, toBeModifiedKey, toBeModifiedValue common.Hash, addr common.Address, statedb *state.StateDB) {
 	// If we don't call IntermediateRoot, obj.data.Root will be hash(emptyRoot).
 	statedb.IntermediateRoot(false)
 
@@ -1019,7 +1019,7 @@ func GenBeforeAfterProof(testName string, toBeModified, value common.Hash, addr 
 
 	accountProof, _, _, err := statedb.GetProof(addr)
 	check(err)
-	storageProof, neighbourNode1, extNibbles1, err := statedb.GetStorageProof(addr, toBeModified)
+	storageProof, neighbourNode1, extNibbles1, err := statedb.GetStorageProof(addr, toBeModifiedKey)
 	check(err)
 
 	// By calling RPC eth_getProof we will get accountProof and storageProof.
@@ -1066,7 +1066,7 @@ func GenBeforeAfterProof(testName string, toBeModified, value common.Hash, addr 
 	addrh := crypto.Keccak256(addr.Bytes())
 	accountAddr := trie.KeybytesToHex(addrh)
 
-	kh := crypto.Keccak256(toBeModified.Bytes())
+	kh := crypto.Keccak256(toBeModifiedKey.Bytes())
 	key := trie.KeybytesToHex(kh)
 	
 	/*
@@ -1074,7 +1074,7 @@ func GenBeforeAfterProof(testName string, toBeModified, value common.Hash, addr 
 	*/
 
 	// We now change one existing storage slot:
-	statedb.SetState(addr, toBeModified, value)
+	statedb.SetState(addr, toBeModifiedKey, toBeModifiedValue)
 
 	// We ask for a proof for the modified slot:
 	statedb.IntermediateRoot(false)
@@ -1082,7 +1082,7 @@ func GenBeforeAfterProof(testName string, toBeModified, value common.Hash, addr 
 	accountProof1, _, extNibblesAccount, err := statedb.GetProof(addr)
 	check(err)
 
-	storageProof1, neighbourNode2, extNibbles2, err := statedb.GetStorageProof(addr, toBeModified)
+	storageProof1, neighbourNode2, extNibbles2, err := statedb.GetStorageProof(addr, toBeModifiedKey)
 	check(err)
 
 	node := neighbourNode2

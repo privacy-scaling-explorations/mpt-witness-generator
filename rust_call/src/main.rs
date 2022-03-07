@@ -1,27 +1,25 @@
+// use serde_json::{json, Value};
 use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
 
 extern "C" {
-    fn GetProofs(path: GoString) -> *const c_char;
-}
-
-#[repr(C)]
-struct GoString {
-    a: *const c_char,
-    b: i64,
+    fn GetProofs(str: *const c_char) -> *const c_char;
 }
 
 fn main() {
     println!("Hello, world!");
 
-    // let c_path = CString::new(path).expect("CString::new failed");
-    let c_path = CString::new("test test").expect("CString::new failed");
-    let ptr = c_path.as_ptr();
-    let go_string = GoString {
-        a: ptr,
-        b: c_path.as_bytes().len() as i64,
-    };
-    let result = unsafe { GetProofs(go_string) };
+    let data = r#"
+        {
+            "Keys": ["0x12", "0x21"],
+            "Values": ["0x1123e2", "0xa21"],
+            "ToBeModifiedKey": "0x12",
+            "ToBeModifiedValue": "0xaa"
+        }"#;
+
+    let c_config = CString::new(data).expect("invalid config");
+
+    let result = unsafe { GetProofs(c_config.as_ptr()) };
     let c_str = unsafe { CStr::from_ptr(result) };
     let string = c_str.to_str().expect("Error translating from library");
     println!("{:?}", string);
