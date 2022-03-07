@@ -11,10 +11,10 @@ fn main() {
 
     let data = r#"
         {
+            "NodeUrl": "https://mainnet.infura.io/v3/9aa3d95b3bc440fa88ea12eaa4456161",
+            "BlockNum": 13284469,
             "Keys": ["0x12", "0x21"],
-            "Values": ["0x1123e2", "0xa21"],
-            "ToBeModifiedKey": "0x12",
-            "ToBeModifiedValue": "0xaa"
+            "Values": ["0x1123e2", "0xa21"]
         }"#;
 
     let c_config = CString::new(data).expect("invalid config");

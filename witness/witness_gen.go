@@ -994,6 +994,79 @@ func prepareWitness(storageProof1, storageProof2, extNibbles [][]byte, key []byt
 	return rows, toBeHashed, extensionNodeInd > 0
 }
 
+func GetProof(nodeUrl string, blockNum int, keys, values []common.Hash, addr common.Address) string {
+	blockNumberParent := big.NewInt(int64(blockNum))
+	oracle.NodeUrl = nodeUrl
+	blockHeaderParent := oracle.PrefetchBlock(blockNumberParent, true, nil)
+	database := state.NewDatabase(blockHeaderParent)
+	statedb, _ := state.New(blockHeaderParent.Root, database, nil)
+
+	addrh := crypto.Keccak256(addr.Bytes())
+	accountAddr := trie.KeybytesToHex(addrh)
+
+	// TODO: Remove this for loop. It is just to have these keys set to some value.
+	v := common.BigToHash(big.NewInt(int64(17)))
+	for i := 0; i < len(keys); i++ {
+		statedb.SetState(addr, keys[i], v)
+	}
+
+	statedb.IntermediateRoot(false)
+	proof := [][]byte{}
+	toBeHashed := [][]byte{}	
+
+	for i := 0; i < len(keys); i++ {
+		kh := crypto.Keccak256(keys[i].Bytes())
+		keyHashed := trie.KeybytesToHex(kh)
+
+		accountProof, _, _, err := statedb.GetProof(addr)
+		check(err)
+		storageProof, neighbourNode1, extNibbles1, err := statedb.GetStorageProof(addr, keys[i])
+		check(err)
+
+		/*
+		// Checking:
+		hasher1 := trie.NewHasher(false)
+		hash := hasher1.HashData(accountProof[0])
+		fmt.Println("---------")
+		fmt.Println(hash)
+		fmt.Println(statedb.GetTrie().Hash())
+		*/
+
+		statedb.SetState(addr, keys[i], values[i])
+		statedb.IntermediateRoot(false)
+
+		accountProof1, _, extNibblesAccount, err := statedb.GetProof(addr)
+		check(err)
+
+		storageProof1, neighbourNode2, extNibbles2, err := statedb.GetStorageProof(addr, keys[i])
+		check(err)
+
+		node := neighbourNode2
+		extNibbles := extNibbles2
+		if len(storageProof) > len(storageProof1) {
+			// delete operation
+			node = neighbourNode1
+			extNibbles = extNibbles1
+		}
+		
+		rowsState, toBeHashedAcc, _ :=
+			prepareWitness(accountProof, accountProof1, extNibblesAccount, accountAddr, nil, true)
+		rowsStorage, toBeHashedStorage, _ :=
+			prepareWitness(storageProof, storageProof1, extNibbles, keyHashed, node, false)
+
+		proof = append(proof, rowsState...)
+		proof = append(proof, rowsStorage...)
+
+		// Put rows that just need to be hashed at the end, because circuit assign function
+		// relies on index (for example when assigning s_keccak and c_keccak).
+		toBeHashed = append(toBeHashed, toBeHashedAcc...)
+		toBeHashed = append(toBeHashed, toBeHashedStorage...)
+	}
+	proof = append(proof, toBeHashed...)
+
+	return matrixToJson(proof)
+}
+
 func UpdateStateAndGenProofs(testName string, keys, values []common.Hash, toBeModifiedKey, toBeModifiedValue common.Hash, addr common.Address) {
 	blockNum := 13284469
 	blockNumberParent := big.NewInt(int64(blockNum))
@@ -1004,7 +1077,7 @@ func UpdateStateAndGenProofs(testName string, keys, values []common.Hash, toBeMo
 	for i := 0; i < len(keys); i++ {
 		statedb.SetState(addr, keys[i], values[i])
 	}
-	GenBeforeAfterProof(testName, toBeModifiedKey, toBeModifiedValue, addr, statedb)
+	GenBeforeAfterProof(testName, toBeModifiedKey, toBeModifiedValue, addr, statedb)	
 }
 
 func GenBeforeAfterProof(testName string, toBeModifiedKey, toBeModifiedValue common.Hash, addr common.Address, statedb *state.StateDB) {
@@ -1025,7 +1098,7 @@ func GenBeforeAfterProof(testName string, toBeModifiedKey, toBeModifiedValue com
 	// By calling RPC eth_getProof we will get accountProof and storageProof.
 
 	// The last element in accountProof contains the state object for this address.
-	// We need to verify that the state object for this address is the in last
+	// We need to verify that the state object for this address is in the last
 	// element of the accountProof. The last element of the accountProof actually contains the RLP of
 	// nonce, balance, code, and root.
 	// We need to use a root from the storage proof (first element) and obtain balance, code, and nonce

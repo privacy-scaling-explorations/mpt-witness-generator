@@ -76,8 +76,8 @@ type Account struct {
 	CodeHash []byte
 }
 
-//var nodeUrl = "http://192.168.1.213:8545"
-var nodeUrl = "https://mainnet.infura.io/v3/9aa3d95b3bc440fa88ea12eaa4456161"
+//var NodeUrl = "http://192.168.1.213:8545"
+var NodeUrl = "https://mainnet.infura.io/v3/9aa3d95b3bc440fa88ea12eaa4456161"
 
 func toFilename(key string) string {
 	return fmt.Sprintf("/tmp/eth/json_%s", key)
@@ -105,7 +105,7 @@ func getAPI(jsonData []byte) io.Reader {
 	if cacheExists(key) {
 		return bytes.NewReader(cacheRead(key))
 	}
-	resp, _ := http.Post(nodeUrl, "application/json", bytes.NewBuffer(jsonData))
+	resp, _ := http.Post(NodeUrl, "application/json", bytes.NewBuffer(jsonData))
 	defer resp.Body.Close()
 	ret, _ := ioutil.ReadAll(resp.Body)
 	cacheWrite(key, ret)

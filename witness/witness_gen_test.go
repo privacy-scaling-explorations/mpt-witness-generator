@@ -1082,3 +1082,17 @@ func TestFindAccount(t *testing.T) {
 }
 */
 
+func TestFoo(t *testing.T) {
+	ks := [...]common.Hash{common.HexToHash("0x12"), common.HexToHash("0x21")}
+	var values []common.Hash
+	for i := 0; i < len(ks); i++ {
+		values = append(values, common.BigToHash(big.NewInt(int64(i + 1)))) // don't put 0 value because otherwise nothing will be set (if 0 is prev value), see state_object.go line 279
+	}
+
+	addr := common.HexToAddress("0xaaaccf12580138bc2bbceeeaa111df4e42ab81ff")
+
+	nodeUrl := "https://mainnet.infura.io/v3/9aa3d95b3bc440fa88ea12eaa4456161"
+	blockNum := 13284469
+
+	GetProof(nodeUrl, blockNum, ks[:], values, addr)
+}

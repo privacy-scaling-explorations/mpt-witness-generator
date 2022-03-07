@@ -4,21 +4,16 @@ import "C"
 import (
 	"encoding/json"
 	"fmt"
-	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/miha-stopar/mpt/witness"
 )
 
-// "github.com/miha-stopar/mpt/oracle"
-// "github.com/miha-stopar/mpt/state"
-// "github.com/miha-stopar/mpt/witness"
-
 type Config struct {
+	NodeUrl string `json:"NodeUrl"`
+	BlockNum int `json:"BlockNum"`
 	Keys []string `json:"Keys"`
 	Values []string `json:"Values"`
-	ToBeModifiedKey string `json:"ToBeModifiedKey"`
-	ToBeModifiedValue string `json:"ToBeModifiedValue"`
 }
 
 //export GetProofs
@@ -38,13 +33,11 @@ func GetProofs(proofConf *C.char) *C.char {
 		values = append(values, common.HexToHash(config.Values[i]))
 	}
 
-	v := common.BigToHash(big.NewInt(int64(17)))
 	addr := common.HexToAddress("0xaaaccf12580138bc2bbceeeaa111df4e42ab81ff")
 
-	witness.UpdateStateAndGenProofs("UpdateOneLevel", keys[:], values,
-		common.HexToHash(config.ToBeModifiedKey), v, addr)
+	proof := witness.GetProof(config.NodeUrl, config.BlockNum, keys[:], values, addr)
 
-	return C.CString("test")
+	return C.CString(proof)
 }
 
 func main() {}
