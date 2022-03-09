@@ -61,7 +61,7 @@ func check(err error) {
 	}
 }
 
-func matrixToJson(rows [][]byte) string {
+func matrixToJson(rows [][]int) string {
 	// Had some problems with json.Marshal, so I just prepare json manually.
 	json := "["
 	for i := 0; i < len(rows); i++ {
@@ -75,7 +75,7 @@ func matrixToJson(rows [][]byte) string {
 	return json
 }
 
-func listToJson(row []byte) string {
+func listToJson(row []int) string {
 	json := "["
 	for j := 0; j < len(row); j++ {
 		json += strconv.Itoa(int(row[j]))
@@ -86,6 +86,41 @@ func listToJson(row []byte) string {
 	json += "]"
 
 	return json
+}
+
+func computeRLC(stream []byte) int {
+	sum := 0
+	mult := 1
+	for i := 0; i < len(stream); i++ {
+		sum += int(stream[i]) * mult
+		mult *= 2 // just some value that is not 1 to enable testing the multiplier too
+	}
+
+	return sum
+}
+
+func matrixToInt(rows [][]byte) [][]int {
+	newRows := make([][]int, len(rows)) 
+	for i := 0; i < len(rows); i++ {
+		newRows[i] = make([]int, len(rows[i]))
+		for j := 0; j < len(rows[i]); j++ {
+			newRows[i][j] = int(rows[i][j])
+		}
+	}
+	return newRows
+}
+
+func insertRoot(stream []byte, sRoot, cRoot int) []int {
+	l := len(stream)
+	extended := make([]int, l + 2) // make space
+	for i := 0; i < l; i++ {
+		extended[i] = int(stream[i])
+	}
+	extended[l+1] = extended[l-1] // put selector to the last place
+	extended[l-1] = sRoot
+	extended[l] = cRoot
+
+	return extended
 }
 
 func VerifyProof(proof [][]byte, key []byte) bool {
@@ -1063,8 +1098,9 @@ func GetProof(nodeUrl string, blockNum int, keys, values []common.Hash, addr com
 		toBeHashed = append(toBeHashed, toBeHashedStorage...)
 	}
 	proof = append(proof, toBeHashed...)
+	proofInt := matrixToInt(proof)
 
-	return matrixToJson(proof)
+	return matrixToJson(proofInt)
 }
 
 func UpdateStateAndGenProofs(testName string, keys, values []common.Hash, toBeModifiedKey, toBeModifiedValue common.Hash, addr common.Address) {
@@ -1146,11 +1182,15 @@ func GenBeforeAfterProof(testName string, toBeModifiedKey, toBeModifiedValue com
 		Modifying storage:
 	*/
 
+	s_root := statedb.GetTrie().Hash()
+
 	// We now change one existing storage slot:
 	statedb.SetState(addr, toBeModifiedKey, toBeModifiedValue)
 
 	// We ask for a proof for the modified slot:
 	statedb.IntermediateRoot(false)
+
+	c_root := statedb.GetTrie().Hash()
 
 	accountProof1, _, extNibblesAccount, err := statedb.GetProof(addr)
 	check(err)
@@ -1172,20 +1212,22 @@ func GenBeforeAfterProof(testName string, toBeModifiedKey, toBeModifiedValue com
 		prepareWitness(storageProof, storageProof1, extNibbles, key, node, false)
 	rowsState = append(rowsState, rowsStorage...)
 
+	s_root_rlc := computeRLC(s_root.Bytes())
+	c_root_rlc := computeRLC(c_root.Bytes())
+	proof := make([][]int, len(rowsState)) // need to have int to be able to put s_root and c_root using only one slot
+	for i := 0; i < len(rowsState); i++ {
+		r := insertRoot(rowsState[i], s_root_rlc, c_root_rlc)
+		proof = append(proof, r)
+	}
+
 	// Put rows that just need to be hashed at the end, because circuit assign function
 	// relies on index (for example when assigning s_keccak and c_keccak).
-	rowsState = append(rowsState, toBeHashedAcc...)
-	rowsState = append(rowsState, toBeHashedStorage...)
+	proof = append(proof, matrixToInt(toBeHashedAcc)...)
+	proof = append(proof, matrixToInt(toBeHashedStorage)...)
 
 	// Just to check key RLC (rand = 2)
-	kh_sum := 0
-	addr_sum := 0
-	mult := 1
-	for i := 0; i < len(kh); i++ {
-		kh_sum += int(kh[i]) * mult
-		addr_sum += int(addrh[i]) * mult
-		mult *= 2 // just some value that is not 1 to enable testing the multiplier too
-	}
+	addr_sum := computeRLC(addrh)
+	kh_sum := computeRLC(kh)
 	fmt.Println("address/key RLC:")
 	fmt.Println(addr_sum)
 	fmt.Println(kh_sum)
@@ -1201,7 +1243,7 @@ func GenBeforeAfterProof(testName string, toBeModifiedKey, toBeModifiedValue com
 		}
 	}
 
-	w := matrixToJson(rowsState)
+	w := matrixToJson(proof)
 	fmt.Println(w)
 
 	name := testName + "-" + strconv.Itoa(addr_sum) + "-" + strconv.Itoa(kh_sum) + ".json"
