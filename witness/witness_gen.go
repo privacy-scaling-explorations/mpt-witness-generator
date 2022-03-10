@@ -61,7 +61,7 @@ func check(err error) {
 	}
 }
 
-func matrixToJson(rows [][]byte) string {
+func MatrixToJson(rows [][]byte) string {
 	// Had some problems with json.Marshal, so I just prepare json manually.
 	json := "["
 	for i := 0; i < len(rows); i++ {
@@ -1020,25 +1020,33 @@ func prepareWitness(storageProof1, storageProof2, extNibbles [][]byte, key []byt
 	return rows, toBeHashed, extensionNodeInd > 0
 }
 
-func GetProof(nodeUrl string, blockNum int, keys, values []common.Hash, addr common.Address) string {
+func GetProof(nodeUrl string, blockNum int, keys, values []common.Hash, addr common.Address) [][]byte {
 	blockNumberParent := big.NewInt(int64(blockNum))
 	oracle.NodeUrl = nodeUrl
 	blockHeaderParent := oracle.PrefetchBlock(blockNumberParent, true, nil)
 	database := state.NewDatabase(blockHeaderParent)
 	statedb, _ := state.New(blockHeaderParent.Root, database, nil)
 
-	addrh := crypto.Keccak256(addr.Bytes())
-	accountAddr := trie.KeybytesToHex(addrh)
-
-	// TODO: Remove this for loop. It is just to have these keys set to some value.
-	v := common.BigToHash(big.NewInt(int64(17)))
 	for i := 0; i < len(keys); i++ {
+		// TODO: remove SetState (using it now just because this particular key might
+		// not be set and we will obtain empty storageProof)
+		v := common.BigToHash(big.NewInt(int64(17)))
 		statedb.SetState(addr, keys[i], v)
+		// TODO: enable GetState to get the preimages -
+		// GetState calls GetCommittedState which calls PrefetchStorage to get the preimages
+		// statedb.GetState(addr, keys[i])
 	}
 
+	return getProof(keys, values, addr, statedb)
+}
+
+func getProof(keys, values []common.Hash, addr common.Address, statedb *state.StateDB) [][]byte {
 	statedb.IntermediateRoot(false)
 	proof := [][]byte{}
 	toBeHashed := [][]byte{}	
+
+	addrh := crypto.Keccak256(addr.Bytes())
+	accountAddr := trie.KeybytesToHex(addrh)
 
 	for i := 0; i < len(keys); i++ {
 		kh := crypto.Keccak256(keys[i].Bytes())
@@ -1089,151 +1097,16 @@ func GetProof(nodeUrl string, blockNum int, keys, values []common.Hash, addr com
 	}
 	proof = append(proof, toBeHashed...)
 
-	return matrixToJson(proof)
+	return proof
 }
 
-func UpdateStateAndGenProofs(testName string, keys, values []common.Hash, toBeModifiedKey, toBeModifiedValue common.Hash, addr common.Address) {
-	blockNum := 13284469
-	blockNumberParent := big.NewInt(int64(blockNum))
-	blockHeaderParent := oracle.PrefetchBlock(blockNumberParent, true, nil)
-	database := state.NewDatabase(blockHeaderParent)
-	statedb, _ := state.New(blockHeaderParent.Root, database, nil)
+func GenerateProof(testName string, toBeModifiedKeys, toBeModifiedValues []common.Hash, addr common.Address, statedb *state.StateDB) {
+	proof := getProof(toBeModifiedKeys, toBeModifiedValues, addr, statedb)
 
-	for i := 0; i < len(keys); i++ {
-		statedb.SetState(addr, keys[i], values[i])
-	}
-	GenBeforeAfterProof(testName, toBeModifiedKey, toBeModifiedValue, addr, statedb)	
-}
-
-func GenBeforeAfterProof(testName string, toBeModifiedKey, toBeModifiedValue common.Hash, addr common.Address, statedb *state.StateDB) {
-	// If we don't call IntermediateRoot, obj.data.Root will be hash(emptyRoot).
-	statedb.IntermediateRoot(false)
-
-	// Let's say above is our starting position.
-
-	// We now get a proof for the starting position for the slot that will be changed further on (ks[1]):
-	// This first proof will actually be retrieved by RPC eth_getProof (see oracle.PrefetchStorage function).
-	// All other proofs (after modifications) will be generated internally by buildig the internal state.
-
-	accountProof, _, _, err := statedb.GetProof(addr)
-	check(err)
-	storageProof, neighbourNode1, extNibbles1, err := statedb.GetStorageProof(addr, toBeModifiedKey)
-	check(err)
-
-	// By calling RPC eth_getProof we will get accountProof and storageProof.
-
-	// The last element in accountProof contains the state object for this address.
-	// We need to verify that the state object for this address is in the last
-	// element of the accountProof. The last element of the accountProof actually contains the RLP of
-	// nonce, balance, code, and root.
-	// We need to use a root from the storage proof (first element) and obtain balance, code, and nonce
-	// by the following RPC calls:
-	// eth_getBalance, eth_getCode, eth_getTransactionCount (nonce).
-	// We use these four values to compute the hash and compare it to the last value in accountProof.
-
-	// We simulate getting the RLP of the four values (instead of using RPC calls and taking the first
-	// element of the storage proof):
-	obj := statedb.GetOrNewStateObject(addr)
-	rl, err := rlp.EncodeToBytes(obj)
-	check(err)
-
-	hasher := trie.NewHasher(false)
-
-	ind := len(accountProof) - 1
-	accountHash := hasher.HashData(accountProof[ind])
-	accountLeaf, err := trie.DecodeNode(accountHash, accountProof[ind])
-	check(err)
-
-	account := accountLeaf.(*trie.ShortNode)
-	accountValueNode := account.Val.(trie.ValueNode)
-
-	// Constraint for checking the transition from storage to account proof:
-	if fmt.Sprintf("%b", rl) != fmt.Sprintf("%b", accountValueNode) {
-		panic("not the same")
-	}
-
-	hasher1 := trie.NewHasher(false)
-	hash := hasher1.HashData(storageProof[0])
-	fmt.Println(hash)
-
-	t := obj.Trie
-	fmt.Println(t)
-	h := t.Hash()
-	fmt.Println(h)
-
-	addrh := crypto.Keccak256(addr.Bytes())
-	accountAddr := trie.KeybytesToHex(addrh)
-
-	kh := crypto.Keccak256(toBeModifiedKey.Bytes())
-	key := trie.KeybytesToHex(kh)
-	
-	/*
-		Modifying storage:
-	*/
-
-	s_root := statedb.GetTrie().Hash()
-
-	// We now change one existing storage slot:
-	statedb.SetState(addr, toBeModifiedKey, toBeModifiedValue)
-
-	// We ask for a proof for the modified slot:
-	statedb.IntermediateRoot(false)
-
-	c_root := statedb.GetTrie().Hash()
-
-	accountProof1, _, extNibblesAccount, err := statedb.GetProof(addr)
-	check(err)
-
-	storageProof1, neighbourNode2, extNibbles2, err := statedb.GetStorageProof(addr, toBeModifiedKey)
-	check(err)
-
-	node := neighbourNode2
-	extNibbles := extNibbles2
-	if len(storageProof) > len(storageProof1) {
-		// delete operation
-		node = neighbourNode1
-		extNibbles = extNibbles1
-	}
-	
-	rowsState, toBeHashedAcc, hasExtensionNodeAccount :=
-		prepareWitness(accountProof, accountProof1, extNibblesAccount, accountAddr, nil, true)
-	rowsStorage, toBeHashedStorage, hasExtensionNode :=
-		prepareWitness(storageProof, storageProof1, extNibbles, key, node, false)
-	rowsState = append(rowsState, rowsStorage...)
-
-	proof := make([][]byte, len(rowsState))
-	for i := 0; i < len(rowsState); i++ {
-		r := insertRoot(rowsState[i], s_root.Bytes(), c_root.Bytes())
-		proof[i] = r
-	}
-
-	// Put rows that just need to be hashed at the end, because circuit assign function
-	// relies on index (for example when assigning s_keccak and c_keccak).
-	proof = append(proof, toBeHashedAcc...)
-	proof = append(proof, toBeHashedStorage...)
-
-	// Just to check key RLC (rand = 2)
-	addr_sum := computeRLC(addrh)
-	kh_sum := computeRLC(kh)
-	fmt.Println("address/key RLC:")
-	fmt.Println(addr_sum)
-	fmt.Println(kh_sum)
-	
-	if !hasExtensionNodeAccount && len(accountProof) == len(accountProof1) {
-		if !VerifyTwoProofsAndPath(accountProof, accountProof1, accountAddr) {
-			panic("proof not valid")
-		}
-	}
-	if !hasExtensionNode && len(storageProof) == len(storageProof1) {
-		if !VerifyTwoProofsAndPath(storageProof, storageProof1, key) {
-			panic("proof not valid")
-		}
-	}
-
-	w := matrixToJson(proof)
+	w := MatrixToJson(proof)
 	fmt.Println(w)
 
-	name := testName + "-" + strconv.Itoa(addr_sum) + "-" + strconv.Itoa(kh_sum) + ".json"
+	name := testName + ".json"
 	f, err := os.Create("../generated_witnesses/" + name)
     check(err)
 	defer f.Close()
@@ -1242,3 +1115,29 @@ func GenBeforeAfterProof(testName string, toBeModifiedKey, toBeModifiedValue com
     fmt.Printf("wrote %d bytes\n", n3)
 }
 
+func UpdateStateAndGenProof(testName string, keys, values, toBeModifiedKeys,
+		toBeModifiedValues []common.Hash, addr common.Address) {
+	blockNum := 13284469
+	blockNumberParent := big.NewInt(int64(blockNum))
+	blockHeaderParent := oracle.PrefetchBlock(blockNumberParent, true, nil)
+	database := state.NewDatabase(blockHeaderParent)
+	statedb, _ := state.New(blockHeaderParent.Root, database, nil)
+
+	// Set the state needed for the test:
+	for i := 0; i < len(keys); i++ {
+		statedb.SetState(addr, keys[i], values[i])
+	}
+	
+	proof := getProof(toBeModifiedKeys, toBeModifiedValues, addr, statedb)
+
+	w := MatrixToJson(proof)
+	fmt.Println(w)
+
+	name := testName + ".json"
+	f, err := os.Create("../generated_witnesses/" + name)
+    check(err)
+	defer f.Close()
+	n3, err := f.WriteString(w)
+    check(err)
+    fmt.Printf("wrote %d bytes\n", n3)
+}

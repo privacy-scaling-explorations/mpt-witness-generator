@@ -12,6 +12,7 @@ import (
 type Config struct {
 	NodeUrl string `json:"NodeUrl"`
 	BlockNum int `json:"BlockNum"`
+	Addr string `json:"Addr"`
 	Keys []string `json:"Keys"`
 	Values []string `json:"Values"`
 }
@@ -33,11 +34,10 @@ func GetProofs(proofConf *C.char) *C.char {
 		values = append(values, common.HexToHash(config.Values[i]))
 	}
 
-	addr := common.HexToAddress("0xaaaccf12580138bc2bbceeeaa111df4e42ab81ff")
-
+	addr := common.HexToAddress(config.Addr)
 	proof := witness.GetProof(config.NodeUrl, config.BlockNum, keys[:], values, addr)
 
-	return C.CString(proof)
+	return C.CString(witness.MatrixToJson(proof))
 }
 
 func main() {}

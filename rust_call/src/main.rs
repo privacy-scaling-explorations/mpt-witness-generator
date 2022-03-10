@@ -12,7 +12,8 @@ fn main() {
     let data = r#"
         {
             "NodeUrl": "https://mainnet.infura.io/v3/9aa3d95b3bc440fa88ea12eaa4456161",
-            "BlockNum": 13284469,
+            "BlockNum": 14359865,
+            "Addr": "0x4E5B2e1dc63F6b91cb6Cd759936495434C7e972F",
             "Keys": ["0x12", "0x21"],
             "Values": ["0x1123e2", "0xa21"]
         }"#;
