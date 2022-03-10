@@ -61,7 +61,7 @@ func check(err error) {
 	}
 }
 
-func matrixToJson(rows [][]int) string {
+func matrixToJson(rows [][]byte) string {
 	// Had some problems with json.Marshal, so I just prepare json manually.
 	json := "["
 	for i := 0; i < len(rows); i++ {
@@ -75,7 +75,7 @@ func matrixToJson(rows [][]int) string {
 	return json
 }
 
-func listToJson(row []int) string {
+func listToJson(row []byte) string {
 	json := "["
 	for j := 0; j < len(row); j++ {
 		json += strconv.Itoa(int(row[j]))
@@ -99,26 +99,17 @@ func computeRLC(stream []byte) int {
 	return sum
 }
 
-func matrixToInt(rows [][]byte) [][]int {
-	newRows := make([][]int, len(rows)) 
-	for i := 0; i < len(rows); i++ {
-		newRows[i] = make([]int, len(rows[i]))
-		for j := 0; j < len(rows[i]); j++ {
-			newRows[i][j] = int(rows[i][j])
-		}
-	}
-	return newRows
-}
-
-func insertRoot(stream []byte, sRoot, cRoot int) []int {
+func insertRoot(stream, sRoot, cRoot []byte) []byte {
 	l := len(stream)
-	extended := make([]int, l + 2) // make space
-	for i := 0; i < l; i++ {
-		extended[i] = int(stream[i])
+	extended := make([]byte, l + 64) // make space
+	copy(extended, stream)
+	extended[l+63] = extended[l-1] // put selector to the last place
+	for i := 0; i < len(sRoot); i++ {
+		extended[l-1+i] = sRoot[i]
 	}
-	extended[l+1] = extended[l-1] // put selector to the last place
-	extended[l-1] = sRoot
-	extended[l] = cRoot
+	for i := 0; i < len(cRoot); i++ {
+		extended[l-1+len(sRoot)+i] = cRoot[i]
+	}
 
 	return extended
 }
@@ -1058,17 +1049,12 @@ func GetProof(nodeUrl string, blockNum int, keys, values []common.Hash, addr com
 		storageProof, neighbourNode1, extNibbles1, err := statedb.GetStorageProof(addr, keys[i])
 		check(err)
 
-		/*
-		// Checking:
-		hasher1 := trie.NewHasher(false)
-		hash := hasher1.HashData(accountProof[0])
-		fmt.Println("---------")
-		fmt.Println(hash)
-		fmt.Println(statedb.GetTrie().Hash())
-		*/
+		s_root := statedb.GetTrie().Hash()
 
 		statedb.SetState(addr, keys[i], values[i])
 		statedb.IntermediateRoot(false)
+
+		c_root := statedb.GetTrie().Hash()
 
 		accountProof1, _, extNibblesAccount, err := statedb.GetProof(addr)
 		check(err)
@@ -1088,9 +1074,13 @@ func GetProof(nodeUrl string, blockNum int, keys, values []common.Hash, addr com
 			prepareWitness(accountProof, accountProof1, extNibblesAccount, accountAddr, nil, true)
 		rowsStorage, toBeHashedStorage, _ :=
 			prepareWitness(storageProof, storageProof1, extNibbles, keyHashed, node, false)
+		rowsState = append(rowsState, rowsStorage...)
 
-		proof = append(proof, rowsState...)
-		proof = append(proof, rowsStorage...)
+		proof := make([][]byte, len(rowsState))
+		for i := 0; i < len(rowsState); i++ {
+			r := insertRoot(rowsState[i], s_root.Bytes(), c_root.Bytes())
+			proof[i] = r
+		}
 
 		// Put rows that just need to be hashed at the end, because circuit assign function
 		// relies on index (for example when assigning s_keccak and c_keccak).
@@ -1098,9 +1088,8 @@ func GetProof(nodeUrl string, blockNum int, keys, values []common.Hash, addr com
 		toBeHashed = append(toBeHashed, toBeHashedStorage...)
 	}
 	proof = append(proof, toBeHashed...)
-	proofInt := matrixToInt(proof)
 
-	return matrixToJson(proofInt)
+	return matrixToJson(proof)
 }
 
 func UpdateStateAndGenProofs(testName string, keys, values []common.Hash, toBeModifiedKey, toBeModifiedValue common.Hash, addr common.Address) {
@@ -1212,18 +1201,16 @@ func GenBeforeAfterProof(testName string, toBeModifiedKey, toBeModifiedValue com
 		prepareWitness(storageProof, storageProof1, extNibbles, key, node, false)
 	rowsState = append(rowsState, rowsStorage...)
 
-	s_root_rlc := computeRLC(s_root.Bytes())
-	c_root_rlc := computeRLC(c_root.Bytes())
-	proof := make([][]int, len(rowsState)) // need to have int to be able to put s_root and c_root using only one slot
+	proof := make([][]byte, len(rowsState))
 	for i := 0; i < len(rowsState); i++ {
-		r := insertRoot(rowsState[i], s_root_rlc, c_root_rlc)
-		proof = append(proof, r)
+		r := insertRoot(rowsState[i], s_root.Bytes(), c_root.Bytes())
+		proof[i] = r
 	}
 
 	// Put rows that just need to be hashed at the end, because circuit assign function
 	// relies on index (for example when assigning s_keccak and c_keccak).
-	proof = append(proof, matrixToInt(toBeHashedAcc)...)
-	proof = append(proof, matrixToInt(toBeHashedStorage)...)
+	proof = append(proof, toBeHashedAcc...)
+	proof = append(proof, toBeHashedStorage...)
 
 	// Just to check key RLC (rand = 2)
 	addr_sum := computeRLC(addrh)
