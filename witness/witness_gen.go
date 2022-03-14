@@ -1084,10 +1084,9 @@ func getProof(keys, values []common.Hash, addr common.Address, statedb *state.St
 			prepareWitness(storageProof, storageProof1, extNibbles, keyHashed, node, false)
 		rowsState = append(rowsState, rowsStorage...)
 
-		proof := make([][]byte, len(rowsState))
 		for i := 0; i < len(rowsState); i++ {
 			r := insertRoot(rowsState[i], s_root.Bytes(), c_root.Bytes())
-			proof[i] = r
+			proof = append(proof, r)
 		}
 
 		// Put rows that just need to be hashed at the end, because circuit assign function
