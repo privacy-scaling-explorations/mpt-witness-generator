@@ -46,7 +46,8 @@ Info about row type (given as the last element of the row):
 5: hash to be computed (for example branch RLP whose hash needs to be checked in the parent)
 6: account leaf key S
 7: account leaf nonce balance S
-8: account leaf root codehash S
+8: account leaf nonce balance C
+9: account leaf root codehash S
 11: account leaf root codehash C
 13: storage leaf s value
 14: storage leaf c value
@@ -548,17 +549,23 @@ func prepareWitness(storageProof1, storageProof2, extNibbles [][]byte, key []byt
 				leafS := storageProof1[l-1]
 				leafC := storageProof2[l-1]
 
+				// key is same for S and C
 				keyLen := int(leafS[2]) - 128
 				keyRow := make([]byte, rowLen)
 				for i := 0; i < 3+keyLen; i++ {
 					keyRow[i] = leafS[i]
 				}
 
-				rlpStringSecondPartLen := leafS[3+keyLen] - 183
-				if rlpStringSecondPartLen != 1 {
-					panic("Account leaf RLP at this position should be 1")
+				rlpStringSecondPartLenS := leafS[3+keyLen] - 183
+				if rlpStringSecondPartLenS != 1 {
+					panic("Account leaf RLP at this position should be 1 (S)")
 				}
-				rlpStringLen := leafS[3+keyLen+1]
+				rlpStringSecondPartLenC := leafC[3+keyLen] - 183
+				if rlpStringSecondPartLenC != 1 {
+					panic("Account leaf RLP at this position should be 1 (C)")
+				}
+				rlpStringLenS := leafS[3+keyLen+1]
+				rlpStringLenC := leafC[3+keyLen+1]
 
 				// [248,112,157,59,158,160,175,159,65,212,107,23,98,208,38,205,150,63,244,2,185,236,246,95,240,224,191,229,27,102,202,231,184,80,248,78
 				// In this example RLP, there are first 36 bytes of a leaf.
@@ -569,76 +576,93 @@ func prepareWitness(storageProof1, storageProof2, extNibbles [][]byte, key []byt
 				// 248 - 247 = 1 means length of the second part of a list.
 				// 78 means length of a list.
 
-				rlpListSecondPartLen := leafS[3+keyLen+1+1] - 247
-				if rlpListSecondPartLen != 1 {
-					panic("Account leaf RLP 1")
+				rlpListSecondPartLenS := leafS[3+keyLen+1+1] - 247
+				if rlpListSecondPartLenS != 1 {
+					panic("Account leaf RLP 1 (S)")
 				}
-				rlpListLen := leafS[3+keyLen+1+1+1]
-				if rlpStringLen != rlpListLen+2 {
-					panic("Account leaf RLP 2")
+				rlpListSecondPartLenC := leafC[3+keyLen+1+1] - 247
+				if rlpListSecondPartLenC != 1 {
+					panic("Account leaf RLP 1 (C)")
+				}
+
+				rlpListLenS := leafS[3+keyLen+1+1+1]
+				if rlpStringLenS != rlpListLenS+2 {
+					panic("Account leaf RLP 2 (S)")
+				}
+
+				rlpListLenC := leafC[3+keyLen+1+1+1]
+				if rlpStringLenC != rlpListLenC+2 {
+					panic("Account leaf RLP 2 (C)")
 				}
 
 				nonceStart := 3 + keyLen + 1 + 1 + 1 + 1
-				nonceRlpLen := leafS[nonceStart] - 128
-				nonce := leafS[nonceStart : nonceStart+int(nonceRlpLen)+1]
+				nonceRlpLenS := leafS[nonceStart] - 128
+				nonceS := leafS[nonceStart : nonceStart+int(nonceRlpLenS)+1]
+				nonceRlpLenC := leafC[nonceStart] - 128
+				nonceC := leafC[nonceStart : nonceStart+int(nonceRlpLenC)+1]
 
-				nonceBalanceRow := make([]byte, rowLen)
-				for i := 0; i < len(nonce); i++ {
-					nonceBalanceRow[branchNodeRLPLen+i] = nonce[i]
+				balanceStartS := nonceStart + int(nonceRlpLenS) + 1
+				balanceRlpLenS := leafS[balanceStartS] - 128
+				balanceStartC := nonceStart + int(nonceRlpLenC) + 1
+				balanceRlpLenC := leafC[balanceStartC] - 128
+
+				getNonceBalanceRow := func(leaf, nonce []byte, balanceStart int, balanceRlpLen byte) []byte {
+					nonceBalanceRow := make([]byte, rowLen)
+					for i := 0; i < len(nonce); i++ {
+						nonceBalanceRow[branchNodeRLPLen+i] = nonce[i]
+					}
+					nonceBalanceRow[0] = leaf[3+keyLen]
+					nonceBalanceRow[1] = leaf[3+keyLen+1]
+					nonceBalanceRow[branch2start] = leaf[3+keyLen+1+1]
+					nonceBalanceRow[branch2start+1] = leaf[3+keyLen+1+1+1]
+					balance := leaf[balanceStart : balanceStart+int(balanceRlpLen)+1]
+					for i := 0; i < len(balance); i++ {
+						nonceBalanceRow[branch2start+2+i] = balance[i] // c_advices
+					}
+
+					return nonceBalanceRow
+				}
+				
+				nonceBalanceRowS := getNonceBalanceRow(leafS, nonceS, balanceStartS, balanceRlpLenS)
+				nonceBalanceRowC := getNonceBalanceRow(leafC, nonceC, balanceStartC, balanceRlpLenC)
+
+				getStorageCodeHashRow := func(leaf []byte, balanceStart int, balanceRlpLen byte) []byte {
+					storageCodeHashRow := make([]byte, rowLen)
+					storageStart := balanceStart + int(balanceRlpLen) + 1
+					storageRlpLen := leaf[storageStart] - 128
+					if storageRlpLen != 32 {
+						panic("Account leaf RLP 3")
+					}
+					storage := leaf[storageStart : storageStart+32+1]
+					for i := 0; i < 33; i++ {
+						storageCodeHashRow[branchNodeRLPLen-1+i] = storage[i]
+					}
+					codeHashStart := storageStart + int(storageRlpLen) + 1
+					codeHashRlpLen := leaf[codeHashStart] - 128
+					if codeHashRlpLen != 32 {
+						panic("Account leaf RLP 4")
+					}
+					codeHash := leaf[codeHashStart : codeHashStart+32+1]
+					for i := 0; i < 33; i++ {
+						storageCodeHashRow[branch2start+1+i] = codeHash[i] // start from c_rlp2
+					}
+
+					return storageCodeHashRow
 				}
 
-				nonceBalanceRow[0] = leafS[3+keyLen]
-				nonceBalanceRow[1] = leafS[3+keyLen+1]
-				nonceBalanceRow[branch2start] = leafS[3+keyLen+1+1]
-				nonceBalanceRow[branch2start+1] = leafS[3+keyLen+1+1+1]
-
-				balanceStart := nonceStart + int(nonceRlpLen) + 1
-				balanceRlpLen := leafS[balanceStart] - 128
-				balance := leafS[balanceStart : balanceStart+int(balanceRlpLen)+1]
-				for i := 0; i < len(balance); i++ {
-					nonceBalanceRow[branch2start+2+i] = balance[i] // c_advices
-				}
-
-				storageCodeHashRowS := make([]byte, rowLen)
-
-				storageStart := balanceStart + int(balanceRlpLen) + 1
-				storageRlpLen := leafS[storageStart] - 128
-				if storageRlpLen != 32 {
-					panic("Account leaf RLP 3")
-				}
-				storage := leafS[storageStart : storageStart+32+1]
-				for i := 0; i < 33; i++ {
-					storageCodeHashRowS[branchNodeRLPLen-1+i] = storage[i]
-				}
-
-				codeHashStart := storageStart + int(storageRlpLen) + 1
-				codeHashRlpLen := leafS[codeHashStart] - 128
-				if codeHashRlpLen != 32 {
-					panic("Account leaf RLP 4")
-				}
-				codeHash := leafS[codeHashStart : codeHashStart+32+1]
-				for i := 0; i < 33; i++ {
-					storageCodeHashRowS[branch2start+1+i] = codeHash[i] // start from c_rlp2
-				}
-
-				// Only storage root is different in S and C.
-				storageCodeHashRowC := make([]byte, rowLen)
-				copy(storageCodeHashRowC, storageCodeHashRowS)
-				storageC := leafC[storageStart : storageStart+32+1]
-				for i := 0; i < 33; i++ {
-					storageCodeHashRowC[branchNodeRLPLen-1+i] = storageC[i]
-				}
+				storageCodeHashRowS := getStorageCodeHashRow(leafS, balanceStartS, balanceRlpLenS)
+				storageCodeHashRowC := getStorageCodeHashRow(leafC, balanceStartC, balanceRlpLenC)
 
 				keyRow = append(keyRow, 6)
-				nonceBalanceRow = append(nonceBalanceRow, 7)
-				storageCodeHashRowS = append(storageCodeHashRowS, 8)
-
+				nonceBalanceRowS = append(nonceBalanceRowS, 7)
+				nonceBalanceRowC = append(nonceBalanceRowC, 8)
+				storageCodeHashRowS = append(storageCodeHashRowS, 9)
 				storageCodeHashRowC = append(storageCodeHashRowC, 11)
 
 				rows = append(rows, keyRow)
-				rows = append(rows, nonceBalanceRow)
+				rows = append(rows, nonceBalanceRowS)
+				rows = append(rows, nonceBalanceRowC)
 				rows = append(rows, storageCodeHashRowS)
-
 				rows = append(rows, storageCodeHashRowC)
 
 				leafS = append(leafS, 5)
