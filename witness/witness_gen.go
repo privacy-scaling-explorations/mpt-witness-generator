@@ -19,6 +19,8 @@ const branchNodeRLPLen = 2 // we have two positions for RLP meta data
 const branch2start = branchNodeRLPLen + 32
 const branchRows = 19 // 1 (init) + 16 (children) + 2 (extension S and C)
 
+const accountLeafRows = 5
+
 // rowLen - each branch node has 2 positions for RLP meta data and 32 positions for hash
 const rowLen = branch2start + 2 + 32 + 1 // +1 is for info about what type of row is it
 const keyPos = 10
@@ -100,17 +102,21 @@ func computeRLC(stream []byte) int {
 	return sum
 }
 
-func insertRoot(stream, sRoot, cRoot []byte) []byte {
+func insertRootAndFirstLevelInfo(stream, sRoot, cRoot []byte, notFirstLevel byte) []byte {
+	// The last byte (-1) in a row determines the type of the row.
+	// Byte -2 determines whether it's the first level or not.
+	// Bytes -66 ... -3 stores final and end root.
 	l := len(stream)
-	extended := make([]byte, l + 64) // make space
+	extended := make([]byte, l + 65) // make space for 32 + 32 + 1 (s hash, c hash, notFirstLevel)
 	copy(extended, stream)
-	extended[l+63] = extended[l-1] // put selector to the last place
+	extended[l+64] = extended[l-1] // put selector to the last place
 	for i := 0; i < len(sRoot); i++ {
 		extended[l-1+i] = sRoot[i]
 	}
 	for i := 0; i < len(cRoot); i++ {
 		extended[l-1+len(sRoot)+i] = cRoot[i]
 	}
+	extended[l+63] = notFirstLevel
 
 	return extended
 }
@@ -884,7 +890,6 @@ func prepareWitness(storageProof1, storageProof2, extNibbles [][]byte, key []byt
 			if isExtension {
 				rows[len(rows)-branchRows-2][isExtensionPos] = 1
 
-				// new selectors:
 				if numberOfNibbles == 1 {
 					if branchC16 == 1 {
 						rows[len(rows)-branchRows-2][isExtShortC16Pos] = 1
@@ -1108,8 +1113,19 @@ func getProof(keys, values []common.Hash, addr common.Address, statedb *state.St
 			prepareWitness(storageProof, storageProof1, extNibbles, keyHashed, node, false)
 		rowsState = append(rowsState, rowsStorage...)
 
+		firstLevelBoundary := branchRows
+		if rowsState[0][len(rowsState[0])-1] == 6 {
+			// 6 presenting account leaf key S.
+			// This happens when account leaf is without branch / extension node.
+			firstLevelBoundary = accountLeafRows
+		}
+
 		for i := 0; i < len(rowsState); i++ {
-			r := insertRoot(rowsState[i], s_root.Bytes(), c_root.Bytes())
+			notFirstLevel := 1
+			if i < firstLevelBoundary {
+				notFirstLevel = 0
+			}
+			r := insertRootAndFirstLevelInfo(rowsState[i], s_root.Bytes(), c_root.Bytes(), byte(notFirstLevel))
 			proof = append(proof, r)
 		}
 

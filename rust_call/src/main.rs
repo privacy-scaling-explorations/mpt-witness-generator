@@ -7,8 +7,6 @@ extern "C" {
 }
 
 fn main() {
-    println!("Hello, world!");
-
     let data = r#"
         {
             "NodeUrl": "https://mainnet.infura.io/v3/9aa3d95b3bc440fa88ea12eaa4456161",
