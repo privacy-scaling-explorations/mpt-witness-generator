@@ -28,14 +28,16 @@ func GetProofs(proofConf *C.char) *C.char {
 
 	keys := []common.Hash{}
 	values := []common.Hash{}
+	addresses := []common.Address{}
 
+	addr := common.HexToAddress(config.Addr)
 	for i := 0; i < len(config.Keys); i++ {
 		keys = append(keys, common.HexToHash(config.Keys[i]))
 		values = append(values, common.HexToHash(config.Values[i]))
+		addresses = append(addresses, addr)
 	}
 
-	addr := common.HexToAddress(config.Addr)
-	proof := witness.GetProof(config.NodeUrl, config.BlockNum, keys[:], values, addr)
+	proof := witness.GetProof(config.NodeUrl, config.BlockNum, keys[:], values, addresses)
 
 	return C.CString(witness.MatrixToJson(proof))
 }

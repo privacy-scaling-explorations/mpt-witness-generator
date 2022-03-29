@@ -102,23 +102,42 @@ func computeRLC(stream []byte) int {
 	return sum
 }
 
-func insertRootAndFirstLevelInfo(stream, sRoot, cRoot []byte, notFirstLevel byte) []byte {
+func insertRootAndFirstLevelInfo(stream, sRoot, cRoot []byte, notFirstLevel, switchProof byte) []byte {
 	// The last byte (-1) in a row determines the type of the row.
-	// Byte -2 determines whether it's the first level or not.
-	// Bytes -66 ... -3 stores final and end root.
+	// Byte -2 determines whether it's the first row.
+	// Byte -3 determines whether it's the first level or not.
+	// Bytes -extendLen-1 ... -4-32 stores intermediate final and end root.
 	l := len(stream)
-	extended := make([]byte, l + 65) // make space for 32 + 32 + 1 (s hash, c hash, notFirstLevel)
+	extendLen := 66 + 32
+	extended := make([]byte, l + extendLen) // make space for 32 + 32 + 32 + 1 + 1 (s hash, c hash, public_root, notFirstLevel, switchProof)
 	copy(extended, stream)
-	extended[l+64] = extended[l-1] // put selector to the last place
+	extended[l+extendLen-1] = extended[l-1] // put selector to the last place
 	for i := 0; i < len(sRoot); i++ {
 		extended[l-1+i] = sRoot[i]
 	}
 	for i := 0; i < len(cRoot); i++ {
 		extended[l-1+len(sRoot)+i] = cRoot[i]
 	}
-	extended[l+63] = notFirstLevel
+	// public root set later
+	extended[l+extendLen-3] = notFirstLevel
+	extended[l+extendLen-2] = switchProof
 
 	return extended
+}
+
+func insertPublicRoot(proof [][]byte, startRoot, finalRoot []byte) {
+	for i := 0; i < len(proof); i++ {
+		l := len(proof[i])
+		if i == 0 {
+			for j := 0; j < 32; j++ {
+				proof[i][l - 32 - 4 + j] = startRoot[j]
+			}
+		} else {
+			for j := 0; j < 32; j++ {
+				proof[i][l - 32 - 3 + j] = finalRoot[j]
+			}
+		}
+	}
 }
 
 func VerifyProof(proof [][]byte, key []byte) bool {
@@ -1049,7 +1068,7 @@ func prepareWitness(storageProof1, storageProof2, extNibbles [][]byte, key []byt
 	return rows, toBeHashed, extensionNodeInd > 0
 }
 
-func GetProof(nodeUrl string, blockNum int, keys, values []common.Hash, addr common.Address) [][]byte {
+func GetProof(nodeUrl string, blockNum int, keys, values []common.Hash, addr []common.Address) [][]byte {
 	blockNumberParent := big.NewInt(int64(blockNum))
 	oracle.NodeUrl = nodeUrl
 	blockHeaderParent := oracle.PrefetchBlock(blockNumberParent, true, nil)
@@ -1060,7 +1079,7 @@ func GetProof(nodeUrl string, blockNum int, keys, values []common.Hash, addr com
 		// TODO: remove SetState (using it now just because this particular key might
 		// not be set and we will obtain empty storageProof)
 		v := common.BigToHash(big.NewInt(int64(17)))
-		statedb.SetState(addr, keys[i], v)
+		statedb.SetState(addr[i], keys[i], v)
 		// TODO: enable GetState to get the preimages -
 		// GetState calls GetCommittedState which calls PrefetchStorage to get the preimages
 		// statedb.GetState(addr, keys[i])
@@ -1069,29 +1088,37 @@ func GetProof(nodeUrl string, blockNum int, keys, values []common.Hash, addr com
 	return getProof(keys, values, addr, statedb)
 }
 
-func getProof(keys, values []common.Hash, addr common.Address, statedb *state.StateDB) [][]byte {
+func getProof(keys, values []common.Hash, addresses []common.Address, statedb *state.StateDB) [][]byte {
 	statedb.IntermediateRoot(false)
 	proof := [][]byte{}
 	toBeHashed := [][]byte{}	
-
-	addrh := crypto.Keccak256(addr.Bytes())
-	accountAddr := trie.KeybytesToHex(addrh)
+	var startRoot common.Hash
+	var finalRoot common.Hash
 
 	for i := 0; i < len(keys); i++ {
 		kh := crypto.Keccak256(keys[i].Bytes())
 		keyHashed := trie.KeybytesToHex(kh)
 
+		addr := addresses[i]
+		addrh := crypto.Keccak256(addr.Bytes())
+		accountAddr := trie.KeybytesToHex(addrh)
 		accountProof, _, _, err := statedb.GetProof(addr)
 		check(err)
 		storageProof, neighbourNode1, extNibbles1, err := statedb.GetStorageProof(addr, keys[i])
 		check(err)
 
-		s_root := statedb.GetTrie().Hash()
+		sRoot := statedb.GetTrie().Hash()
+		if i == 0 {
+			startRoot = sRoot
+		}
 
 		statedb.SetState(addr, keys[i], values[i])
 		statedb.IntermediateRoot(false)
 
-		c_root := statedb.GetTrie().Hash()
+		cRoot := statedb.GetTrie().Hash()
+		if i == len(keys)-1 {
+			finalRoot = cRoot
+		}
 
 		accountProof1, _, extNibblesAccount, err := statedb.GetProof(addr)
 		check(err)
@@ -1119,15 +1146,17 @@ func getProof(keys, values []common.Hash, addr common.Address, statedb *state.St
 			// This happens when account leaf is without branch / extension node.
 			firstLevelBoundary = accountLeafRows
 		}
-
+		switchProof := byte(1) // first row for proof of one modification
 		for i := 0; i < len(rowsState); i++ {
-			notFirstLevel := 1
+			notFirstLevel := byte(1)
 			if i < firstLevelBoundary {
 				notFirstLevel = 0
 			}
-			r := insertRootAndFirstLevelInfo(rowsState[i], s_root.Bytes(), c_root.Bytes(), byte(notFirstLevel))
+			r := insertRootAndFirstLevelInfo(rowsState[i], sRoot.Bytes(), cRoot.Bytes(), notFirstLevel, switchProof)
 			proof = append(proof, r)
+			switchProof = 0
 		}
+		insertPublicRoot(proof, startRoot.Bytes(), finalRoot.Bytes())
 
 		// Put rows that just need to be hashed at the end, because circuit assign function
 		// relies on index (for example when assigning s_keccak and c_keccak).
@@ -1139,8 +1168,8 @@ func getProof(keys, values []common.Hash, addr common.Address, statedb *state.St
 	return proof
 }
 
-func GenerateProof(testName string, toBeModifiedKeys, toBeModifiedValues []common.Hash, addr common.Address, statedb *state.StateDB) {
-	proof := getProof(toBeModifiedKeys, toBeModifiedValues, addr, statedb)
+func GenerateProof(testName string, toBeModifiedKeys, toBeModifiedValues []common.Hash, addresses []common.Address, statedb *state.StateDB) {
+	proof := getProof(toBeModifiedKeys, toBeModifiedValues, addresses, statedb)
 
 	w := MatrixToJson(proof)
 	fmt.Println(w)
@@ -1154,8 +1183,8 @@ func GenerateProof(testName string, toBeModifiedKeys, toBeModifiedValues []commo
     fmt.Printf("wrote %d bytes\n", n3)
 }
 
-func UpdateStateAndGenProof(testName string, keys, values, toBeModifiedKeys,
-		toBeModifiedValues []common.Hash, addr common.Address) {
+func UpdateStateAndGenProof(testName string, keys, values []common.Hash, addresses []common.Address,
+		toBeModifiedKeys, toBeModifiedValues []common.Hash, toBeModifiedAddresses []common.Address) {
 	blockNum := 13284469
 	blockNumberParent := big.NewInt(int64(blockNum))
 	blockHeaderParent := oracle.PrefetchBlock(blockNumberParent, true, nil)
@@ -1164,10 +1193,10 @@ func UpdateStateAndGenProof(testName string, keys, values, toBeModifiedKeys,
 
 	// Set the state needed for the test:
 	for i := 0; i < len(keys); i++ {
-		statedb.SetState(addr, keys[i], values[i])
+		statedb.SetState(addresses[i], keys[i], values[i])
 	}
 	
-	proof := getProof(toBeModifiedKeys, toBeModifiedValues, addr, statedb)
+	proof := getProof(toBeModifiedKeys, toBeModifiedValues, toBeModifiedAddresses, statedb)
 
 	w := MatrixToJson(proof)
 	fmt.Println(w)
