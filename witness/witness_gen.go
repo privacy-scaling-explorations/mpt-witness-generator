@@ -130,7 +130,7 @@ func insertPublicRoot(proof [][]byte, startRoot, finalRoot []byte) {
 		l := len(proof[i])
 		if i == 0 {
 			for j := 0; j < 32; j++ {
-				proof[i][l - 32 - 4 + j] = startRoot[j]
+				proof[i][l - 32 - 3 + j] = startRoot[j]
 			}
 		} else {
 			for j := 0; j < 32; j++ {
