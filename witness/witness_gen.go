@@ -102,14 +102,13 @@ func computeRLC(stream []byte) int {
 	return sum
 }
 
-func insertRootAndFirstLevelInfo(stream, sRoot, cRoot []byte, notFirstLevel, switchProof byte) []byte {
+func insertRootAndFirstLevelInfo(stream, sRoot, cRoot []byte, notFirstLevel byte) []byte {
 	// The last byte (-1) in a row determines the type of the row.
-	// Byte -2 determines whether it's the first row.
-	// Byte -3 determines whether it's the first level or not.
+	// Byte -2 determines whether it's the first level or not.
 	// Bytes -extendLen-1 ... -4-32 stores intermediate final and end root.
 	l := len(stream)
-	extendLen := 66 + 32
-	extended := make([]byte, l + extendLen) // make space for 32 + 32 + 32 + 1 + 1 (s hash, c hash, public_root, notFirstLevel, switchProof)
+	extendLen := 65 + 32
+	extended := make([]byte, l + extendLen) // make space for 32 + 32 + 32 + 1 (s hash, c hash, public_root, notFirstLevel)
 	copy(extended, stream)
 	extended[l+extendLen-1] = extended[l-1] // put selector to the last place
 	for i := 0; i < len(sRoot); i++ {
@@ -119,8 +118,7 @@ func insertRootAndFirstLevelInfo(stream, sRoot, cRoot []byte, notFirstLevel, swi
 		extended[l-1+len(sRoot)+i] = cRoot[i]
 	}
 	// public root set later
-	extended[l+extendLen-3] = notFirstLevel
-	extended[l+extendLen-2] = switchProof
+	extended[l+extendLen-2] = notFirstLevel
 
 	return extended
 }
@@ -130,11 +128,11 @@ func insertPublicRoot(proof [][]byte, startRoot, finalRoot []byte) {
 		l := len(proof[i])
 		if i == 0 {
 			for j := 0; j < 32; j++ {
-				proof[i][l - 32 - 3 + j] = startRoot[j]
+				proof[i][l - 32 - 2 + j] = startRoot[j]
 			}
 		} else {
 			for j := 0; j < 32; j++ {
-				proof[i][l - 32 - 3 + j] = finalRoot[j]
+				proof[i][l - 32 - 2 + j] = finalRoot[j]
 			}
 		}
 	}
@@ -1146,15 +1144,13 @@ func getProof(keys, values []common.Hash, addresses []common.Address, statedb *s
 			// This happens when account leaf is without branch / extension node.
 			firstLevelBoundary = accountLeafRows
 		}
-		switchProof := byte(1) // first row for proof of one modification
 		for i := 0; i < len(rowsState); i++ {
 			notFirstLevel := byte(1)
 			if i < firstLevelBoundary {
 				notFirstLevel = 0
 			}
-			r := insertRootAndFirstLevelInfo(rowsState[i], sRoot.Bytes(), cRoot.Bytes(), notFirstLevel, switchProof)
+			r := insertRootAndFirstLevelInfo(rowsState[i], sRoot.Bytes(), cRoot.Bytes(), notFirstLevel)
 			proof = append(proof, r)
-			switchProof = 0
 		}
 		insertPublicRoot(proof, startRoot.Bytes(), finalRoot.Bytes())
 
