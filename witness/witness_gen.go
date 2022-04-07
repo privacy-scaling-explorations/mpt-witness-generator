@@ -1,6 +1,7 @@
 package witness
 
 import (
+	"encoding/binary"
 	"fmt"
 	"log"
 	"math/big"
@@ -20,6 +21,7 @@ const branch2start = branchNodeRLPLen + 32
 const branchRows = 19 // 1 (init) + 16 (children) + 2 (extension S and C)
 
 const accountLeafRows = 5
+const counterLen = 4
 
 // rowLen - each branch node has 2 positions for RLP meta data and 32 positions for hash
 const rowLen = branch2start + 2 + 32 + 1 // +1 is for info about what type of row is it
@@ -102,12 +104,14 @@ func computeRLC(stream []byte) int {
 	return sum
 }
 
-func insertRootAndFirstLevelInfo(stream, sRoot, cRoot []byte, notFirstLevel byte) []byte {
+// Equip proof with intermediate state roots, first level info, counter, address RLC,
+// modification tag (whether it is storage / nonce / balance change).
+func insertMetaInfo(stream, sRoot, cRoot, address, counter []byte, notFirstLevel, isStorageMod, isNonceMod, isBalanceMod byte) []byte {
 	// The last byte (-1) in a row determines the type of the row.
 	// Byte -2 determines whether it's the first level or not.
-	// Bytes -extendLen-1 ... -4-32 stores intermediate final and end root.
+	// Bytes before that store intermediate final and end roots.
 	l := len(stream)
-	extendLen := 65 + 32
+	extendLen := 64 + 32 + 32 + counterLen + 1 + 3
 	extended := make([]byte, l + extendLen) // make space for 32 + 32 + 32 + 1 (s hash, c hash, public_root, notFirstLevel)
 	copy(extended, stream)
 	extended[l+extendLen-1] = extended[l-1] // put selector to the last place
@@ -117,8 +121,18 @@ func insertRootAndFirstLevelInfo(stream, sRoot, cRoot []byte, notFirstLevel byte
 	for i := 0; i < len(cRoot); i++ {
 		extended[l-1+len(sRoot)+i] = cRoot[i]
 	}
+	for i := 0; i < len(address); i++ {
+		extended[l-1+len(sRoot) + len(cRoot) + i] = address[i]
+	}
+	for i := 0; i < len(counter); i++ {
+		extended[l-1+len(sRoot) + len(cRoot) + len(address) + i] = counter[i]
+	}
 	// public root set later
+
 	extended[l+extendLen-2] = notFirstLevel
+	extended[l+extendLen-3] = isStorageMod
+	extended[l+extendLen-4] = isNonceMod
+	extended[l+extendLen-5] = isBalanceMod
 
 	return extended
 }
@@ -128,11 +142,11 @@ func insertPublicRoot(proof [][]byte, startRoot, finalRoot []byte) {
 		l := len(proof[i])
 		if i == 0 {
 			for j := 0; j < 32; j++ {
-				proof[i][l - 32 - 2 + j] = startRoot[j]
+				proof[i][l - 32 - 5 + j] = startRoot[j]
 			}
 		} else {
 			for j := 0; j < 32; j++ {
-				proof[i][l - 32 - 2 + j] = finalRoot[j]
+				proof[i][l - 32 - 5 + j] = finalRoot[j]
 			}
 		}
 	}
@@ -1144,12 +1158,16 @@ func getProof(keys, values []common.Hash, addresses []common.Address, statedb *s
 			// This happens when account leaf is without branch / extension node.
 			firstLevelBoundary = accountLeafRows
 		}
-		for i := 0; i < len(rowsState); i++ {
+		counter := make([]byte, counterLen)
+		binary.BigEndian.PutUint32(counter[0:4], uint32(i))
+		for j := 0; j < len(rowsState); j++ {
 			notFirstLevel := byte(1)
-			if i < firstLevelBoundary {
+			if j < firstLevelBoundary {
 				notFirstLevel = 0
+			} else {
+				fmt.Println("asdf")
 			}
-			r := insertRootAndFirstLevelInfo(rowsState[i], sRoot.Bytes(), cRoot.Bytes(), notFirstLevel)
+			r := insertMetaInfo(rowsState[j], sRoot.Bytes(), cRoot.Bytes(), addrh, counter, notFirstLevel, 1, 0, 0)
 			proof = append(proof, r)
 		}
 		insertPublicRoot(proof, startRoot.Bytes(), finalRoot.Bytes())
