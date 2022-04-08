@@ -106,12 +106,12 @@ func computeRLC(stream []byte) int {
 
 // Equip proof with intermediate state roots, first level info, counter, address RLC,
 // modification tag (whether it is storage / nonce / balance change).
-func insertMetaInfo(stream, sRoot, cRoot, address, counter []byte, notFirstLevel, isStorageMod, isNonceMod, isBalanceMod byte) []byte {
+func insertMetaInfo(stream, sRoot, cRoot, address, counter []byte, notFirstLevel, isStorageMod, isNonceMod, isBalanceMod, isCodeHashMod byte) []byte {
 	// The last byte (-1) in a row determines the type of the row.
 	// Byte -2 determines whether it's the first level or not.
 	// Bytes before that store intermediate final and end roots.
 	l := len(stream)
-	extendLen := 64 + 32 + 32 + counterLen + 1 + 3
+	extendLen := 64 + 32 + 32 + counterLen + 1 + 4
 	extended := make([]byte, l + extendLen) // make space for 32 + 32 + 32 + 1 (s hash, c hash, public_root, notFirstLevel)
 	copy(extended, stream)
 	extended[l+extendLen-1] = extended[l-1] // put selector to the last place
@@ -133,6 +133,7 @@ func insertMetaInfo(stream, sRoot, cRoot, address, counter []byte, notFirstLevel
 	extended[l+extendLen-3] = isStorageMod
 	extended[l+extendLen-4] = isNonceMod
 	extended[l+extendLen-5] = isBalanceMod
+	extended[l+extendLen-6] = isCodeHashMod
 
 	return extended
 }
@@ -142,11 +143,11 @@ func insertPublicRoot(proof [][]byte, startRoot, finalRoot []byte) {
 		l := len(proof[i])
 		if i == 0 {
 			for j := 0; j < 32; j++ {
-				proof[i][l - 32 - 5 + j] = startRoot[j]
+				proof[i][l - 32 - 6 + j] = startRoot[j]
 			}
 		} else {
 			for j := 0; j < 32; j++ {
-				proof[i][l - 32 - 5 + j] = finalRoot[j]
+				proof[i][l - 32 - 6 + j] = finalRoot[j]
 			}
 		}
 	}
@@ -1164,10 +1165,8 @@ func getProof(keys, values []common.Hash, addresses []common.Address, statedb *s
 			notFirstLevel := byte(1)
 			if j < firstLevelBoundary {
 				notFirstLevel = 0
-			} else {
-				fmt.Println("asdf")
 			}
-			r := insertMetaInfo(rowsState[j], sRoot.Bytes(), cRoot.Bytes(), addrh, counter, notFirstLevel, 1, 0, 0)
+			r := insertMetaInfo(rowsState[j], sRoot.Bytes(), cRoot.Bytes(), addrh, counter, notFirstLevel, 1, 0, 0, 0)
 			proof = append(proof, r)
 		}
 		insertPublicRoot(proof, startRoot.Bytes(), finalRoot.Bytes())
