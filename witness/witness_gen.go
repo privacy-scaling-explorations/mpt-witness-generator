@@ -413,7 +413,7 @@ func prepareExtensionRow(witnessRow, proofEl []byte, setKey bool) {
 	}
 }
 
-func prepareLeafRows(row []byte, typ byte) ([][]byte, []byte) {
+func prepareLeafRows(row []byte, typ byte, valueIsZero bool) ([][]byte, []byte) {
 	// Avoid directly changing the row as it might introduce some bugs later on.
 	leaf1 := make([]byte, rowLen)
 	leaf2 := make([]byte, rowLen)
@@ -427,13 +427,17 @@ func prepareLeafRows(row []byte, typ byte) ([][]byte, []byte) {
 		leaf1 = append(leaf1, typ)
 		// there are two RLP meta data bytes which are put in s_rlp1 and s_rlp2,
 		// value starts in s_advices[0]
-		copy(leaf2, row[keyLen+3:]) // RLP data in s_rlp1 and s_rlp2, value starts in s_advices[0]
+		if !valueIsZero {
+			copy(leaf2, row[keyLen+3:]) // RLP data in s_rlp1 and s_rlp2, value starts in s_advices[0]
+		}
 		leaf2 = append(leaf2, typ2)
 	} else {
 		keyLen := row[1] - 128
 		copy(leaf1, row[:keyLen+2])
 		leaf1 = append(leaf1, typ)
-		copy(leaf2, row[keyLen+2:]) // value starts in s_rlp1
+		if !valueIsZero {
+			copy(leaf2, row[keyLen+2:]) // value starts in s_rlp1
+		}
 		leaf2 = append(leaf2, typ2)
 	}
 
@@ -708,10 +712,10 @@ func prepareWitness(storageProof1, storageProof2, extNibbles [][]byte, key []byt
 				toBeHashed = append(toBeHashed, leafS)
 				toBeHashed = append(toBeHashed, leafC)
 			} else {
-				leafRows, leafForHashing := prepareLeafRows(storageProof1[i], 2) // leaf s
+				leafRows, leafForHashing := prepareLeafRows(storageProof1[i], 2, false) // leaf s
 				rows = append(rows, leafRows...)
 				toBeHashed = append(toBeHashed, leafForHashing)
-				leafRows, leafForHashing = prepareLeafRows(storageProof2[i], 3) // leaf s
+				leafRows, leafForHashing = prepareLeafRows(storageProof2[i], 3, false) // leaf s
 				rows = append(rows, leafRows...)
 				toBeHashed = append(toBeHashed, leafForHashing)
 			}
@@ -908,11 +912,11 @@ func prepareWitness(storageProof1, storageProof2, extNibbles [][]byte, key []byt
 			addBranch(storageProof1[len1-2], storageProof1[len1-2], key[keyIndex + numberOfNibbles], true, branchC16, branchC1)
 			rows = append(rows, extRows...)
 
-			leafRows, leafForHashing := prepareLeafRows(storageProof1[len1-1], 2)
+			leafRows, leafForHashing := prepareLeafRows(storageProof1[len1-1], 2, false)
 			rows = append(rows, leafRows...)
 			toBeHashed = append(toBeHashed, leafForHashing)
 
-			leafRows, leafForHashing = prepareLeafRows(storageProof2[len2-1], 3)
+			leafRows, leafForHashing = prepareLeafRows(storageProof2[len2-1], 3, false)
 			// We now get the first nibble of the leaf that was turned into branch.
 			// This first nibble presents the position of the leaf once it moved
 			// into the new branch.
@@ -951,7 +955,7 @@ func prepareWitness(storageProof1, storageProof2, extNibbles [][]byte, key []byt
 			// to check it, we add node RLP to toBeHashed
 			addForHashing(neighbourNode, &toBeHashed)
 
-			sLeafRows, _ := prepareLeafRows(neighbourNode, 15)
+			sLeafRows, _ := prepareLeafRows(neighbourNode, 15, false)
 			// Neighbouring leaf - the leaf that used to be one level above,
 			// but it was "drifted down" when additional branch was added.
 			// Value (sLeafRows[1]) is not needed because we already have it
@@ -960,11 +964,12 @@ func prepareWitness(storageProof1, storageProof2, extNibbles [][]byte, key []byt
 		} else {
 			// We don't have a leaf in the shorter proof, but we will add it there
 			// as a placeholder.
-			leafRows, leafForHashing := prepareLeafRows(storageProof1[len1-1], 2)
+			leafRows, leafForHashing := prepareLeafRows(storageProof1[len1-1], 2, false)
 			rows = append(rows, leafRows...)
 			toBeHashed = append(toBeHashed, leafForHashing)
 
-			leafRows, _ = prepareLeafRows(storageProof1[len1-1], 3)
+			// No leaf means value is 0, set valueIsZero = true:
+			leafRows, _ = prepareLeafRows(storageProof1[len1-1], 3, true)
 			rows = append(rows, leafRows...)
 
 			pRows := preparePlaceholderRows()
@@ -1014,7 +1019,7 @@ func prepareWitness(storageProof1, storageProof2, extNibbles [][]byte, key []byt
 			// len1 > len2 case - the first leaf is always from proof S
 			// (the order of leaves at the end is always: first S, then C).
 
-			leafRows, leafForHashing := prepareLeafRows(storageProof1[len1-1], 2)
+			leafRows, leafForHashing := prepareLeafRows(storageProof1[len1-1], 2, false)
 			// We now get the first nibble of the leaf that was turned into branch.
 			// This first nibble presents the position of the leaf once it moved
 			// into the new branch.
@@ -1048,7 +1053,7 @@ func prepareWitness(storageProof1, storageProof2, extNibbles [][]byte, key []byt
 			rows = append(rows, leafRows...)
 			toBeHashed = append(toBeHashed, leafForHashing)
 
-			leafRows, leafForHashing = prepareLeafRows(storageProof2[len2-1], 3)
+			leafRows, leafForHashing = prepareLeafRows(storageProof2[len2-1], 3, false)
 			rows = append(rows, leafRows...)
 			toBeHashed = append(toBeHashed, leafForHashing)
 
@@ -1056,18 +1061,19 @@ func prepareWitness(storageProof1, storageProof2, extNibbles [][]byte, key []byt
 			// to check it, we add node RLP to toBeHashed
 			addForHashing(neighbourNode, &toBeHashed)
 			
-			sLeafRows, _ := prepareLeafRows(neighbourNode, 15)
+			sLeafRows, _ := prepareLeafRows(neighbourNode, 15, false)
 			// Neighbouring leaf - the leaf that used to be one level above,
 			// but it was "drifted down" when additional branch was added.
 			// Value (sLeafRows[1]) is not needed because we already have it
 			// in the parallel proof.
 			rows = append(rows, sLeafRows[0])
 		} else {
-			leafRows, leafForHashing := prepareLeafRows(storageProof2[len2-1], 2)
+			// No leaf means value is 0, set valueIsZero = true:
+			leafRows, leafForHashing := prepareLeafRows(storageProof2[len2-1], 2, true)
 			rows = append(rows, leafRows...)
 			toBeHashed = append(toBeHashed, leafForHashing)
 
-			leafRows, _ = prepareLeafRows(storageProof2[len2-1], 3)
+			leafRows, _ = prepareLeafRows(storageProof2[len2-1], 3, false)
 			rows = append(rows, leafRows...)
 
 			pRows := preparePlaceholderRows()
