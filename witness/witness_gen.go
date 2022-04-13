@@ -553,9 +553,9 @@ func prepareWitness(storageProof1, storageProof2, extNibbles [][]byte, key []byt
 	}
 
 	additionalBranch := false
-	if len1 < len2 {
+	if len1 < len2 && len1 > 0 { // len = 0 when trie trie is empty
 		additionalBranch = additionalBranchNeeded(storageProof1[len1-1])
-	} else if len2 < len1 {
+	} else if len2 < len1 && len2 > 0 {
 		additionalBranch = additionalBranchNeeded(storageProof2[len2-1])
 	}
 

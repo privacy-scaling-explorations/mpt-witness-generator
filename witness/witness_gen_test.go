@@ -1121,8 +1121,8 @@ func TestOnlyLeafInStorageProof(t *testing.T) {
 
 	accountProof, _, _, err := statedb.GetProof(addr)
 	fmt.Println(len(accountProof))
-	check(err)
-	
+	check(err)	
+
 	h = fmt.Sprintf("0x2111d%d", 0)
 	key2 := common.HexToHash(h)
 	val1 := common.BigToHash(big.NewInt(int64(1)))
@@ -1134,6 +1134,71 @@ func TestOnlyLeafInStorageProof(t *testing.T) {
 
 	val := common.BigToHash(big.NewInt(int64(17)))
 	GenerateProof("OnlyLeafInStorageProof", []common.Hash{key2}, []common.Hash{val}, []common.Address{addr}, statedb)
+}
+
+func TestLeafAddedToEmptyTrie(t *testing.T) {
+	blockNum := 14209217
+	blockNumberParent := big.NewInt(int64(blockNum))
+	blockHeaderParent := oracle.PrefetchBlock(blockNumberParent, true, nil)
+	database := state.NewDatabase(blockHeaderParent)
+	statedb, _ := state.New(blockHeaderParent.Root, database, nil)
+	
+	h := fmt.Sprintf("0x%d", 0)
+	addr := common.HexToAddress(h)
+	// statedb.IntermediateRoot(false)
+	statedb.CreateAccount(addr)
+
+	accountProof, _, _, err := statedb.GetProof(addr)
+	fmt.Println(len(accountProof))
+	check(err)
+
+	/*
+	emptyTrieHash := statedb.StorageTrie(addr).Hash()
+	fmt.Println(emptyTrieHash.Bytes())
+	*/
+	
+	h = fmt.Sprintf("0x2111d%d", 0)
+	key2 := common.HexToHash(h)
+	/*
+	val1 := common.BigToHash(big.NewInt(int64(1)))
+	statedb.SetState(addr, key2, val1)
+	*/
+	statedb.IntermediateRoot(false)
+
+	// storageProof, _, _, err := statedb.GetStorageProof(addr, key2)
+	// check(err)
+
+	val := common.BigToHash(big.NewInt(int64(17)))
+	GenerateProof("LeafAddedToEmptyTrie", []common.Hash{key2}, []common.Hash{val}, []common.Address{addr}, statedb)
+}
+
+func TestDeleteToEmptyTrie(t *testing.T) {
+	blockNum := 14209217
+	blockNumberParent := big.NewInt(int64(blockNum))
+	blockHeaderParent := oracle.PrefetchBlock(blockNumberParent, true, nil)
+	database := state.NewDatabase(blockHeaderParent)
+	statedb, _ := state.New(blockHeaderParent.Root, database, nil)
+	
+	h := fmt.Sprintf("0x%d", 0)
+	addr := common.HexToAddress(h)
+	// statedb.IntermediateRoot(false)
+	statedb.CreateAccount(addr)
+
+	accountProof, _, _, err := statedb.GetProof(addr)
+	fmt.Println(len(accountProof))
+	check(err)
+
+	h = fmt.Sprintf("0x2111d%d", 0)
+	key2 := common.HexToHash(h)
+	val1 := common.BigToHash(big.NewInt(int64(1)))
+	statedb.SetState(addr, key2, val1)
+	statedb.IntermediateRoot(false)
+
+	// storageProof, _, _, err := statedb.GetStorageProof(addr, key2)
+	// check(err)
+
+	val := common.Hash{} // empty value deletes the key
+	GenerateProof("DeleteToEmptyTrie", []common.Hash{key2}, []common.Hash{val}, []common.Address{addr}, statedb)
 }
 
 /*
