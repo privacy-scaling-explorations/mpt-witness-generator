@@ -23,21 +23,22 @@ func GetProofs(proofConf *C.char) *C.char {
 
 	err := json.Unmarshal([]byte(C.GoString(proofConf)), &config)
 	fmt.Println(err)
-
 	fmt.Println(config)
 
-	keys := []common.Hash{}
-	values := []common.Hash{}
-	addresses := []common.Address{}
+	trieModifications := []witness.TrieModification{}
 
 	addr := common.HexToAddress(config.Addr)
 	for i := 0; i < len(config.Keys); i++ {
-		keys = append(keys, common.HexToHash(config.Keys[i]))
-		values = append(values, common.HexToHash(config.Values[i]))
-		addresses = append(addresses, addr)
+		trieMod := witness.TrieModification{
+			Type: witness.StorageMod,
+			Key: common.HexToHash(config.Keys[i]),
+			Value: common.HexToHash(config.Values[i]),
+			Address: addr,
+		}
+		trieModifications = append(trieModifications, trieMod)
 	}
 
-	proof := witness.GetProof(config.NodeUrl, config.BlockNum, keys[:], values, addresses)
+	proof := witness.GetProof(config.NodeUrl, config.BlockNum, trieModifications)
 
 	return C.CString(witness.MatrixToJson(proof))
 }

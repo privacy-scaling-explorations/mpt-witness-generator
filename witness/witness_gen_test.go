@@ -1,7 +1,6 @@
 package witness
 
 import (
-	"fmt"
 	"math/big"
 	"testing"
 
@@ -24,10 +23,18 @@ func TestUpdateOneLevel(t *testing.T) {
 
 	// This key is turned into odd length (see hexToCompact in encoding.go to see
 	// odd and even length are handled differently)
-	toBeModified := ks[0]
 	v := common.BigToHash(big.NewInt(int64(17)))
 	addr := common.HexToAddress("0xaaaccf12580138bc2bbceeeaa111df4e42ab81ff")
-	UpdateStateAndGenProof("UpdateOneLevel", ks[:], values, []common.Address{addr, addr}, []common.Hash{toBeModified}, []common.Hash{v}, []common.Address{addr})
+
+	trieMod := TrieModification{
+    	Type: StorageMod,
+		Key: ks[0],
+		Value: v,
+		Address: addr,
+	}
+	trieModifications := []TrieModification{trieMod}
+
+	UpdateStateAndGenProof("UpdateOneLevel", ks[:], values, []common.Address{addr, addr}, trieModifications)
 }
 
 func TestUpdateOneLevel1(t *testing.T) {
@@ -40,10 +47,16 @@ func TestUpdateOneLevel1(t *testing.T) {
 		values = append(values, common.BigToHash(big.NewInt(int64(i + 1)))) // don't put 0 value because otherwise nothing will be set (if 0 is prev value), see state_object.go line 279
 	}
 
-	// This is a storage slot that will be modified (the list will come from bus-mapping):
-	toBeModified := ks[1]
 	val := common.BigToHash(big.NewInt(int64(17)))
-	UpdateStateAndGenProof("UpdateOneLevel", ks[:], values, []common.Address{addr, addr}, []common.Hash{toBeModified}, []common.Hash{val}, []common.Address{addr})
+	trieMod := TrieModification{
+    	Type: StorageMod,
+		Key: ks[1],
+		Value: val,
+		Address: addr,
+	}
+	trieModifications := []TrieModification{trieMod}
+
+	UpdateStateAndGenProof("UpdateOneLevel1", ks[:], values, []common.Address{addr, addr}, trieModifications)
 }
 
 func TestUpdateOneLevelBigVal(t *testing.T) {
@@ -58,14 +71,22 @@ func TestUpdateOneLevelBigVal(t *testing.T) {
 		values = append(values, common.BigToHash(big.NewInt(int64(i + 1)))) // don't put 0 value because otherwise nothing will be set (if 0 is prev value), see state_object.go line 279
 	}
 
-	// This key is turned into odd length (see hexToCompact in encoding.go to see
+	// ks[0] key is turned into odd length (see hexToCompact in encoding.go to see
 	// odd and even length are handled differently)
-	toBeModified := ks[0]
 	// big value so that RLP is longer than 55 bytes
 	v1 := common.FromHex("0xbbefaa12580138bc263c95757826df4e24eb81c9aaaaaaaaaaaaaaaaaaaaaaaa")
 	v2 := common.BytesToHash(v1)
 	addr := common.HexToAddress("0xaaaccf12580138bc2bbceeeaa826df4e42ab81ff")
-	UpdateStateAndGenProof("UpdateOneLevelBigVal", ks[:], values, []common.Address{addr, addr}, []common.Hash{toBeModified}, []common.Hash{v2}, []common.Address{addr})
+
+	trieMod := TrieModification{
+    	Type: StorageMod,
+		Key: ks[0],
+		Value: v2,
+		Address: addr,
+	}
+	trieModifications := []TrieModification{trieMod}
+
+	UpdateStateAndGenProof("UpdateOneLevelBigVal", ks[:], values, []common.Address{addr, addr}, trieModifications)
 }
 
 func TestUpdateTwoLevels(t *testing.T) {
@@ -86,10 +107,18 @@ func TestUpdateTwoLevels(t *testing.T) {
 
 	// This key is turned into even length (see hexToCompact in encoding.go to see
 	// odd and even length are handled differently)
-	toBeModified := ks[0]
 	v := common.BigToHash(big.NewInt(int64(17)))
 	addr := common.HexToAddress("0xaaaccf12580138bc2bbc957aa826df4e42ab81ff")
-	UpdateStateAndGenProof("UpdateTwoLevels", ks[:], values, []common.Address{addr, addr, addr},  []common.Hash{toBeModified}, []common.Hash{v}, []common.Address{addr})
+
+	trieMod := TrieModification{
+    	Type: StorageMod,
+		Key: ks[0],
+		Value: v,
+		Address: addr,
+	}
+	trieModifications := []TrieModification{trieMod}
+
+	UpdateStateAndGenProof("UpdateTwoLevels", ks[:], values, []common.Address{addr, addr, addr}, trieModifications)
 }
 
 func TestUpdateTwoLevelsBigVal(t *testing.T) {
@@ -110,12 +139,19 @@ func TestUpdateTwoLevelsBigVal(t *testing.T) {
 
 	// This key is turned into even length (see hexToCompact in encoding.go to see
 	// odd and even length are handled differently)
-	toBeModified := ks[0]
-
 	v1 := common.FromHex("0xbbefaa12580138bc263c95757826df4e24eb81c9aaaaaaaaaaaaaaaaaaaaaaaa")
 	v2 := common.BytesToHash(v1)
 	addr := common.HexToAddress("0xaaaccf12580138bc2bbc957aa826df4e42ab81ff")
-	UpdateStateAndGenProof("UpdateTwoLevelsBigVal", ks[:], values, []common.Address{addr, addr, addr}, []common.Hash{toBeModified}, []common.Hash{v2}, []common.Address{addr})
+
+	trieMod := TrieModification{
+    	Type: StorageMod,
+		Key: ks[0],
+		Value: v2,
+		Address: addr,
+	}
+	trieModifications := []TrieModification{trieMod}
+	
+	UpdateStateAndGenProof("UpdateTwoLevelsBigVal", ks[:], values, []common.Address{addr, addr, addr}, trieModifications)
 }
 
 func TestUpdateThreeLevels(t *testing.T) {
@@ -140,19 +176,15 @@ func TestUpdateThreeLevels(t *testing.T) {
 		common.HexToHash("0x45"),
 		common.HexToHash("0x46"),
 	}
-	/*
-		ks[10] = 0x38 is at position 3 in root.Children[3].Children[8]
+		// ks[10] = 0x38 is at position 3 in root.Children[3].Children[8]
+		// nibbles
+		// [9,5,12,5,13,12,14,10,13,14,9,6,0,3,4,7,9,11,1,7,7,11,6,8,9,5,9,0,4,9,4,8,5,13,15,8,10,10,9,7,11,3,9,15,3,5,3,3,0,3,9,10,15,5,15,4,5,6,1,9,9,16]
+		// terminator flag 16 (last byte) is removed, then it remains len 61 (these are nibbles):
+		// [9,5,12,5,13,12,14,10,13,14,9,6,0,3,4,7,9,11,1,7,7,11,6,8,9,5,9,0,4,9,4,8,5,13,15,8,10,10,9,7,11,3,9,15,3,5,3,3,0,3,9,10,15,5,15,4,5,6,1,9,9]
 
-		nibbles
-		[9,5,12,5,13,12,14,10,13,14,9,6,0,3,4,7,9,11,1,7,7,11,6,8,9,5,9,0,4,9,4,8,5,13,15,8,10,10,9,7,11,3,9,15,3,5,3,3,0,3,9,10,15,5,15,4,5,6,1,9,9,16]
-
-		terminator flag 16 (last byte) is removed, then it remains len 61 (these are nibbles):
-		[9,5,12,5,13,12,14,10,13,14,9,6,0,3,4,7,9,11,1,7,7,11,6,8,9,5,9,0,4,9,4,8,5,13,15,8,10,10,9,7,11,3,9,15,3,5,3,3,0,3,9,10,15,5,15,4,5,6,1,9,9]
-
-		buf (31 len):
-		this is key stored in leaf:
-		[57,92,93,206,173,233,96,52,121,177,119,182,137,89,4,148,133,223,138,169,123,57,243,83,48,57,175,95,69,97,153]
-	*/
+		// buf (31 len):
+		// this is key stored in leaf:
+		// [57,92,93,206,173,233,96,52,121,177,119,182,137,89,4,148,133,223,138,169,123,57,243,83,48,57,175,95,69,97,153]
 
 	var values []common.Hash
 	for i := 0; i < len(ks); i++ {
@@ -164,10 +196,17 @@ func TestUpdateThreeLevels(t *testing.T) {
 		addresses = append(addresses, addr)
 	}
 
-	toBeModified := ks[10]
-
 	v := common.BigToHash(big.NewInt(int64(17)))
-	UpdateStateAndGenProof("UpdateThreeLevels", ks[:], values, addresses, []common.Hash{toBeModified}, []common.Hash{v}, []common.Address{addr})
+
+	trieMod := TrieModification{
+    	Type: StorageMod,
+		Key: ks[10],
+		Value: v,
+		Address: addr,
+	}
+	trieModifications := []TrieModification{trieMod}
+
+	UpdateStateAndGenProof("UpdateThreeLevels", ks[:], values, addresses, trieModifications)
 }
 
 func TestFromNilToValue(t *testing.T) {
@@ -197,9 +236,17 @@ func TestFromNilToValue(t *testing.T) {
 	// This test is similar as above, but the key that is being modified has not been used yet.
 
 	toBeModified := common.HexToHash("0x38")
-
 	v := common.BigToHash(big.NewInt(int64(17)))
-	UpdateStateAndGenProof("FromNilToValue", ks[:], values, addresses, []common.Hash{toBeModified}, []common.Hash{v}, []common.Address{addr})
+
+	trieMod := TrieModification{
+    	Type: StorageMod,
+		Key: toBeModified,
+		Value: v,
+		Address: addr,
+	}
+	trieModifications := []TrieModification{trieMod}
+
+	UpdateStateAndGenProof("FromNilToValue", ks[:], values, addresses, trieModifications) 
 }
 
 func TestDelete(t *testing.T) {
@@ -222,7 +269,16 @@ func TestDelete(t *testing.T) {
 
 	toBeModified := common.HexToHash("0xdaaabbbbabab")
 	val := common.Hash{} // empty value deletes the key
-	UpdateStateAndGenProof("Delete", ks[:], values, addresses, []common.Hash{toBeModified}, []common.Hash{val}, []common.Address{addr})
+
+	trieMod := TrieModification{
+    	Type: StorageMod,
+		Key: toBeModified,
+		Value: val,
+		Address: addr,
+	}
+	trieModifications := []TrieModification{trieMod}
+
+	UpdateStateAndGenProof("Delete", ks[:], values, addresses, trieModifications)
 }
 
 func TestUpdateOneLevelEvenAddress(t *testing.T) {
@@ -242,9 +298,18 @@ func TestUpdateOneLevelEvenAddress(t *testing.T) {
 	// This is a storage slot that will be modified (the list will come from bus-mapping):
 	toBeModified := ks[1]
 	val := common.BigToHash(big.NewInt(int64(17)))
-	UpdateStateAndGenProof("UpdateOneLevelEvenAddress", ks[:], values, addresses, []common.Hash{toBeModified}, []common.Hash{val}, []common.Address{addr})
+	trieMod := TrieModification{
+    	Type: StorageMod,
+		Key: toBeModified,
+		Value: val,
+		Address: addr,
+	}
+	trieModifications := []TrieModification{trieMod}
+
+	UpdateStateAndGenProof("UpdateOneLevelEvenAddress", ks[:], values, addresses, trieModifications)
 }
 
+/*
 func TestAddBranch(t *testing.T) {
 	ks := [...]common.Hash{common.HexToHash("0x11"), common.HexToHash("0x12")}
 	// hexed keys:
@@ -873,30 +938,6 @@ func TestExtensionDeletedTwoKeyBytesSel2(t *testing.T) {
 	UpdateStateAndGenProof("ExtensionDeletedTwoKeyBytesSel2", ks[:], values, addresses, []common.Hash{toBeModified}, []common.Hash{val}, []common.Address{addr})
 }
 
-/*
-func TestExtensionThreeBytesSel2(t *testing.T) {
-	// still searching for the right values
-	a := 0
-	h := fmt.Sprintf("0xf8a%d", a)
-	ks := []common.Hash{common.HexToHash(h)}
-	for i := 0; i < 1000; i++ {
-		a += 1
-		h := fmt.Sprintf("0xf8a%d", a)
-		ks = append(ks, common.HexToHash(h))
-	}
-	
-	var values []common.Hash
-	for i := 0; i < len(ks); i++ {
-		values = append(values, common.BigToHash(big.NewInt(int64(i + 1)))) // don't put 0 value because otherwise nothing will be set (if 0 is prev value), see state_object.go line 279
-	}
-
-	toBeModified := common.HexToHash("0xfa935")
-	addr := common.HexToAddress("0x75fbef2150818c32b36c57957226df4e24eb81c9")
-	val := common.BigToHash(big.NewInt(int64(17)))
-	updateStateAndGetProofs("ExtensionThreeBytesSel2", ks[:], values, toBeModified, val, addr)
-}
-*/
-
 func TestExtensionInFirstStorageLevel(t *testing.T) {
 	ks := []common.Hash{common.HexToHash("0x12")}
 
@@ -1152,17 +1193,13 @@ func TestLeafAddedToEmptyTrie(t *testing.T) {
 	fmt.Println(len(accountProof))
 	check(err)
 
-	/*
-	emptyTrieHash := statedb.StorageTrie(addr).Hash()
-	fmt.Println(emptyTrieHash.Bytes())
-	*/
+	// emptyTrieHash := statedb.StorageTrie(addr).Hash()
+	// fmt.Println(emptyTrieHash.Bytes())
 	
 	h = fmt.Sprintf("0x2111d%d", 0)
 	key2 := common.HexToHash(h)
-	/*
-	val1 := common.BigToHash(big.NewInt(int64(1)))
-	statedb.SetState(addr, key2, val1)
-	*/
+	// val1 := common.BigToHash(big.NewInt(int64(1)))
+	// statedb.SetState(addr, key2, val1)
 	statedb.IntermediateRoot(false)
 
 	// storageProof, _, _, err := statedb.GetStorageProof(addr, key2)
@@ -1200,6 +1237,56 @@ func TestDeleteToEmptyTrie(t *testing.T) {
 	val := common.Hash{} // empty value deletes the key
 	GenerateProof("DeleteToEmptyTrie", []common.Hash{key2}, []common.Hash{val}, []common.Address{addr}, statedb)
 }
+
+func TestFoo(t *testing.T) {
+	ks := [...]common.Hash{common.HexToHash("0x12"), common.HexToHash("0x21")}
+	var values []common.Hash
+	for i := 0; i < len(ks); i++ {
+		values = append(values, common.BigToHash(big.NewInt(int64(i + 1)))) // don't put 0 value because otherwise nothing will be set (if 0 is prev value), see state_object.go line 279
+	}
+	addr := common.HexToAddress("0x4E5B2e1dc63F6b91cb6Cd759936495434C7e972F")
+	var addresses []common.Address
+	for i := 0; i < len(ks); i++ {
+		addresses = append(addresses, addr)
+	}
+
+	nodeUrl := "https://mainnet.infura.io/v3/9aa3d95b3bc440fa88ea12eaa4456161"
+	blockNum := 14359865
+
+	GetProof(nodeUrl, blockNum, ks[:], values, addresses)
+}
+
+func TestOnlyAccount(t *testing.T) {
+	blockNum := 14209217
+	blockNumberParent := big.NewInt(int64(blockNum))
+	blockHeaderParent := oracle.PrefetchBlock(blockNumberParent, true, nil)
+	database := state.NewDatabase(blockHeaderParent)
+	statedb, _ := state.New(blockHeaderParent.Root, database, nil)
+	
+	h := fmt.Sprintf("0x%d", 0)
+	addr := common.HexToAddress(h)
+	// statedb.IntermediateRoot(false)
+	statedb.CreateAccount(addr)
+
+	accountProof, _, _, err := statedb.GetProof(addr)
+	fmt.Println(len(accountProof))
+	check(err)
+
+	h = fmt.Sprintf("0x2111d%d", 0)
+	key2 := common.HexToHash(h)
+	// val1 := common.BigToHash(big.NewInt(int64(1)))
+	// statedb.SetState(addr, key2, val1)
+	statedb.IntermediateRoot(false)
+
+	proof, _, _, err := statedb.GetProof(addr)
+	check(err)
+
+	fmt.Println(proof)
+
+	val := common.BigToHash(big.NewInt(int64(17)))
+	GenerateProof("OnlyAccount", []common.Hash{key2}, []common.Hash{val}, []common.Address{addr}, statedb)
+}
+*/
 
 /*
 func TestFindAccount(t *testing.T) {
@@ -1246,23 +1333,29 @@ func TestFindAccount(t *testing.T) {
 }
 */
 
-func TestFoo(t *testing.T) {
-	ks := [...]common.Hash{common.HexToHash("0x12"), common.HexToHash("0x21")}
+/*
+func TestExtensionThreeBytesSel2(t *testing.T) {
+	// still searching for the right values
+	a := 0
+	h := fmt.Sprintf("0xf8a%d", a)
+	ks := []common.Hash{common.HexToHash(h)}
+	for i := 0; i < 1000; i++ {
+		a += 1
+		h := fmt.Sprintf("0xf8a%d", a)
+		ks = append(ks, common.HexToHash(h))
+	}
+	
 	var values []common.Hash
 	for i := 0; i < len(ks); i++ {
 		values = append(values, common.BigToHash(big.NewInt(int64(i + 1)))) // don't put 0 value because otherwise nothing will be set (if 0 is prev value), see state_object.go line 279
 	}
-	addr := common.HexToAddress("0x4E5B2e1dc63F6b91cb6Cd759936495434C7e972F")
-	var addresses []common.Address
-	for i := 0; i < len(ks); i++ {
-		addresses = append(addresses, addr)
-	}
 
-	nodeUrl := "https://mainnet.infura.io/v3/9aa3d95b3bc440fa88ea12eaa4456161"
-	blockNum := 14359865
-
-	GetProof(nodeUrl, blockNum, ks[:], values, addresses)
+	toBeModified := common.HexToHash("0xfa935")
+	addr := common.HexToAddress("0x75fbef2150818c32b36c57957226df4e24eb81c9")
+	val := common.BigToHash(big.NewInt(int64(17)))
+	updateStateAndGetProofs("ExtensionThreeBytesSel2", ks[:], values, toBeModified, val, addr)
 }
+*/
 
 func TestUpdateTwoModifications(t *testing.T) {
 	ks := [...]common.Hash{common.HexToHash("0x12"), common.HexToHash("0x21")}
@@ -1276,11 +1369,44 @@ func TestUpdateTwoModifications(t *testing.T) {
 		addresses = append(addresses, addr)
 	}
 
-	// This key is turned into odd length (see hexToCompact in encoding.go to see
-	// odd and even length are handled differently)
-	toBeModified1 := ks[0]
 	v1 := common.BigToHash(big.NewInt(int64(17)))
-	toBeModified2 := ks[1]
 	v2 := common.BigToHash(big.NewInt(int64(17)))
-	UpdateStateAndGenProof("UpdateTwoModifications", ks[:], values, addresses, []common.Hash{toBeModified1, toBeModified2}, []common.Hash{v1, v2}, []common.Address{addr, addr})
+
+	trieMod1 := TrieModification{
+    	Type: StorageMod,
+		Key: ks[0],
+		Value: v1,
+		Address: addr,
+	}
+	trieMod2 := TrieModification{
+    	Type: StorageMod,
+		Key: ks[1],
+		Value: v2,
+		Address: addr,
+	}
+
+	trieModifications := []TrieModification{trieMod1, trieMod2}
+
+	UpdateStateAndGenProof("UpdateTwoModifications", ks[:], values, addresses, trieModifications)
+}
+
+func TestOnlyAccount(t *testing.T) {
+	blockNum := 14209217
+	blockNumberParent := big.NewInt(int64(blockNum))
+	blockHeaderParent := oracle.PrefetchBlock(blockNumberParent, true, nil)
+	database := state.NewDatabase(blockHeaderParent)
+	statedb, _ := state.New(blockHeaderParent.Root, database, nil)
+	
+	statedb.IntermediateRoot(false)
+
+	addr := common.HexToAddress("0xaaaccf12580138bc2bbceeeaa111df4e42ab81ff")
+
+	trieMod := TrieModification{
+		Address: addr,
+    	Type: NonceMod,
+		Nonce: 5,
+	}
+	trieModifications := []TrieModification{trieMod}
+
+	GenerateProof("OnlyAccount", trieModifications, statedb)
 }

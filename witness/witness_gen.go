@@ -60,6 +60,25 @@ Info about row type (given as the last element of the row):
 17: extension node C
 */
 
+type ModType int64
+
+const (
+	StorageMod ModType = iota
+	NonceMod
+	BalanceMod
+	CodeHashMod
+)
+
+type TrieModification struct {
+	Type     ModType
+	Key      common.Hash
+	Value    common.Hash
+	Address  common.Address
+	Nonce    uint64
+	Balance  *big.Int
+	CodeHash []byte
+}
+
 func check(err error) {
 	if err != nil {
 		log.Fatal(err)
@@ -1087,108 +1106,167 @@ func prepareWitness(storageProof1, storageProof2, extNibbles [][]byte, key []byt
 	return rows, toBeHashed, extensionNodeInd > 0
 }
 
-func GetProof(nodeUrl string, blockNum int, keys, values []common.Hash, addr []common.Address) [][]byte {
+func GetProof(nodeUrl string, blockNum int, trieModifications []TrieModification) [][]byte {
 	blockNumberParent := big.NewInt(int64(blockNum))
 	oracle.NodeUrl = nodeUrl
 	blockHeaderParent := oracle.PrefetchBlock(blockNumberParent, true, nil)
 	database := state.NewDatabase(blockHeaderParent)
 	statedb, _ := state.New(blockHeaderParent.Root, database, nil)
 
-	for i := 0; i < len(keys); i++ {
+	for i := 0; i < len(trieModifications); i++ {
 		// TODO: remove SetState (using it now just because this particular key might
 		// not be set and we will obtain empty storageProof)
 		v := common.BigToHash(big.NewInt(int64(17)))
-		statedb.SetState(addr[i], keys[i], v)
+		statedb.SetState(trieModifications[i].Address, trieModifications[i].Key, v)
 		// TODO: enable GetState to get the preimages -
 		// GetState calls GetCommittedState which calls PrefetchStorage to get the preimages
 		// statedb.GetState(addr, keys[i])
 	}
 
-	return getProof(keys, values, addr, statedb)
+	return getProof(trieModifications, statedb)
 }
 
-func getProof(keys, values []common.Hash, addresses []common.Address, statedb *state.StateDB) [][]byte {
-	statedb.IntermediateRoot(false)
-	proof := [][]byte{}
-	toBeHashed := [][]byte{}	
-	var startRoot common.Hash
-	var finalRoot common.Hash
-
-	for i := 0; i < len(keys); i++ {
-		kh := crypto.Keccak256(keys[i].Bytes())
-		keyHashed := trie.KeybytesToHex(kh)
-
-		addr := addresses[i]
-		addrh := crypto.Keccak256(addr.Bytes())
-		accountAddr := trie.KeybytesToHex(addrh)
-		accountProof, _, _, err := statedb.GetProof(addr)
-		check(err)
-		storageProof, neighbourNode1, extNibbles1, err := statedb.GetStorageProof(addr, keys[i])
-		check(err)
-
-		sRoot := statedb.GetTrie().Hash()
-		if i == 0 {
-			startRoot = sRoot
-		}
-
-		statedb.SetState(addr, keys[i], values[i])
-		statedb.IntermediateRoot(false)
-
-		cRoot := statedb.GetTrie().Hash()
-		if i == len(keys)-1 {
-			finalRoot = cRoot
-		}
-
-		accountProof1, _, extNibblesAccount, err := statedb.GetProof(addr)
-		check(err)
-
-		storageProof1, neighbourNode2, extNibbles2, err := statedb.GetStorageProof(addr, keys[i])
-		check(err)
-
-		node := neighbourNode2
-		extNibbles := extNibbles2
-		if len(storageProof) > len(storageProof1) {
-			// delete operation
-			node = neighbourNode1
-			extNibbles = extNibbles1
-		}
-		
-		rowsState, toBeHashedAcc, _ :=
-			prepareWitness(accountProof, accountProof1, extNibblesAccount, accountAddr, nil, true)
-		rowsStorage, toBeHashedStorage, _ :=
-			prepareWitness(storageProof, storageProof1, extNibbles, keyHashed, node, false)
-		rowsState = append(rowsState, rowsStorage...)
-
-		firstLevelBoundary := branchRows
-		if rowsState[0][len(rowsState[0])-1] == 6 {
-			// 6 presenting account leaf key S.
-			// This happens when account leaf is without branch / extension node.
-			firstLevelBoundary = accountLeafRows
-		}
-		counter := make([]byte, counterLen)
-		binary.BigEndian.PutUint32(counter[0:4], uint32(i))
-		for j := 0; j < len(rowsState); j++ {
-			notFirstLevel := byte(1)
-			if j < firstLevelBoundary {
-				notFirstLevel = 0
-			}
-			r := insertMetaInfo(rowsState[j], sRoot.Bytes(), cRoot.Bytes(), addrh, counter, notFirstLevel, 1, 0, 0, 0)
-			proof = append(proof, r)
-		}
-		insertPublicRoot(proof, startRoot.Bytes(), finalRoot.Bytes())
-
-		// Put rows that just need to be hashed at the end, because circuit assign function
-		// relies on index (for example when assigning s_keccak and c_keccak).
-		toBeHashed = append(toBeHashed, toBeHashedAcc...)
-		toBeHashed = append(toBeHashed, toBeHashedStorage...)
+func prepareProof(ind int, newProof [][]byte, addrh []byte, sRoot, cRoot, startRoot, finalRoot common.Hash, mType ModType) [][]byte {
+	firstLevelBoundary := branchRows
+	if newProof[0][len(newProof[0])-1] == 6 {
+		// 6 presents account leaf key S.
+		// This happens when account leaf is without branch / extension node.
+		firstLevelBoundary = accountLeafRows
 	}
-	proof = append(proof, toBeHashed...)
+
+	isStorageMod := byte(0)
+	isNonceMod := byte(0)
+	isBalanceMod := byte(0)
+	isCodeHashMod := byte(0)
+	if mType == StorageMod {
+		isStorageMod = 1
+	} else if mType == NonceMod {
+		isNonceMod = 1
+	} else if mType == BalanceMod {
+		isBalanceMod = 1
+	} else if mType == CodeHashMod {
+		isCodeHashMod = 1
+	}
+
+	counter := make([]byte, counterLen)
+	binary.BigEndian.PutUint32(counter[0:4], uint32(ind))
+
+	proof := [][]byte{}
+	for j := 0; j < len(newProof); j++ {
+		notFirstLevel := byte(1)
+		if j < firstLevelBoundary {
+			notFirstLevel = 0
+		}
+		r := insertMetaInfo(newProof[j], sRoot.Bytes(), cRoot.Bytes(), addrh, counter, notFirstLevel, 
+			isStorageMod, isNonceMod, isBalanceMod, isCodeHashMod)
+		proof = append(proof, r)
+	}
+	insertPublicRoot(newProof, startRoot.Bytes(), finalRoot.Bytes())
 
 	return proof
 }
 
-func GenerateProof(testName string, toBeModifiedKeys, toBeModifiedValues []common.Hash, addresses []common.Address, statedb *state.StateDB) {
-	proof := getProof(toBeModifiedKeys, toBeModifiedValues, addresses, statedb)
+func getProof(trieModifications []TrieModification, statedb *state.StateDB) [][]byte {
+	statedb.IntermediateRoot(false)
+	allProofs := [][]byte{}
+	toBeHashed := [][]byte{}	
+	var startRoot common.Hash
+	var finalRoot common.Hash
+
+	for i := 0; i < len(trieModifications); i++ {
+		tMod := trieModifications[i]
+		if tMod.Type == StorageMod {
+			kh := crypto.Keccak256(tMod.Key.Bytes())
+			keyHashed := trie.KeybytesToHex(kh)
+
+			addr := tMod.Address
+			addrh := crypto.Keccak256(addr.Bytes())
+			accountAddr := trie.KeybytesToHex(addrh)
+			accountProof, _, _, err := statedb.GetProof(addr)
+			check(err)
+			storageProof, neighbourNode1, extNibbles1, err := statedb.GetStorageProof(addr, tMod.Key)
+			check(err)
+
+			sRoot := statedb.GetTrie().Hash()
+			if i == 0 {
+				startRoot = sRoot
+			}
+
+			statedb.SetState(addr, tMod.Key, tMod.Value)
+			statedb.IntermediateRoot(false)
+
+			cRoot := statedb.GetTrie().Hash()
+			if i == len(trieModifications)-1 {
+				finalRoot = cRoot
+			}
+
+			accountProof1, _, extNibblesAccount, err := statedb.GetProof(addr)
+			check(err)
+
+			storageProof1, neighbourNode2, extNibbles2, err := statedb.GetStorageProof(addr, tMod.Key)
+			check(err)
+
+			node := neighbourNode2
+			extNibbles := extNibbles2
+			if len(storageProof) > len(storageProof1) {
+				// delete operation
+				node = neighbourNode1
+				extNibbles = extNibbles1
+			}
+			
+			rowsState, toBeHashedAcc, _ :=
+				prepareWitness(accountProof, accountProof1, extNibblesAccount, accountAddr, nil, true)
+			rowsStorage, toBeHashedStorage, _ :=
+				prepareWitness(storageProof, storageProof1, extNibbles, keyHashed, node, false)
+			rowsState = append(rowsState, rowsStorage...)
+
+			proof := prepareProof(i, rowsState, addrh, sRoot, cRoot, startRoot, finalRoot, StorageMod)
+			allProofs = append(allProofs, proof...)
+			
+			// Put rows that just need to be hashed at the end, because circuit assign function
+			// relies on index (for example when assigning s_keccak and c_keccak).
+			toBeHashed = append(toBeHashed, toBeHashedAcc...)
+			toBeHashed = append(toBeHashed, toBeHashedStorage...)
+		} else if tMod.Type == NonceMod {
+			addr := tMod.Address
+			addrh := crypto.Keccak256(addr.Bytes())
+			accountAddr := trie.KeybytesToHex(addrh)
+			accountProof, _, _, err := statedb.GetProof(addr)
+			check(err)
+
+			sRoot := statedb.GetTrie().Hash()
+			if i == 0 {
+				startRoot = sRoot
+			}
+
+			statedb.SetNonce(addr, tMod.Nonce)
+			statedb.IntermediateRoot(false)
+
+			cRoot := statedb.GetTrie().Hash()
+			if i == len(trieModifications)-1 {
+				finalRoot = cRoot
+			}
+
+			accountProof1, _, extNibblesAccount, err := statedb.GetProof(addr)
+			check(err)
+			
+			rowsState, toBeHashedAcc, _ :=
+				prepareWitness(accountProof, accountProof1, extNibblesAccount, accountAddr, nil, true)
+
+			proof := prepareProof(i, rowsState, addrh, sRoot, cRoot, startRoot, finalRoot, StorageMod)
+			allProofs = append(allProofs, proof...)
+
+			toBeHashed = append(toBeHashed, toBeHashedAcc...)
+		}
+		// TODO: balance, codehash
+	}
+	allProofs = append(allProofs, toBeHashed...)
+
+	return allProofs
+}
+
+func GenerateProof(testName string, trieModifications []TrieModification, statedb *state.StateDB) {
+	proof := getProof(trieModifications, statedb)
 
 	w := MatrixToJson(proof)
 	fmt.Println(w)
@@ -1203,7 +1281,7 @@ func GenerateProof(testName string, toBeModifiedKeys, toBeModifiedValues []commo
 }
 
 func UpdateStateAndGenProof(testName string, keys, values []common.Hash, addresses []common.Address,
-		toBeModifiedKeys, toBeModifiedValues []common.Hash, toBeModifiedAddresses []common.Address) {
+		trieModifications []TrieModification) {
 	blockNum := 13284469
 	blockNumberParent := big.NewInt(int64(blockNum))
 	blockHeaderParent := oracle.PrefetchBlock(blockNumberParent, true, nil)
@@ -1215,7 +1293,7 @@ func UpdateStateAndGenProof(testName string, keys, values []common.Hash, address
 		statedb.SetState(addresses[i], keys[i], values[i])
 	}
 	
-	proof := getProof(toBeModifiedKeys, toBeModifiedValues, toBeModifiedAddresses, statedb)
+	proof := getProof(trieModifications, statedb)
 
 	w := MatrixToJson(proof)
 	fmt.Println(w)
