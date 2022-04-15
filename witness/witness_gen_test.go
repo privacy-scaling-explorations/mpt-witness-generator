@@ -1,6 +1,7 @@
 package witness
 
 import (
+	"fmt"
 	"math/big"
 	"testing"
 
@@ -309,7 +310,6 @@ func TestUpdateOneLevelEvenAddress(t *testing.T) {
 	UpdateStateAndGenProof("UpdateOneLevelEvenAddress", ks[:], values, addresses, trieModifications)
 }
 
-/*
 func TestAddBranch(t *testing.T) {
 	ks := [...]common.Hash{common.HexToHash("0x11"), common.HexToHash("0x12")}
 	// hexed keys:
@@ -332,9 +332,16 @@ func TestAddBranch(t *testing.T) {
 	// [3,10,6,3,5,7,...
 	// That means leaf at position 3 turns into branch with children at position 1 and 10.
 	toBeModified := common.HexToHash("0x21")
-
 	v := common.BigToHash(big.NewInt(int64(17)))
-	UpdateStateAndGenProof("AddBranch", ks[:], values, addresses, []common.Hash{toBeModified}, []common.Hash{v}, []common.Address{addr})
+	trieMod := TrieModification{
+    	Type: StorageMod,
+		Key: toBeModified,
+		Value: v,
+		Address: addr,
+	}
+	trieModifications := []TrieModification{trieMod}
+
+	UpdateStateAndGenProof("AddBranch", ks[:], values, addresses, trieModifications)
 }
 
 func TestAddBranchLong(t *testing.T) {
@@ -362,9 +369,16 @@ func TestAddBranchLong(t *testing.T) {
 	// [3,10,6,3,5,7,...
 	// That means leaf at position 3 turns into branch with children at position 1 and 10.
 	toBeModified := common.HexToHash("0x21")
-
 	v := common.BigToHash(big.NewInt(int64(17)))
-	UpdateStateAndGenProof("AddBranchLong", ks[:], values, addresses, []common.Hash{toBeModified}, []common.Hash{v}, []common.Address{addr})
+	trieMod := TrieModification{
+    	Type: StorageMod,
+		Key: toBeModified,
+		Value: v,
+		Address: addr,
+	}
+	trieModifications := []TrieModification{trieMod}
+
+	UpdateStateAndGenProof("AddBranchLong", ks[:], values, addresses, trieModifications)
 }
 
 func TestDeleteBranch(t *testing.T) {
@@ -393,9 +407,16 @@ func TestDeleteBranch(t *testing.T) {
 	}
 
 	toBeModified := h
-
 	v := common.Hash{} // empty value deletes the key
-	UpdateStateAndGenProof("DeleteBranch", ks[:], values, addresses, []common.Hash{toBeModified}, []common.Hash{v}, []common.Address{addr})
+	trieMod := TrieModification{
+    	Type: StorageMod,
+		Key: toBeModified,
+		Value: v,
+		Address: addr,
+	}
+	trieModifications := []TrieModification{trieMod}
+
+	UpdateStateAndGenProof("DeleteBranch", ks[:], values, addresses, trieModifications)
 }
 
 func TestDeleteBranchLong(t *testing.T) {
@@ -427,9 +448,16 @@ func TestDeleteBranchLong(t *testing.T) {
 	}
 	
 	toBeModified := h
-
 	v := common.Hash{} // empty value deletes the key
-	UpdateStateAndGenProof("DeleteBranchLong", ks[:], values, addresses, []common.Hash{toBeModified}, []common.Hash{v}, []common.Address{addr})
+	trieMod := TrieModification{
+    	Type: StorageMod,
+		Key: toBeModified,
+		Value: v,
+		Address: addr,
+	}
+	trieModifications := []TrieModification{trieMod}
+
+	UpdateStateAndGenProof("DeleteBranchLong", ks[:], values, addresses, trieModifications)
 }
 
 func TestAddBranchTwoLevels(t *testing.T) {
@@ -469,9 +497,16 @@ func TestAddBranchTwoLevels(t *testing.T) {
 	}
 
 	toBeModified := common.HexToHash("0xaa43")
-
 	v := common.BigToHash(big.NewInt(int64(17)))
-	UpdateStateAndGenProof("AddBranchTwoLevels", ks[:], values, addresses, []common.Hash{toBeModified}, []common.Hash{v}, []common.Address{addr})
+	trieMod := TrieModification{
+    	Type: StorageMod,
+		Key: toBeModified,
+		Value: v,
+		Address: addr,
+	}
+	trieModifications := []TrieModification{trieMod}
+
+	UpdateStateAndGenProof("AddBranchTwoLevels", ks[:], values, addresses, trieModifications)
 }
 
 func TestAddBranchTwoLevelsLong(t *testing.T) {
@@ -506,9 +541,16 @@ func TestAddBranchTwoLevelsLong(t *testing.T) {
 	}
 
 	toBeModified := common.HexToHash("0xaa43")
-
 	v := common.BigToHash(big.NewInt(int64(17)))
-	UpdateStateAndGenProof("AddBranchTwoLevelsLong", ks[:], values, addresses, []common.Hash{toBeModified}, []common.Hash{v}, []common.Address{addr})
+	trieMod := TrieModification{
+    	Type: StorageMod,
+		Key: toBeModified,
+		Value: v,
+		Address: addr,
+	}
+	trieModifications := []TrieModification{trieMod}
+
+	UpdateStateAndGenProof("AddBranchTwoLevelsLong", ks[:], values, addresses, trieModifications)
 }
 
 func TestDeleteBranchTwoLevels(t *testing.T) {
@@ -538,9 +580,16 @@ func TestDeleteBranchTwoLevels(t *testing.T) {
 	}
 
 	toBeModified := common.HexToHash("0xaa43")
-
 	v := common.Hash{}
-	UpdateStateAndGenProof("DeleteBranchTwoLevels", ks[:], values, addresses, []common.Hash{toBeModified}, []common.Hash{v}, []common.Address{addr})
+	trieMod := TrieModification{
+    	Type: StorageMod,
+		Key: toBeModified,
+		Value: v,
+		Address: addr,
+	}
+	trieModifications := []TrieModification{trieMod}
+
+	UpdateStateAndGenProof("DeleteBranchTwoLevels", ks[:], values, addresses, trieModifications)
 }
 
 func TestDeleteBranchTwoLevelsLong(t *testing.T) {
@@ -572,9 +621,16 @@ func TestDeleteBranchTwoLevelsLong(t *testing.T) {
 	}
 
 	toBeModified := common.HexToHash("0xaa43")
-
 	v := common.Hash{}
-	UpdateStateAndGenProof("DeleteBranchTwoLevelsLong", ks[:], values, addresses, []common.Hash{toBeModified}, []common.Hash{v}, []common.Address{addr})
+	trieMod := TrieModification{
+    	Type: StorageMod,
+		Key: toBeModified,
+		Value: v,
+		Address: addr,
+	}
+	trieModifications := []TrieModification{trieMod}
+
+	UpdateStateAndGenProof("DeleteBranchTwoLevelsLong", ks[:], values, addresses, trieModifications)
 }
 
 func TestExtensionOneKeyByteSel1(t *testing.T) {
@@ -622,7 +678,15 @@ func TestExtensionOneKeyByteSel1(t *testing.T) {
 	
 	toBeModified := ks[len(ks)-1]
 	val := common.BigToHash(big.NewInt(int64(17)))
-	UpdateStateAndGenProof("ExtensionOneKeyByteSel1", ks[:], values, addresses, []common.Hash{toBeModified}, []common.Hash{val}, []common.Address{addr})
+	trieMod := TrieModification{
+    	Type: StorageMod,
+		Key: toBeModified,
+		Value: val,
+		Address: addr,
+	}
+	trieModifications := []TrieModification{trieMod}
+
+	UpdateStateAndGenProof("ExtensionOneKeyByteSel1", ks[:], values, addresses, trieModifications)
 }
 
 func TestExtensionAddedOneKeyByteSel1(t *testing.T) {
@@ -652,9 +716,16 @@ func TestExtensionAddedOneKeyByteSel1(t *testing.T) {
 	}
 
 	toBeModified := common.HexToHash("0x1818")
-
 	val := common.BigToHash(big.NewInt(int64(17)))
-	UpdateStateAndGenProof("ExtensionAddedOneKeyByteSel1", ks[:], values, addresses, []common.Hash{toBeModified}, []common.Hash{val}, []common.Address{addr})
+	trieMod := TrieModification{
+    	Type: StorageMod,
+		Key: toBeModified,
+		Value: val,
+		Address: addr,
+	}
+	trieModifications := []TrieModification{trieMod}
+
+	UpdateStateAndGenProof("ExtensionAddedOneKeyByteSel1", ks[:], values, addresses, trieModifications)
 }
 
 func TestExtensionDeletedOneKeyByteSel1(t *testing.T) {
@@ -686,7 +757,15 @@ func TestExtensionDeletedOneKeyByteSel1(t *testing.T) {
 	}
 
 	val := common.Hash{} // empty value deletes the key
-	UpdateStateAndGenProof("ExtensionDeletedOneKeyByteSel1", ks[:], values, addresses, []common.Hash{toBeModified}, []common.Hash{val}, []common.Address{addr})
+	trieMod := TrieModification{
+    	Type: StorageMod,
+		Key: toBeModified,
+		Value: val,
+		Address: addr,
+	}
+	trieModifications := []TrieModification{trieMod}
+
+	UpdateStateAndGenProof("ExtensionDeletedOneKeyByteSel1", ks[:], values, addresses, trieModifications)
 }
 
 func TestExtensionOneKeyByteSel2(t *testing.T) {
@@ -711,7 +790,15 @@ func TestExtensionOneKeyByteSel2(t *testing.T) {
 
 	toBeModified := common.HexToHash("0xca644")
 	val := common.BigToHash(big.NewInt(int64(17)))
-	UpdateStateAndGenProof("ExtensionOneKeyByteSel2", ks[:], values, addresses, []common.Hash{toBeModified}, []common.Hash{val}, []common.Address{addr})
+	trieMod := TrieModification{
+    	Type: StorageMod,
+		Key: toBeModified,
+		Value: val,
+		Address: addr,
+	}
+	trieModifications := []TrieModification{trieMod}
+
+	UpdateStateAndGenProof("ExtensionOneKeyByteSel2", ks[:], values, addresses, trieModifications)
 }
 
 func TestExtensionAddedOneKeyByteSel2(t *testing.T) {
@@ -740,7 +827,15 @@ func TestExtensionAddedOneKeyByteSel2(t *testing.T) {
 	}
 
 	val := common.BigToHash(big.NewInt(int64(17)))
-	UpdateStateAndGenProof("ExtensionAddedOneKeyByteSel2", ks[:], values, addresses, []common.Hash{toBeModified}, []common.Hash{val}, []common.Address{addr})
+	trieMod := TrieModification{
+    	Type: StorageMod,
+		Key: toBeModified,
+		Value: val,
+		Address: addr,
+	}
+	trieModifications := []TrieModification{trieMod}
+
+	UpdateStateAndGenProof("ExtensionAddedOneKeyByteSel2", ks[:], values, addresses, trieModifications)
 }
 
 func TestExtensionDeletedOneKeyByteSel2(t *testing.T) {
@@ -766,7 +861,15 @@ func TestExtensionDeletedOneKeyByteSel2(t *testing.T) {
 	}
 
 	val := common.Hash{} // empty value deletes the key
-	UpdateStateAndGenProof("ExtensionDeletedOneKeyByteSel2", ks[:], values, addresses, []common.Hash{toBeModified}, []common.Hash{val}, []common.Address{addr})
+	trieMod := TrieModification{
+    	Type: StorageMod,
+		Key: toBeModified,
+		Value: val,
+		Address: addr,
+	}
+	trieModifications := []TrieModification{trieMod}
+
+	UpdateStateAndGenProof("ExtensionDeletedOneKeyByteSel2", ks[:], values, addresses, trieModifications) 
 }
 
 func TestExtensionTwoKeyBytesSel1(t *testing.T) {
@@ -798,7 +901,15 @@ func TestExtensionTwoKeyBytesSel1(t *testing.T) {
 
 	toBeModified := common.HexToHash("0x172")
 	val := common.BigToHash(big.NewInt(int64(17)))
-	UpdateStateAndGenProof("ExtensionTwoKeyBytesSel1", ks[:], values, addresses, []common.Hash{toBeModified}, []common.Hash{val}, []common.Address{addr})
+	trieMod := TrieModification{
+    	Type: StorageMod,
+		Key: toBeModified,
+		Value: val,
+		Address: addr,
+	}
+	trieModifications := []TrieModification{trieMod}
+
+	UpdateStateAndGenProof("ExtensionTwoKeyBytesSel1", ks[:], values, addresses, trieModifications)
 }
 
 func TestExtensionAddedTwoKeyBytesSel1(t *testing.T) {
@@ -828,7 +939,15 @@ func TestExtensionAddedTwoKeyBytesSel1(t *testing.T) {
 	}
 
 	val := common.BigToHash(big.NewInt(int64(17)))
-	UpdateStateAndGenProof("ExtensionAddedTwoKeyBytesSel1", ks[:], values, addresses, []common.Hash{toBeModified}, []common.Hash{val}, []common.Address{addr})
+	trieMod := TrieModification{
+    	Type: StorageMod,
+		Key: toBeModified,
+		Value: val,
+		Address: addr,
+	}
+	trieModifications := []TrieModification{trieMod}
+
+	UpdateStateAndGenProof("ExtensionAddedTwoKeyBytesSel1", ks[:], values, addresses, trieModifications)
 }
 
 func TestExtensionDeletedTwoKeyBytesSel1(t *testing.T) {
@@ -855,7 +974,15 @@ func TestExtensionDeletedTwoKeyBytesSel1(t *testing.T) {
 	}
 
 	val := common.Hash{} // empty value deletes the key
-	UpdateStateAndGenProof("ExtensionDeletedTwoKeyBytesSel1", ks[:], values, addresses, []common.Hash{toBeModified}, []common.Hash{val}, []common.Address{addr})
+	trieMod := TrieModification{
+    	Type: StorageMod,
+		Key: toBeModified,
+		Value: val,
+		Address: addr,
+	}
+	trieModifications := []TrieModification{trieMod}
+
+	UpdateStateAndGenProof("ExtensionDeletedTwoKeyBytesSel1", ks[:], values, addresses, trieModifications)
 }
 
 func TestExtensionTwoKeyBytesSel2(t *testing.T) {
@@ -880,7 +1007,15 @@ func TestExtensionTwoKeyBytesSel2(t *testing.T) {
 
 	toBeModified := common.HexToHash("0x2ea772")
 	val := common.BigToHash(big.NewInt(int64(17)))
-	UpdateStateAndGenProof("ExtensionTwoKeyBytesSel2", ks[:], values, addresses, []common.Hash{toBeModified}, []common.Hash{val}, []common.Address{addr})
+	trieMod := TrieModification{
+    	Type: StorageMod,
+		Key: toBeModified,
+		Value: val,
+		Address: addr,
+	}
+	trieModifications := []TrieModification{trieMod}
+
+	UpdateStateAndGenProof("ExtensionTwoKeyBytesSel2", ks[:], values, addresses, trieModifications)
 }
 
 func TestExtensionAddedTwoKeyBytesSel2(t *testing.T) {
@@ -909,7 +1044,15 @@ func TestExtensionAddedTwoKeyBytesSel2(t *testing.T) {
 	}
 
 	val := common.BigToHash(big.NewInt(int64(17)))
-	UpdateStateAndGenProof("ExtensionAddedTwoKeyBytesSel2", ks[:], values, addresses, []common.Hash{toBeModified}, []common.Hash{val}, []common.Address{addr})
+	trieMod := TrieModification{
+    	Type: StorageMod,
+		Key: toBeModified,
+		Value: val,
+		Address: addr,
+	}
+	trieModifications := []TrieModification{trieMod}
+
+	UpdateStateAndGenProof("ExtensionAddedTwoKeyBytesSel2", ks[:], values, addresses, trieModifications)
 }
 
 func TestExtensionDeletedTwoKeyBytesSel2(t *testing.T) {
@@ -935,7 +1078,15 @@ func TestExtensionDeletedTwoKeyBytesSel2(t *testing.T) {
 	}
 
 	val := common.Hash{} // empty value deletes the key
-	UpdateStateAndGenProof("ExtensionDeletedTwoKeyBytesSel2", ks[:], values, addresses, []common.Hash{toBeModified}, []common.Hash{val}, []common.Address{addr})
+	trieMod := TrieModification{
+    	Type: StorageMod,
+		Key: toBeModified,
+		Value: val,
+		Address: addr,
+	}
+	trieModifications := []TrieModification{trieMod}
+
+	UpdateStateAndGenProof("ExtensionDeletedTwoKeyBytesSel2", ks[:], values, addresses, trieModifications)
 }
 
 func TestExtensionInFirstStorageLevel(t *testing.T) {
@@ -958,7 +1109,15 @@ func TestExtensionInFirstStorageLevel(t *testing.T) {
 
 	toBeModified := common.HexToHash("0x1")
 	val := common.BigToHash(big.NewInt(int64(17)))
-	UpdateStateAndGenProof("ExtensionInFirstStorageLevel", ks[:], values, addresses, []common.Hash{toBeModified}, []common.Hash{val}, []common.Address{addr})
+	trieMod := TrieModification{
+    	Type: StorageMod,
+		Key: toBeModified,
+		Value: val,
+		Address: addr,
+	}
+	trieModifications := []TrieModification{trieMod}
+
+	UpdateStateAndGenProof("ExtensionInFirstStorageLevel", ks[:], values, addresses, trieModifications)
 }
 
 func TestExtensionInFirstStorageLevelOneKeyByte(t *testing.T) {
@@ -981,7 +1140,15 @@ func TestExtensionInFirstStorageLevelOneKeyByte(t *testing.T) {
 
 	toBeModified := common.HexToHash("0x1")
 	val := common.BigToHash(big.NewInt(int64(17)))
-	GenerateProof("ExtensionInFirstStorageLevelOneKeyByte", []common.Hash{toBeModified}, []common.Hash{val}, []common.Address{addr}, statedb)
+	trieMod := TrieModification{
+    	Type: StorageMod,
+		Key: toBeModified,
+		Value: val,
+		Address: addr,
+	}
+	trieModifications := []TrieModification{trieMod}
+
+	GenerateProof("ExtensionInFirstStorageLevelOneKeyByte", trieModifications, statedb)
 }
 
 func TestExtensionAddedInFirstStorageLevelOneKeyByte(t *testing.T) {
@@ -1000,9 +1167,16 @@ func TestExtensionAddedInFirstStorageLevelOneKeyByte(t *testing.T) {
 	toBeModified := common.HexToHash("0x1")
 	// statedb.SetState(addr, toBeModified, val1)
 	statedb.IntermediateRoot(false)
-
 	val := common.BigToHash(big.NewInt(int64(17)))
-	GenerateProof("ExtensionAddedInFirstStorageLevelOneKeyByte", []common.Hash{toBeModified}, []common.Hash{val}, []common.Address{addr}, statedb)
+	trieMod := TrieModification{
+    	Type: StorageMod,
+		Key: toBeModified,
+		Value: val,
+		Address: addr,
+	}
+	trieModifications := []TrieModification{trieMod}
+
+	GenerateProof("ExtensionAddedInFirstStorageLevelOneKeyByte", trieModifications, statedb)
 }
 
 func TestExtensionInFirstStorageLevelTwoKeyBytes(t *testing.T) {
@@ -1023,7 +1197,15 @@ func TestExtensionInFirstStorageLevelTwoKeyBytes(t *testing.T) {
 	statedb.IntermediateRoot(false)
 
 	val := common.BigToHash(big.NewInt(int64(17)))
-	GenerateProof("ExtensionInFirstStorageLevelTwoKeyBytes", []common.Hash{toBeModified}, []common.Hash{val}, []common.Address{addr}, statedb)
+	trieMod := TrieModification{
+    	Type: StorageMod,
+		Key: toBeModified,
+		Value: val,
+		Address: addr,
+	}
+	trieModifications := []TrieModification{trieMod}
+
+	GenerateProof("ExtensionInFirstStorageLevelTwoKeyBytes", trieModifications, statedb)
 }
 
 func TestExtensionAddedInFirstStorageLevelTwoKeyBytes(t *testing.T) {
@@ -1044,9 +1226,16 @@ func TestExtensionAddedInFirstStorageLevelTwoKeyBytes(t *testing.T) {
 	statedb.IntermediateRoot(false)
 
 	val := common.BigToHash(big.NewInt(int64(17)))
-	GenerateProof("ExtensionAddedInFirstStorageLevelTwoKeyBytes", []common.Hash{toBeModified}, []common.Hash{val}, []common.Address{addr}, statedb)
-}
+	trieMod := TrieModification{
+    	Type: StorageMod,
+		Key: toBeModified,
+		Value: val,
+		Address: addr,
+	}
+	trieModifications := []TrieModification{trieMod}
 
+	GenerateProof("ExtensionAddedInFirstStorageLevelTwoKeyBytes", trieModifications, statedb)
+}
 
 func TestExtensionThreeKeyBytesSel2(t *testing.T) {
 	blockNum := 13284469
@@ -1068,7 +1257,15 @@ func TestExtensionThreeKeyBytesSel2(t *testing.T) {
 	statedb.SetState(addr, toBeModified, val1)
 
 	val := common.BigToHash(big.NewInt(int64(17)))
-	GenerateProof("ExtensionThreeKeyBytesSel2", []common.Hash{toBeModified}, []common.Hash{val}, []common.Address{addr}, statedb)
+	trieMod := TrieModification{
+    	Type: StorageMod,
+		Key: toBeModified,
+		Value: val,
+		Address: addr,
+	}
+	trieModifications := []TrieModification{trieMod}
+
+	GenerateProof("ExtensionThreeKeyBytesSel2", trieModifications, statedb)
 }
 
 func TestExtensionAddedThreeKeyBytesSel2(t *testing.T) {
@@ -1089,7 +1286,15 @@ func TestExtensionAddedThreeKeyBytesSel2(t *testing.T) {
 	toBeModified := common.HexToHash("0x13234")
 
 	val := common.BigToHash(big.NewInt(int64(17)))
-	GenerateProof("ExtensionAddedThreeKeyBytesSel2", []common.Hash{toBeModified}, []common.Hash{val}, []common.Address{addr}, statedb)
+	trieMod := TrieModification{
+    	Type: StorageMod,
+		Key: toBeModified,
+		Value: val,
+		Address: addr,
+	}
+	trieModifications := []TrieModification{trieMod}
+
+	GenerateProof("ExtensionAddedThreeKeyBytesSel2", trieModifications, statedb)
 }
 
 func TestExtensionDeletedThreeKeyBytesSel2(t *testing.T) {
@@ -1112,7 +1317,15 @@ func TestExtensionDeletedThreeKeyBytesSel2(t *testing.T) {
 	statedb.SetState(addr, toBeModified, val1)
 
 	val := common.Hash{} // empty value deletes the key
-	GenerateProof("ExtensionDeletedThreeKeyBytesSel2", []common.Hash{toBeModified}, []common.Hash{val}, []common.Address{addr}, statedb)
+	trieMod := TrieModification{
+    	Type: StorageMod,
+		Key: toBeModified,
+		Value: val,
+		Address: addr,
+	}
+	trieModifications := []TrieModification{trieMod}
+
+	GenerateProof("ExtensionDeletedThreeKeyBytesSel2", trieModifications, statedb)
 }
 
 func TestExtensionThreeKeyBytes(t *testing.T) {
@@ -1145,7 +1358,15 @@ func TestExtensionThreeKeyBytes(t *testing.T) {
 
 	toBeModified := common.HexToHash("0x333")
 	val := common.BigToHash(big.NewInt(int64(17)))
-	GenerateProof("ExtensionThreeKeyBytes", []common.Hash{toBeModified}, []common.Hash{val}, []common.Address{addr}, statedb)
+	trieMod := TrieModification{
+    	Type: StorageMod,
+		Key: toBeModified,
+		Value: val,
+		Address: addr,
+	}
+	trieModifications := []TrieModification{trieMod}
+
+	GenerateProof("ExtensionThreeKeyBytes", trieModifications, statedb)
 }
 
 func TestOnlyLeafInStorageProof(t *testing.T) {
@@ -1174,7 +1395,15 @@ func TestOnlyLeafInStorageProof(t *testing.T) {
 	// check(err)
 
 	val := common.BigToHash(big.NewInt(int64(17)))
-	GenerateProof("OnlyLeafInStorageProof", []common.Hash{key2}, []common.Hash{val}, []common.Address{addr}, statedb)
+	trieMod := TrieModification{
+    	Type: StorageMod,
+		Key: key2,
+		Value: val,
+		Address: addr,
+	}
+	trieModifications := []TrieModification{trieMod}
+
+	GenerateProof("OnlyLeafInStorageProof", trieModifications, statedb)
 }
 
 func TestLeafAddedToEmptyTrie(t *testing.T) {
@@ -1206,7 +1435,15 @@ func TestLeafAddedToEmptyTrie(t *testing.T) {
 	// check(err)
 
 	val := common.BigToHash(big.NewInt(int64(17)))
-	GenerateProof("LeafAddedToEmptyTrie", []common.Hash{key2}, []common.Hash{val}, []common.Address{addr}, statedb)
+	trieMod := TrieModification{
+    	Type: StorageMod,
+		Key: key2,
+		Value: val,
+		Address: addr,
+	}
+	trieModifications := []TrieModification{trieMod}
+
+	GenerateProof("LeafAddedToEmptyTrie", trieModifications, statedb)
 }
 
 func TestDeleteToEmptyTrie(t *testing.T) {
@@ -1235,9 +1472,18 @@ func TestDeleteToEmptyTrie(t *testing.T) {
 	// check(err)
 
 	val := common.Hash{} // empty value deletes the key
-	GenerateProof("DeleteToEmptyTrie", []common.Hash{key2}, []common.Hash{val}, []common.Address{addr}, statedb)
+	trieMod := TrieModification{
+    	Type: StorageMod,
+		Key: key2,
+		Value: val,
+		Address: addr,
+	}
+	trieModifications := []TrieModification{trieMod}
+
+	GenerateProof("DeleteToEmptyTrie", trieModifications, statedb)
 }
 
+/*
 func TestFoo(t *testing.T) {
 	ks := [...]common.Hash{common.HexToHash("0x12"), common.HexToHash("0x21")}
 	var values []common.Hash
@@ -1254,37 +1500,6 @@ func TestFoo(t *testing.T) {
 	blockNum := 14359865
 
 	GetProof(nodeUrl, blockNum, ks[:], values, addresses)
-}
-
-func TestOnlyAccount(t *testing.T) {
-	blockNum := 14209217
-	blockNumberParent := big.NewInt(int64(blockNum))
-	blockHeaderParent := oracle.PrefetchBlock(blockNumberParent, true, nil)
-	database := state.NewDatabase(blockHeaderParent)
-	statedb, _ := state.New(blockHeaderParent.Root, database, nil)
-	
-	h := fmt.Sprintf("0x%d", 0)
-	addr := common.HexToAddress(h)
-	// statedb.IntermediateRoot(false)
-	statedb.CreateAccount(addr)
-
-	accountProof, _, _, err := statedb.GetProof(addr)
-	fmt.Println(len(accountProof))
-	check(err)
-
-	h = fmt.Sprintf("0x2111d%d", 0)
-	key2 := common.HexToHash(h)
-	// val1 := common.BigToHash(big.NewInt(int64(1)))
-	// statedb.SetState(addr, key2, val1)
-	statedb.IntermediateRoot(false)
-
-	proof, _, _, err := statedb.GetProof(addr)
-	check(err)
-
-	fmt.Println(proof)
-
-	val := common.BigToHash(big.NewInt(int64(17)))
-	GenerateProof("OnlyAccount", []common.Hash{key2}, []common.Hash{val}, []common.Address{addr}, statedb)
 }
 */
 
@@ -1353,7 +1568,15 @@ func TestExtensionThreeBytesSel2(t *testing.T) {
 	toBeModified := common.HexToHash("0xfa935")
 	addr := common.HexToAddress("0x75fbef2150818c32b36c57957226df4e24eb81c9")
 	val := common.BigToHash(big.NewInt(int64(17)))
-	updateStateAndGetProofs("ExtensionThreeBytesSel2", ks[:], values, toBeModified, val, addr)
+	trieMod := TrieModification{
+    	Type: StorageMod,
+		Key: toBeModified,
+		Value: val,
+		Address: addr,
+	}
+	trieModifications := []TrieModification{trieMod}
+
+	UpdateStateAndGenProof("ExtensionThreeBytesSel2", ks[:], values, addresses, trieModifications)
 }
 */
 
@@ -1390,6 +1613,7 @@ func TestUpdateTwoModifications(t *testing.T) {
 	UpdateStateAndGenProof("UpdateTwoModifications", ks[:], values, addresses, trieModifications)
 }
 
+/* TODO
 func TestOnlyAccount(t *testing.T) {
 	blockNum := 14209217
 	blockNumberParent := big.NewInt(int64(blockNum))
@@ -1397,9 +1621,9 @@ func TestOnlyAccount(t *testing.T) {
 	database := state.NewDatabase(blockHeaderParent)
 	statedb, _ := state.New(blockHeaderParent.Root, database, nil)
 	
-	statedb.IntermediateRoot(false)
-
 	addr := common.HexToAddress("0xaaaccf12580138bc2bbceeeaa111df4e42ab81ff")
+	statedb.CreateAccount(addr)
+	statedb.IntermediateRoot(false)
 
 	trieMod := TrieModification{
 		Address: addr,
@@ -1410,3 +1634,4 @@ func TestOnlyAccount(t *testing.T) {
 
 	GenerateProof("OnlyAccount", trieModifications, statedb)
 }
+*/

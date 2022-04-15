@@ -1166,6 +1166,46 @@ func prepareProof(ind int, newProof [][]byte, addrh []byte, sRoot, cRoot, startR
 	return proof
 }
 
+func prepareAccountProof(i int, tMod TrieModification, tModsLen int, statedb *state.StateDB) ([][]byte, [][]byte) {
+	addr := tMod.Address
+	addrh := crypto.Keccak256(addr.Bytes())
+	accountAddr := trie.KeybytesToHex(addrh)
+	accountProof, _, _, err := statedb.GetProof(addr)
+	check(err)
+
+	var startRoot common.Hash
+	var finalRoot common.Hash
+
+	sRoot := statedb.GetTrie().Hash()
+	if i == 0 {
+		startRoot = sRoot
+	}
+
+	if tMod.Type == NonceMod {
+		statedb.SetNonce(addr, tMod.Nonce)
+	} else if tMod.Type == BalanceMod {
+		statedb.SetBalance(addr, tMod.Balance)
+	} else if tMod.Type == CodeHashMod {
+		statedb.SetCode(addr, tMod.CodeHash)
+	}
+
+	statedb.IntermediateRoot(false)
+
+	cRoot := statedb.GetTrie().Hash()
+	if i == tModsLen-1 {
+		finalRoot = cRoot
+	}
+
+	accountProof1, _, extNibblesAccount, err := statedb.GetProof(addr)
+	check(err)
+	
+	rowsState, toBeHashedAcc, _ :=
+		prepareWitness(accountProof, accountProof1, extNibblesAccount, accountAddr, nil, true)
+	proof := prepareProof(i, rowsState, addrh, sRoot, cRoot, startRoot, finalRoot, tMod.Type)
+
+	return proof, toBeHashedAcc
+}
+
 func getProof(trieModifications []TrieModification, statedb *state.StateDB) [][]byte {
 	statedb.IntermediateRoot(false)
 	allProofs := [][]byte{}
@@ -1227,38 +1267,11 @@ func getProof(trieModifications []TrieModification, statedb *state.StateDB) [][]
 			// relies on index (for example when assigning s_keccak and c_keccak).
 			toBeHashed = append(toBeHashed, toBeHashedAcc...)
 			toBeHashed = append(toBeHashed, toBeHashedStorage...)
-		} else if tMod.Type == NonceMod {
-			addr := tMod.Address
-			addrh := crypto.Keccak256(addr.Bytes())
-			accountAddr := trie.KeybytesToHex(addrh)
-			accountProof, _, _, err := statedb.GetProof(addr)
-			check(err)
-
-			sRoot := statedb.GetTrie().Hash()
-			if i == 0 {
-				startRoot = sRoot
-			}
-
-			statedb.SetNonce(addr, tMod.Nonce)
-			statedb.IntermediateRoot(false)
-
-			cRoot := statedb.GetTrie().Hash()
-			if i == len(trieModifications)-1 {
-				finalRoot = cRoot
-			}
-
-			accountProof1, _, extNibblesAccount, err := statedb.GetProof(addr)
-			check(err)
-			
-			rowsState, toBeHashedAcc, _ :=
-				prepareWitness(accountProof, accountProof1, extNibblesAccount, accountAddr, nil, true)
-
-			proof := prepareProof(i, rowsState, addrh, sRoot, cRoot, startRoot, finalRoot, StorageMod)
+		} else {
+			proof, toBeHashedAcc := prepareAccountProof(i, tMod, len(trieModifications), statedb)
 			allProofs = append(allProofs, proof...)
-
 			toBeHashed = append(toBeHashed, toBeHashedAcc...)
 		}
-		// TODO: balance, codehash
 	}
 	allProofs = append(allProofs, toBeHashed...)
 
