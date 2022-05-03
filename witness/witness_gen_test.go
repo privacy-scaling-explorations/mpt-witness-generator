@@ -1632,7 +1632,6 @@ func TestAddAccount(t *testing.T) {
 	GenerateProof("AddAccount", trieModifications, statedb)
 }
 
-/*
 func TestDeleteAccount(t *testing.T) {
 	blockNum := 1
 	blockNumberParent := big.NewInt(int64(blockNum))
@@ -1641,17 +1640,17 @@ func TestDeleteAccount(t *testing.T) {
 	statedb, _ := state.New(blockHeaderParent.Root, database, nil)
 	
 	addr := common.HexToAddress("0xaaaccf12580138bc2bbceeeaa111df4e42ab81ab")
+	statedb.CreateAccount(addr)
 	statedb.IntermediateRoot(false)
 
 	trieMod := TrieModification{
 		Address: addr,
-    	Type: CreateAccount,
+    	Type: DeleteAccount,
 	}
 	trieModifications := []TrieModification{trieMod}
 
 	GenerateProof("DeleteAccount", trieModifications, statedb)
 }
-*/
 
 /* TODO
 func TestOnlyAccount(t *testing.T) {

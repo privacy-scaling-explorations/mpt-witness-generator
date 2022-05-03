@@ -428,6 +428,17 @@ func (s *StateDB) Suicide(addr common.Address) bool {
 	return true
 }
 
+// Added for MPT generator:
+func (s *StateDB) DeleteAccount(addr common.Address) bool {
+	stateObject := s.getStateObject(addr)
+	if stateObject == nil {
+		return false
+	}
+	s.deleteStateObject(stateObject)
+
+	return true
+}
+
 //
 // Setting, updating & deleting state object methods.
 //

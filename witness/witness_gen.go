@@ -68,6 +68,7 @@ const (
 	BalanceMod
 	CodeHashMod
 	CreateAccount
+	DeleteAccount
 )
 
 type TrieModification struct {
@@ -1193,6 +1194,8 @@ func prepareProof(ind int, newProof [][]byte, addrh []byte, sRoot, cRoot, startR
 		isCodeHashMod = 1
 	} else if mType == CreateAccount {
 		isNonceMod = 1 // TODO: setting as nonce mod for now, this depends on the lookup
+	} else if mType == DeleteAccount {
+		isNonceMod = 1 // TODO: setting as nonce mod for now, this depends on the lookup
 	}
 
 	counter := make([]byte, counterLen)
@@ -1219,7 +1222,7 @@ func prepareAccountProof(i int, tMod TrieModification, tModsLen int, statedb *st
 	accountAddr := trie.KeybytesToHex(addrh)
 
 	// TODO:
-	if tMod.Type == CreateAccount {
+	if tMod.Type == CreateAccount || tMod.Type == DeleteAccount {
 		oracle.PrefetchAccount(statedb.Db.BlockNumber, tMod.Address, nil)
 	}
 
@@ -1242,6 +1245,8 @@ func prepareAccountProof(i int, tMod TrieModification, tModsLen int, statedb *st
 		statedb.SetCode(addr, tMod.CodeHash)
 	} else if tMod.Type == CreateAccount {
 		statedb.CreateAccount(tMod.Address)
+	} else if tMod.Type == DeleteAccount {
+		statedb.DeleteAccount(tMod.Address)
 	}
 
 	statedb.IntermediateRoot(false)
