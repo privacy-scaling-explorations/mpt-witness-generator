@@ -65,7 +65,7 @@ func (n *proofList) Delete(key []byte) error {
 // * Contracts
 // * Accounts
 type StateDB struct {
-	db           Database
+	Db           Database
 	prefetcher   *triePrefetcher
 	originalRoot common.Hash // The pre-state root, before any changes were made
 	trie         Trie
@@ -128,7 +128,7 @@ func New(root common.Hash, db Database, snaps *snapshot.Tree) (*StateDB, error) 
 		return nil, err
 	}
 	sdb := &StateDB{
-		db:                  db,
+		Db:                  db,
 		trie:                tr,
 		originalRoot:        root,
 		snaps:               snaps,
@@ -258,7 +258,7 @@ func (s *StateDB) TxIndex() int {
 func (s *StateDB) GetCode(addr common.Address) []byte {
 	stateObject := s.getStateObject(addr)
 	if stateObject != nil {
-		return stateObject.Code(s.db)
+		return stateObject.Code(s.Db)
 	}
 	return nil
 }
@@ -266,7 +266,7 @@ func (s *StateDB) GetCode(addr common.Address) []byte {
 func (s *StateDB) GetCodeSize(addr common.Address) int {
 	stateObject := s.getStateObject(addr)
 	if stateObject != nil {
-		return stateObject.CodeSize(s.db)
+		return stateObject.CodeSize(s.Db)
 	}
 	return 0
 }
@@ -283,7 +283,7 @@ func (s *StateDB) GetCodeHash(addr common.Address) common.Hash {
 func (s *StateDB) GetState(addr common.Address, hash common.Hash) common.Hash {
 	stateObject := s.getStateObject(addr)
 	if stateObject != nil {
-		return stateObject.GetState(s.db, hash)
+		return stateObject.GetState(s.Db, hash)
 	}
 	return common.Hash{}
 }
@@ -320,14 +320,14 @@ func (s *StateDB) GetNodeByNibbles(a common.Address, key []byte) ([]byte, error)
 func (s *StateDB) GetCommittedState(addr common.Address, hash common.Hash) common.Hash {
 	stateObject := s.getStateObject(addr)
 	if stateObject != nil {
-		return stateObject.GetCommittedState(s.db, hash)
+		return stateObject.GetCommittedState(s.Db, hash)
 	}
 	return common.Hash{}
 }
 
 // Database retrieves the low level database supporting the lower level trie ops.
 func (s *StateDB) Database() Database {
-	return s.db
+	return s.Db
 }
 
 // StorageTrie returns the storage trie of an account.
@@ -338,8 +338,8 @@ func (s *StateDB) StorageTrie(addr common.Address) Trie {
 		return nil
 	}
 	cpy := stateObject.deepCopy(s)
-	cpy.updateTrie(s.db)
-	return cpy.getTrie(s.db)
+	cpy.updateTrie(s.Db)
+	return cpy.getTrie(s.Db)
 }
 
 func (s *StateDB) HasSuicided(addr common.Address) bool {
@@ -394,7 +394,7 @@ func (s *StateDB) SetCode(addr common.Address, code []byte) {
 func (s *StateDB) SetState(addr common.Address, key, value common.Hash) {
 	stateObject := s.GetOrNewStateObject(addr)
 	if stateObject != nil {
-		stateObject.SetState(s.db, key, value)
+		stateObject.SetState(s.Db, key, value)
 	}
 }
 
@@ -467,7 +467,7 @@ func (s *StateDB) deleteStateObject(obj *stateObject) {
 	// Delete the account from the trie
 	addr := obj.Address()
 	// Get absense proof of account in case the deletion needs the sister node.
-	oracle.PrefetchAccount(big.NewInt(s.db.BlockNumber.Int64()+1), addr, trie.GenPossibleShortNodePreimage)
+	oracle.PrefetchAccount(big.NewInt(s.Db.BlockNumber.Int64()+1), addr, trie.GenPossibleShortNodePreimage)
 	if err := s.trie.TryDelete(addr[:]); err != nil {
 		s.setError(fmt.Errorf("deleteStateObject (%x) error: %v", addr[:], err))
 	}
@@ -525,7 +525,7 @@ func (s *StateDB) getDeletedStateObject(addr common.Address) *stateObject {
 		if metrics.EnabledExpensive {
 			defer func(start time.Time) { s.AccountReads += time.Since(start) }(time.Now())
 		}
-		oracle.PrefetchAccount(s.db.BlockNumber, addr, nil)
+		oracle.PrefetchAccount(s.Db.BlockNumber, addr, nil)
 		enc, err := s.trie.TryGet(addr.Bytes())
 		if err != nil {
 			s.setError(fmt.Errorf("getDeleteStateObject (%x) error: %v", addr.Bytes(), err))
@@ -636,8 +636,8 @@ func (db *StateDB) ForEachStorage(addr common.Address, cb func(key, value common
 func (s *StateDB) Copy() *StateDB {
 	// Copy all the basic fields, initialize the memory ones
 	state := &StateDB{
-		db:                  s.db,
-		trie:                s.db.CopyTrie(s.trie),
+		Db:                  s.Db,
+		trie:                s.Db.CopyTrie(s.trie),
 		stateObjects:        make(map[common.Address]*stateObject, len(s.journal.dirties)),
 		stateObjectsPending: make(map[common.Address]struct{}, len(s.stateObjectsPending)),
 		stateObjectsDirty:   make(map[common.Address]struct{}, len(s.journal.dirties)),
@@ -834,7 +834,7 @@ func (s *StateDB) IntermediateRoot(deleteEmptyObjects bool) common.Hash {
 	// to pull useful data from disk.
 	for addr := range s.stateObjectsPending {
 		if obj := s.stateObjects[addr]; !obj.deleted {
-			obj.updateRoot(s.db)
+			obj.updateRoot(s.Db)
 		}
 	}
 	// Now we're about to start to write changes to the trie. The trie is so far
@@ -899,7 +899,7 @@ func (s *StateDB) Commit(deleteEmptyObjects bool) (common.Hash, error) {
 				fmt.Println("write code", common.BytesToHash(obj.CodeHash()))
 			}
 			// Write any storage changes in the state object to its storage trie
-			if err := obj.CommitTrie(s.db); err != nil {
+			if err := obj.CommitTrie(s.Db); err != nil {
 				return common.Hash{}, err
 			}
 		}

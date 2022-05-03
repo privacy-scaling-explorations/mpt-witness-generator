@@ -1613,6 +1613,26 @@ func TestUpdateTwoModifications(t *testing.T) {
 	UpdateStateAndGenProof("UpdateTwoModifications", ks[:], values, addresses, trieModifications)
 }
 
+func TestAddAccount(t *testing.T) {
+	blockNum := 1
+	blockNumberParent := big.NewInt(int64(blockNum))
+	blockHeaderParent := oracle.PrefetchBlock(blockNumberParent, true, nil)
+	database := state.NewDatabase(blockHeaderParent)
+	statedb, _ := state.New(blockHeaderParent.Root, database, nil)
+	
+	// addr := common.HexToAddress("0xaaaccf12580138bc2bbceeeaa111df4e42ab81ff")
+	addr := common.HexToAddress("0xaaaccf12580138bc2bbceeeaa111df4e42ab81ab")
+	statedb.IntermediateRoot(false)
+
+	trieMod := TrieModification{
+		Address: addr,
+    	Type: CreateAccount,
+	}
+	trieModifications := []TrieModification{trieMod}
+
+	GenerateProof("AddAccount", trieModifications, statedb)
+}
+
 /* TODO
 func TestOnlyAccount(t *testing.T) {
 	blockNum := 14209217

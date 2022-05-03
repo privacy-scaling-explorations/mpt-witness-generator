@@ -67,6 +67,7 @@ const (
 	NonceMod
 	BalanceMod
 	CodeHashMod
+	CreateAccount
 )
 
 type TrieModification struct {
@@ -358,7 +359,7 @@ func prepareExtensionRows(extNibbles[][]byte, extensionNodeInd int, proofEl1, pr
 	// into extensionRowC s_advices (we can do this because both extension
 	// nodes have the same key, so we can have this info only in one).
 	// There can be more up to 64 nibbles, but there is only 32 bytes
-	// in xtensionRowC s_advices. So we store every second nibble (having
+	// in extensionRowC s_advices. So we store every second nibble (having
 	// the whole byte and one nibble is enough to compute the other nibble).
 	startNibblePos := 2 // we don't need any nibbles for case keyLen = 1
 	if keyLen > 1 {
@@ -432,7 +433,7 @@ func prepareExtensionRow(witnessRow, proofEl []byte, setKey bool) {
 	}
 }
 
-func prepareLeafRows(row []byte, typ byte, valueIsZero bool) ([][]byte, []byte) {
+func prepareStorageLeafRows(row []byte, typ byte, valueIsZero bool) ([][]byte, []byte) {
 	// Avoid directly changing the row as it might introduce some bugs later on.
 	leaf1 := make([]byte, rowLen)
 	leaf2 := make([]byte, rowLen)
@@ -466,6 +467,12 @@ func prepareLeafRows(row []byte, typ byte, valueIsZero bool) ([][]byte, []byte) 
 
 	return [][]byte{leaf1, leaf2}, leafForHashing
 }
+
+/*
+func prepareAccountLeafRows(row []byte, typ byte, valueIsZero bool) ([][]byte, []byte) {
+
+}
+*/
 
 func prepareTwoBranchesWitness(branch1, branch2 []byte, key, branchC16, branchC1 byte, isBranchSPlaceholder, isBranchCPlaceholder bool) [][]byte {
 	rows := make([][]byte, 17)
@@ -545,24 +552,24 @@ func prepareTwoBranchesWitness(branch1, branch2 []byte, key, branchC16, branchC1
 	return rows
 }
 
-func prepareWitness(storageProof1, storageProof2, extNibbles [][]byte, key []byte, neighbourNode []byte, isAccountProof bool) ([][]byte, [][]byte, bool) {
+func prepareWitness(proof1, proof2, extNibbles [][]byte, key []byte, neighbourNode []byte, isAccountProof bool) ([][]byte, [][]byte, bool) {
 	rows := make([][]byte, 0)
 	toBeHashed := make([][]byte, 0)
 
-	minLen := len(storageProof1)
-	if len(storageProof2) < minLen {
-		minLen = len(storageProof2)
+	minLen := len(proof1)
+	if len(proof2) < minLen {
+		minLen = len(proof2)
 	}
 
 	keyIndex := 0
-	len1 := len(storageProof1)
-	len2 := len(storageProof2)
+	len1 := len(proof1)
+	len2 := len(proof2)
 
 	// When value in the trie is updated, both proofs are of the same length.
 	// When value is added and there is no node which needs to be changed
 	// into branch, one proof has a leaf and one doesn't have it.
 
-	// Check if the last proof element in the shorter proof in is a leaf -
+	// Check if the last proof element in the shorter proof is a leaf -
 	// if it is, then there is an additional branch.
 	additionalBranchNeeded := func(proofEl []byte) bool {
 		elems, _, err := rlp.SplitList(proofEl)
@@ -573,9 +580,9 @@ func prepareWitness(storageProof1, storageProof2, extNibbles [][]byte, key []byt
 
 	additionalBranch := false
 	if len1 < len2 && len1 > 0 { // len = 0 when trie trie is empty
-		additionalBranch = additionalBranchNeeded(storageProof1[len1-1])
+		additionalBranch = additionalBranchNeeded(proof1[len1-1])
 	} else if len2 < len1 && len2 > 0 {
-		additionalBranch = additionalBranchNeeded(storageProof2[len2-1])
+		additionalBranch = additionalBranchNeeded(proof2[len2-1])
 	}
 
 	upTo := minLen
@@ -590,25 +597,25 @@ func prepareWitness(storageProof1, storageProof2, extNibbles [][]byte, key []byt
 	branchC16 := byte(0); 
 	branchC1 := byte(1);
 	for i := 0; i < upTo; i++ {
-		elems, _, err := rlp.SplitList(storageProof1[i])
+		elems, _, err := rlp.SplitList(proof1[i])
 		if err != nil {
 			fmt.Println("decode error", err)
 		}
 
 		switch c, _ := rlp.CountValues(elems); c {
 		case 2:
-			if storageProof1[i][0] < 248 && i != len1 - 1 {
+			if proof1[i][0] < 248 && i != len1 - 1 {
 				var numberOfNibbles byte
-				numberOfNibbles, extensionRowS, extensionRowC = prepareExtensionRows(extNibbles, extensionNodeInd, storageProof1[i], storageProof2[i])
+				numberOfNibbles, extensionRowS, extensionRowC = prepareExtensionRows(extNibbles, extensionNodeInd, proof1[i], proof2[i])
 				keyIndex += int(numberOfNibbles)
 				extensionNodeInd++
 				continue
 			}
 
 			if isAccountProof {
-				l := len(storageProof1)
-				leafS := storageProof1[l-1]
-				leafC := storageProof2[l-1]
+				l := len(proof1)
+				leafS := proof1[l-1]
+				leafC := proof2[l-1]
 
 				// key is same for S and C
 				keyLen := int(leafS[2]) - 128
@@ -731,21 +738,21 @@ func prepareWitness(storageProof1, storageProof2, extNibbles [][]byte, key []byt
 				toBeHashed = append(toBeHashed, leafS)
 				toBeHashed = append(toBeHashed, leafC)
 			} else {
-				leafRows, leafForHashing := prepareLeafRows(storageProof1[i], 2, false) // leaf s
+				leafRows, leafForHashing := prepareStorageLeafRows(proof1[i], 2, false) // leaf s
 				rows = append(rows, leafRows...)
 				toBeHashed = append(toBeHashed, leafForHashing)
-				leafRows, leafForHashing = prepareLeafRows(storageProof2[i], 3, false) // leaf s
+				leafRows, leafForHashing = prepareStorageLeafRows(proof2[i], 3, false) // leaf s
 				rows = append(rows, leafRows...)
 				toBeHashed = append(toBeHashed, leafForHashing)
 			}
 		case 17:
 			switchC16 := true // If not extension node, switchC16 = true.
 			if extensionRowS != nil {
-				keyLen := getExtensionNodeKeyLen(storageProof1[i-1])
+				keyLen := getExtensionNodeKeyLen(proof1[i-1])
 				if keyLen == 1 {
 					switchC16 = false
 				} else {
-					if storageProof1[i-1][2] != 0 { // If even, switch16 = true.
+					if proof1[i-1][2] != 0 { // If even, switch16 = true.
 						switchC16 = false
 					}
 				}
@@ -760,7 +767,7 @@ func prepareWitness(storageProof1, storageProof2, extNibbles [][]byte, key []byt
 				}
 			}
 
-			bRows := prepareTwoBranchesWitness(storageProof1[i], storageProof2[i], key[keyIndex], branchC16, branchC1, false, false)
+			bRows := prepareTwoBranchesWitness(proof1[i], proof2[i], key[keyIndex], branchC16, branchC1, false, false)
 			keyIndex += 1
 
 			// extension node rows
@@ -771,7 +778,7 @@ func prepareWitness(storageProof1, storageProof2, extNibbles [][]byte, key []byt
 				// Set isExtension to 1 in branch init.
 				bRows[0][isExtensionPos] = 1
 
-				keyLen := getExtensionNodeKeyLen(storageProof1[i-1])
+				keyLen := getExtensionNodeKeyLen(proof1[i-1])
 				// TODO: remove old selectors below
 				// Set whether key extension nibbles are of even or odd length.
 				if keyLen == 1 {
@@ -781,7 +788,7 @@ func prepareWitness(storageProof1, storageProof2, extNibbles [][]byte, key []byt
 						bRows[0][isExtShortC1Pos] = 1
 					}
 				} else {
-					if storageProof1[i-1][2] == 0 {
+					if proof1[i-1][2] == 0 {
 						if branchC16 == 1 {
 							bRows[0][isExtLongEvenC16Pos] = 1
 						} else {
@@ -797,18 +804,19 @@ func prepareWitness(storageProof1, storageProof2, extNibbles [][]byte, key []byt
 				}
 
 				// adding extension nodes for hashing:
-				addForHashing(storageProof1[i-1], &toBeHashed)
-				addForHashing(storageProof2[i-1], &toBeHashed)
+				addForHashing(proof1[i-1], &toBeHashed)
+				addForHashing(proof2[i-1], &toBeHashed)
 			} else {
 				extRows := prepareEmptyExtensionRows()
 				bRows = append(bRows, extRows...)
 			}
 
 			rows = append(rows, bRows...)
-			addForHashing(storageProof1[i], &toBeHashed)
-			addForHashing(storageProof2[i], &toBeHashed)
+			addForHashing(proof1[i], &toBeHashed)
+			addForHashing(proof2[i], &toBeHashed)
 
 			// check the two branches
+			/* TODO: uncomment
 			if extensionNodeInd == 0 {
 				for k := 1; k < 17; k++ {
 					if k-1 == int(key[i]) {
@@ -821,6 +829,7 @@ func prepareWitness(storageProof1, storageProof2, extNibbles [][]byte, key []byt
 					}
 				}
 			}
+			*/
 		default:
 			fmt.Println("invalid number of list elements")
 		}
@@ -909,13 +918,13 @@ func prepareWitness(storageProof1, storageProof2, extNibbles [][]byte, key []byt
 				}
 			} else {
 				numNibbles, extensionRowS, extensionRowC :=
-					prepareExtensionRows(extNibbles, extensionNodeInd, storageProof1[len1 - 3], storageProof1[len1 - 3])
+					prepareExtensionRows(extNibbles, extensionNodeInd, proof1[len1 - 3], proof1[len1 - 3])
 				numberOfNibbles = int(numNibbles)
 				extRows = append(extRows, extensionRowS)
 				extRows = append(extRows, extensionRowC)
 
 				// adding extension node for hashing:
-				addForHashing(storageProof1[len1-3], &toBeHashed)
+				addForHashing(proof1[len1-3], &toBeHashed)
 
 				if numberOfNibbles % 2 == 0 {
 					if branchC16 == 1 {
@@ -928,14 +937,14 @@ func prepareWitness(storageProof1, storageProof2, extNibbles [][]byte, key []byt
 				}
 			}
 
-			addBranch(storageProof1[len1-2], storageProof1[len1-2], key[keyIndex + numberOfNibbles], true, branchC16, branchC1)
+			addBranch(proof1[len1-2], proof1[len1-2], key[keyIndex + numberOfNibbles], true, branchC16, branchC1)
 			rows = append(rows, extRows...)
 
-			leafRows, leafForHashing := prepareLeafRows(storageProof1[len1-1], 2, false)
+			leafRows, leafForHashing := prepareStorageLeafRows(proof1[len1-1], 2, false)
 			rows = append(rows, leafRows...)
 			toBeHashed = append(toBeHashed, leafForHashing)
 
-			leafRows, leafForHashing = prepareLeafRows(storageProof2[len2-1], 3, false)
+			leafRows, leafForHashing = prepareStorageLeafRows(proof2[len2-1], 3, false)
 			// We now get the first nibble of the leaf that was turned into branch.
 			// This first nibble presents the position of the leaf once it moved
 			// into the new branch.
@@ -974,7 +983,7 @@ func prepareWitness(storageProof1, storageProof2, extNibbles [][]byte, key []byt
 			// to check it, we add node RLP to toBeHashed
 			addForHashing(neighbourNode, &toBeHashed)
 
-			sLeafRows, _ := prepareLeafRows(neighbourNode, 15, false)
+			sLeafRows, _ := prepareStorageLeafRows(neighbourNode, 15, false)
 			// Neighbouring leaf - the leaf that used to be one level above,
 			// but it was "drifted down" when additional branch was added.
 			// Value (sLeafRows[1]) is not needed because we already have it
@@ -983,12 +992,12 @@ func prepareWitness(storageProof1, storageProof2, extNibbles [][]byte, key []byt
 		} else {
 			// We don't have a leaf in the shorter proof, but we will add it there
 			// as a placeholder.
-			leafRows, leafForHashing := prepareLeafRows(storageProof1[len1-1], 2, false)
+			leafRows, leafForHashing := prepareStorageLeafRows(proof1[len1-1], 2, false)
 			rows = append(rows, leafRows...)
 			toBeHashed = append(toBeHashed, leafForHashing)
 
 			// No leaf means value is 0, set valueIsZero = true:
-			leafRows, _ = prepareLeafRows(storageProof1[len1-1], 3, true)
+			leafRows, _ = prepareStorageLeafRows(proof1[len1-1], 3, true)
 			rows = append(rows, leafRows...)
 
 			pRows := preparePlaceholderRows()
@@ -1012,13 +1021,13 @@ func prepareWitness(storageProof1, storageProof2, extNibbles [][]byte, key []byt
 				}
 			} else { // diff is 2 when extension node is added
 				numNibbles, extensionRowS, extensionRowC :=
-					prepareExtensionRows(extNibbles, extensionNodeInd, storageProof2[len2 - 3], storageProof2[len2 - 3])
+					prepareExtensionRows(extNibbles, extensionNodeInd, proof2[len2 - 3], proof2[len2 - 3])
 				numberOfNibbles = int(numNibbles)
 				extRows = append(extRows, extensionRowS)
 				extRows = append(extRows, extensionRowC)
 
 				// adding extension node for hashing:
-				addForHashing(storageProof2[len2-3], &toBeHashed)
+				addForHashing(proof2[len2-3], &toBeHashed)
 
 				if numberOfNibbles % 2 == 0 {
 					if branchC16 == 1 {
@@ -1031,14 +1040,14 @@ func prepareWitness(storageProof1, storageProof2, extNibbles [][]byte, key []byt
 				}
 			}
 
-			addBranch(storageProof2[len2-2], storageProof2[len2-2], key[keyIndex + numberOfNibbles], false, branchC16, branchC1)
+			addBranch(proof2[len2-2], proof2[len2-2], key[keyIndex + numberOfNibbles], false, branchC16, branchC1)
 			rows = append(rows, extRows...)
 
 			// Note that this is not just reversed order compared to
 			// len1 > len2 case - the first leaf is always from proof S
 			// (the order of leaves at the end is always: first S, then C).
 
-			leafRows, leafForHashing := prepareLeafRows(storageProof1[len1-1], 2, false)
+			leafRows, leafForHashing := prepareStorageLeafRows(proof1[len1-1], 2, false)
 			// We now get the first nibble of the leaf that was turned into branch.
 			// This first nibble presents the position of the leaf once it moved
 			// into the new branch.
@@ -1072,7 +1081,7 @@ func prepareWitness(storageProof1, storageProof2, extNibbles [][]byte, key []byt
 			rows = append(rows, leafRows...)
 			toBeHashed = append(toBeHashed, leafForHashing)
 
-			leafRows, leafForHashing = prepareLeafRows(storageProof2[len2-1], 3, false)
+			leafRows, leafForHashing = prepareStorageLeafRows(proof2[len2-1], 3, false)
 			rows = append(rows, leafRows...)
 			toBeHashed = append(toBeHashed, leafForHashing)
 
@@ -1080,7 +1089,7 @@ func prepareWitness(storageProof1, storageProof2, extNibbles [][]byte, key []byt
 			// to check it, we add node RLP to toBeHashed
 			addForHashing(neighbourNode, &toBeHashed)
 			
-			sLeafRows, _ := prepareLeafRows(neighbourNode, 15, false)
+			sLeafRows, _ := prepareStorageLeafRows(neighbourNode, 15, false)
 			// Neighbouring leaf - the leaf that used to be one level above,
 			// but it was "drifted down" when additional branch was added.
 			// Value (sLeafRows[1]) is not needed because we already have it
@@ -1088,11 +1097,11 @@ func prepareWitness(storageProof1, storageProof2, extNibbles [][]byte, key []byt
 			rows = append(rows, sLeafRows[0])
 		} else {
 			// No leaf means value is 0, set valueIsZero = true:
-			leafRows, leafForHashing := prepareLeafRows(storageProof2[len2-1], 2, true)
+			leafRows, leafForHashing := prepareStorageLeafRows(proof2[len2-1], 2, true)
 			rows = append(rows, leafRows...)
 			toBeHashed = append(toBeHashed, leafForHashing)
 
-			leafRows, _ = prepareLeafRows(storageProof2[len2-1], 3, false)
+			leafRows, _ = prepareStorageLeafRows(proof2[len2-1], 3, false)
 			rows = append(rows, leafRows...)
 
 			pRows := preparePlaceholderRows()
@@ -1170,6 +1179,12 @@ func prepareAccountProof(i int, tMod TrieModification, tModsLen int, statedb *st
 	addr := tMod.Address
 	addrh := crypto.Keccak256(addr.Bytes())
 	accountAddr := trie.KeybytesToHex(addrh)
+
+	// TODO:
+	if tMod.Type == CreateAccount {
+		oracle.PrefetchAccount(statedb.Db.BlockNumber, tMod.Address, nil)
+	}
+
 	accountProof, _, _, err := statedb.GetProof(addr)
 	check(err)
 
@@ -1187,6 +1202,8 @@ func prepareAccountProof(i int, tMod TrieModification, tModsLen int, statedb *st
 		statedb.SetBalance(addr, tMod.Balance)
 	} else if tMod.Type == CodeHashMod {
 		statedb.SetCode(addr, tMod.CodeHash)
+	} else if tMod.Type == CreateAccount {
+		statedb.CreateAccount(tMod.Address)
 	}
 
 	statedb.IntermediateRoot(false)
