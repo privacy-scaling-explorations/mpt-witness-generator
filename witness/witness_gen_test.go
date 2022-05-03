@@ -1620,7 +1620,6 @@ func TestAddAccount(t *testing.T) {
 	database := state.NewDatabase(blockHeaderParent)
 	statedb, _ := state.New(blockHeaderParent.Root, database, nil)
 	
-	// addr := common.HexToAddress("0xaaaccf12580138bc2bbceeeaa111df4e42ab81ff")
 	addr := common.HexToAddress("0xaaaccf12580138bc2bbceeeaa111df4e42ab81ab")
 	statedb.IntermediateRoot(false)
 
@@ -1632,6 +1631,27 @@ func TestAddAccount(t *testing.T) {
 
 	GenerateProof("AddAccount", trieModifications, statedb)
 }
+
+/*
+func TestDeleteAccount(t *testing.T) {
+	blockNum := 1
+	blockNumberParent := big.NewInt(int64(blockNum))
+	blockHeaderParent := oracle.PrefetchBlock(blockNumberParent, true, nil)
+	database := state.NewDatabase(blockHeaderParent)
+	statedb, _ := state.New(blockHeaderParent.Root, database, nil)
+	
+	addr := common.HexToAddress("0xaaaccf12580138bc2bbceeeaa111df4e42ab81ab")
+	statedb.IntermediateRoot(false)
+
+	trieMod := TrieModification{
+		Address: addr,
+    	Type: CreateAccount,
+	}
+	trieModifications := []TrieModification{trieMod}
+
+	GenerateProof("DeleteAccount", trieModifications, statedb)
+}
+*/
 
 /* TODO
 func TestOnlyAccount(t *testing.T) {
