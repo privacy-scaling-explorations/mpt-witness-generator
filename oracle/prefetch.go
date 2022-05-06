@@ -76,8 +76,8 @@ type Account struct {
 	CodeHash []byte
 }
 
-//var NodeUrl = "http://192.168.1.213:8545"
 var NodeUrl = "https://mainnet.infura.io/v3/9aa3d95b3bc440fa88ea12eaa4456161"
+// var NodeUrl = "http://localhost:8545"
 
 func toFilename(key string) string {
 	return fmt.Sprintf("/tmp/eth/json_%s", key)

@@ -469,24 +469,28 @@ func prepareStorageLeafRows(row []byte, typ byte, valueIsZero bool) ([][]byte, [
 	return [][]byte{leaf1, leaf2}, leafForHashing
 }
 
-func prepareAccountLeafRows(leafS, leafC []byte) ([]byte, []byte, []byte, []byte, []byte) {	
-	// key is same for S and C
-	keyLen := int(leafS[2]) - 128
-	keyRow := make([]byte, rowLen)
-	for i := 0; i < 3+keyLen; i++ {
-		keyRow[i] = leafS[i]
+func prepareAccountLeafRows(leafS, leafC []byte) ([]byte, []byte, []byte, []byte, []byte, []byte) {	
+	keyLenS := int(leafS[2]) - 128
+	keyLenC := int(leafC[2]) - 128
+	keyRowS := make([]byte, rowLen)
+	keyRowC := make([]byte, rowLen)
+	for i := 0; i < 3+keyLenS; i++ {
+		keyRowS[i] = leafS[i]
+	}
+	for i := 0; i < 3+keyLenC; i++ {
+		keyRowC[i] = leafC[i]
 	}
 
-	rlpStringSecondPartLenS := leafS[3+keyLen] - 183
+	rlpStringSecondPartLenS := leafS[3+keyLenS] - 183
 	if rlpStringSecondPartLenS != 1 {
 		panic("Account leaf RLP at this position should be 1 (S)")
 	}
-	rlpStringSecondPartLenC := leafC[3+keyLen] - 183
+	rlpStringSecondPartLenC := leafC[3+keyLenC] - 183
 	if rlpStringSecondPartLenC != 1 {
 		panic("Account leaf RLP at this position should be 1 (C)")
 	}
-	rlpStringLenS := leafS[3+keyLen+1]
-	rlpStringLenC := leafC[3+keyLen+1]
+	rlpStringLenS := leafS[3+keyLenS+1]
+	rlpStringLenC := leafC[3+keyLenC+1]
 
 	// [248,112,157,59,158,160,175,159,65,212,107,23,98,208,38,205,150,63,244,2,185,236,246,95,240,224,191,229,27,102,202,231,184,80,248,78
 	// In this example RLP, there are first 36 bytes of a leaf.
@@ -497,37 +501,78 @@ func prepareAccountLeafRows(leafS, leafC []byte) ([]byte, []byte, []byte, []byte
 	// 248 - 247 = 1 means length of the second part of a list.
 	// 78 means length of a list.
 
-	rlpListSecondPartLenS := leafS[3+keyLen+1+1] - 247
+	rlpListSecondPartLenS := leafS[3+keyLenS+1+1] - 247
 	if rlpListSecondPartLenS != 1 {
 		panic("Account leaf RLP 1 (S)")
 	}
-	rlpListSecondPartLenC := leafC[3+keyLen+1+1] - 247
+	rlpListSecondPartLenC := leafC[3+keyLenC+1+1] - 247
 	if rlpListSecondPartLenC != 1 {
 		panic("Account leaf RLP 1 (C)")
 	}
 
-	rlpListLenS := leafS[3+keyLen+1+1+1]
+	rlpListLenS := leafS[3+keyLenS+1+1+1]
 	if rlpStringLenS != rlpListLenS+2 {
 		panic("Account leaf RLP 2 (S)")
 	}
 
-	rlpListLenC := leafC[3+keyLen+1+1+1]
+	rlpListLenC := leafC[3+keyLenC+1+1+1]
 	if rlpStringLenC != rlpListLenC+2 {
 		panic("Account leaf RLP 2 (C)")
 	}
 
-	nonceStart := 3 + keyLen + 1 + 1 + 1 + 1
-	nonceRlpLenS := leafS[nonceStart] - 128
-	nonceS := leafS[nonceStart : nonceStart+int(nonceRlpLenS)+1]
-	nonceRlpLenC := leafC[nonceStart] - 128
-	nonceC := leafC[nonceStart : nonceStart+int(nonceRlpLenC)+1]
+	nonceStartS := 3 + keyLenS + 1 + 1 + 1 + 1
+	nonceStartC := 3 + keyLenC + 1 + 1 + 1 + 1
 
-	balanceStartS := nonceStart + int(nonceRlpLenS) + 1
-	balanceRlpLenS := leafS[balanceStartS] - 128
-	balanceStartC := nonceStart + int(nonceRlpLenC) + 1
-	balanceRlpLenC := leafC[balanceStartC] - 128
+	// TODO: this requires branching in the circuit too
+	var nonceRlpLenS byte
+	var nonceRlpLenC byte
+	var balanceStartS int
+	var balanceStartC int
+	var nonceS []byte
+	var nonceC []byte
+	if leafS[nonceStartS] < 128 {
+		// only one nonce byte
+		nonceRlpLenS = 1
+		nonceS = leafS[nonceStartS : nonceStartS+int(nonceRlpLenS)]
+		balanceStartS = nonceStartS + int(nonceRlpLenS)
+	} else {
+		nonceRlpLenS = leafS[nonceStartS] - 128
+		nonceS = leafS[nonceStartS : nonceStartS+int(nonceRlpLenS)+1]
+		balanceStartS = nonceStartS + int(nonceRlpLenS) + 1
+	}
+	if leafC[nonceStartC] < 128 {
+		// only one nonce byte
+		nonceRlpLenC = 1
+		nonceC = leafC[nonceStartC : nonceStartC+int(nonceRlpLenC)]
+		balanceStartC = nonceStartC + int(nonceRlpLenC)
+	} else {
+		nonceRlpLenC = leafC[nonceStartC] - 128
+		nonceC = leafC[nonceStartC : nonceStartC+int(nonceRlpLenC)+1]
+		balanceStartC = nonceStartC + int(nonceRlpLenC) + 1
+	}
 
-	getNonceBalanceRow := func(leaf, nonce []byte, balanceStart int, balanceRlpLen byte) []byte {
+	var balanceRlpLenS byte
+	var balanceRlpLenC byte
+	var storageStartS int
+	var storageStartC int
+	if leafS[balanceStartS] < 128 {
+		// only one balance byte
+		balanceRlpLenS = 1
+		storageStartS = balanceStartS + int(balanceRlpLenS)
+	} else {
+		balanceRlpLenS = leafS[balanceStartS] - 128
+		storageStartS = balanceStartS + int(balanceRlpLenS) + 1
+	}
+	if leafC[balanceStartC] < 128 {
+		// only one balance byte
+		balanceRlpLenC = 1
+		storageStartC = balanceStartC + int(balanceRlpLenC)
+	} else {
+		balanceRlpLenC = leafC[balanceStartC] - 128
+		storageStartC = balanceStartC + int(balanceRlpLenC) + 1
+	}
+
+	getNonceBalanceRow := func(leaf, nonce []byte, keyLen, balanceStart int, balanceRlpLen byte) []byte {
 		nonceBalanceRow := make([]byte, rowLen)
 		for i := 0; i < len(nonce); i++ {
 			nonceBalanceRow[branchNodeRLPLen+i] = nonce[i]
@@ -536,7 +581,12 @@ func prepareAccountLeafRows(leafS, leafC []byte) ([]byte, []byte, []byte, []byte
 		nonceBalanceRow[1] = leaf[3+keyLen+1]
 		nonceBalanceRow[branch2start] = leaf[3+keyLen+1+1]
 		nonceBalanceRow[branch2start+1] = leaf[3+keyLen+1+1+1]
-		balance := leaf[balanceStart : balanceStart+int(balanceRlpLen)+1]
+		var balance []byte
+		if balanceRlpLen == 1 {
+			balance = leaf[balanceStart : balanceStart+int(balanceRlpLen)]
+		} else {
+			balance = leaf[balanceStart : balanceStart+int(balanceRlpLen)+1]
+		}
 		for i := 0; i < len(balance); i++ {
 			nonceBalanceRow[branch2start+2+i] = balance[i] // c_advices
 		}
@@ -544,12 +594,11 @@ func prepareAccountLeafRows(leafS, leafC []byte) ([]byte, []byte, []byte, []byte
 		return nonceBalanceRow
 	}
 	
-	nonceBalanceRowS := getNonceBalanceRow(leafS, nonceS, balanceStartS, balanceRlpLenS)
-	nonceBalanceRowC := getNonceBalanceRow(leafC, nonceC, balanceStartC, balanceRlpLenC)
+	nonceBalanceRowS := getNonceBalanceRow(leafS, nonceS, keyLenS, balanceStartS, balanceRlpLenS)
+	nonceBalanceRowC := getNonceBalanceRow(leafC, nonceC, keyLenC, balanceStartC, balanceRlpLenC)
 
-	getStorageCodeHashRow := func(leaf []byte, balanceStart int, balanceRlpLen byte) []byte {
+	getStorageCodeHashRow := func(leaf []byte, storageStart int) []byte {
 		storageCodeHashRow := make([]byte, rowLen)
-		storageStart := balanceStart + int(balanceRlpLen) + 1
 		storageRlpLen := leaf[storageStart] - 128
 		if storageRlpLen != 32 {
 			panic("Account leaf RLP 3")
@@ -571,16 +620,16 @@ func prepareAccountLeafRows(leafS, leafC []byte) ([]byte, []byte, []byte, []byte
 		return storageCodeHashRow
 	}
 
-	storageCodeHashRowS := getStorageCodeHashRow(leafS, balanceStartS, balanceRlpLenS)
-	storageCodeHashRowC := getStorageCodeHashRow(leafC, balanceStartC, balanceRlpLenC)
+	storageCodeHashRowS := getStorageCodeHashRow(leafS, storageStartS)
+	storageCodeHashRowC := getStorageCodeHashRow(leafC, storageStartC)
 
-	keyRow = append(keyRow, 6)
+	keyRowS = append(keyRowS, 6)
 	nonceBalanceRowS = append(nonceBalanceRowS, 7)
 	nonceBalanceRowC = append(nonceBalanceRowC, 8)
 	storageCodeHashRowS = append(storageCodeHashRowS, 9)
 	storageCodeHashRowC = append(storageCodeHashRowC, 11)
 
-	return keyRow, nonceBalanceRowS, nonceBalanceRowC, storageCodeHashRowS, storageCodeHashRowC
+	return keyRowS, keyRowC, nonceBalanceRowS, nonceBalanceRowC, storageCodeHashRowS, storageCodeHashRowC
 }
 
 func prepareTwoBranchesWitness(branch1, branch2 []byte, key, branchC16, branchC1 byte, isBranchSPlaceholder, isBranchCPlaceholder bool) [][]byte {
@@ -726,10 +775,11 @@ func prepareWitness(proof1, proof2, extNibbles [][]byte, key []byte, neighbourNo
 				leafS := proof1[l-1]
 				leafC := proof2[l-1]
 
-				keyRow, nonceBalanceRowS, nonceBalanceRowC, storageCodeHashRowS, storageCodeHashRowC :=
+				keyRowS, keyRowC, nonceBalanceRowS, nonceBalanceRowC, storageCodeHashRowS, storageCodeHashRowC :=
 					prepareAccountLeafRows(leafS, leafC)
 				
-				rows = append(rows, keyRow)
+				rows = append(rows, keyRowS)
+				rows = append(rows, keyRowC)
 				rows = append(rows, nonceBalanceRowS)
 				rows = append(rows, nonceBalanceRowC)
 				rows = append(rows, storageCodeHashRowS)
@@ -939,11 +989,32 @@ func prepareWitness(proof1, proof2, extNibbles [][]byte, key []byte, neighbourNo
 			addBranch(proof1[len1-2], proof1[len1-2], key[keyIndex + numberOfNibbles], true, branchC16, branchC1)
 			rows = append(rows, extRows...)
 
-			leafRows, leafForHashing := prepareStorageLeafRows(proof1[len1-1], 2, false)
-			rows = append(rows, leafRows...)
-			toBeHashed = append(toBeHashed, leafForHashing)
 
-			leafRows, leafForHashing = prepareStorageLeafRows(proof2[len2-1], 3, false)
+			var leafRows [][]byte
+			var leafForHashing [][]byte
+			if isAccountProof {
+				leafS := proof1[len1-1]
+				leafC := proof2[len2-1]
+
+				keyRowS, keyRowC, nonceBalanceRowS, nonceBalanceRowC, storageCodeHashRowS, storageCodeHashRowC :=
+					prepareAccountLeafRows(leafS, leafC)
+				leafRows = append(leafRows, keyRowS)
+				leafRows = append(leafRows, keyRowC)
+				leafRows = append(leafRows, nonceBalanceRowS)
+				leafRows = append(leafRows, nonceBalanceRowC)
+				leafRows = append(leafRows, storageCodeHashRowS)
+				leafRows = append(leafRows, storageCodeHashRowC)
+
+				leafS = append(leafS, 5)
+				leafC = append(leafC, 5)
+				leafForHashing = append(leafForHashing, leafS)
+				leafForHashing = append(leafForHashing, leafC)
+			} else {
+				var leafForHashingS []byte
+				leafRows, leafForHashingS = prepareStorageLeafRows(proof1[len1-1], 2, false)
+				leafForHashing = append(leafForHashing, leafForHashingS)
+			}
+
 			// We now get the first nibble of the leaf that was turned into branch.
 			// This first nibble presents the position of the leaf once it moved
 			// into the new branch.
@@ -975,19 +1046,34 @@ func prepareWitness(proof1, proof2, extNibbles [][]byte, key []byte, neighbourNo
 					}
 				}
 			}
-			rows = append(rows, leafRows...)
-			toBeHashed = append(toBeHashed, leafForHashing)
+			toBeHashed = append(toBeHashed, leafForHashing...)
+			// All account leaf rows already generated above, for storage leaf only S is generated above.
+			if isAccountProof {
+				rows = append(rows, leafRows...)
+			} else {
+				rows = append(rows, leafRows...)
+				var leafForHashingC []byte
+				leafRows, leafForHashingC = prepareStorageLeafRows(proof2[len2-1], 3, false)
+				rows = append(rows, leafRows...)
+				toBeHashed = append(toBeHashed, leafForHashingC)
+			}
 
 			// The branch contains hash of the neighbouring leaf, to be able
 			// to check it, we add node RLP to toBeHashed
 			addForHashing(neighbourNode, &toBeHashed)
 
-			sLeafRows, _ := prepareStorageLeafRows(neighbourNode, 15, false)
 			// Neighbouring leaf - the leaf that used to be one level above,
 			// but it was "drifted down" when additional branch was added.
-			// Value (sLeafRows[1]) is not needed because we already have it
+			// Only key is needed because we already have the value (it doesn't change)
 			// in the parallel proof.
-			rows = append(rows, sLeafRows[0])
+			if isAccountProof {
+				keyRowS, _, _, _, _, _ :=
+					prepareAccountLeafRows(neighbourNode, neighbourNode)
+				rows = append(rows, keyRowS)
+			} else {
+				sLeafRows, _ := prepareStorageLeafRows(neighbourNode, 15, false)
+				rows = append(rows, sLeafRows[0])
+			}
 		} else {
 			// We don't have a leaf in the shorter proof, but we will add it there
 			// as a placeholder.
@@ -995,10 +1081,11 @@ func prepareWitness(proof1, proof2, extNibbles [][]byte, key []byte, neighbourNo
 				leafS := proof1[len1-1]
 				leafC := proof1[len1-1] // placeholder
 
-				keyRow, nonceBalanceRowS, nonceBalanceRowC, storageCodeHashRowS, storageCodeHashRowC :=
+				keyRowS, keyRowC, nonceBalanceRowS, nonceBalanceRowC, storageCodeHashRowS, storageCodeHashRowC :=
 					prepareAccountLeafRows(leafS, leafC)
 				
-				rows = append(rows, keyRow)
+				rows = append(rows, keyRowS)
+				rows = append(rows, keyRowC)
 				rows = append(rows, nonceBalanceRowS)
 				rows = append(rows, nonceBalanceRowC)
 				rows = append(rows, storageCodeHashRowS)
@@ -1064,8 +1151,33 @@ func prepareWitness(proof1, proof2, extNibbles [][]byte, key []byte, neighbourNo
 			// Note that this is not just reversed order compared to
 			// len1 > len2 case - the first leaf is always from proof S
 			// (the order of leaves at the end is always: first S, then C).
+			// TODO: write some functions to avoid having almost the same code twice nevertheless
 
-			leafRows, leafForHashing := prepareStorageLeafRows(proof1[len1-1], 2, false)
+			var leafRows [][]byte
+			var leafForHashing [][]byte
+			if isAccountProof {
+				leafS := proof1[len1-1]
+				leafC := proof2[len2-1]
+
+				keyRowS, keyRowC, nonceBalanceRowS, nonceBalanceRowC, storageCodeHashRowS, storageCodeHashRowC :=
+					prepareAccountLeafRows(leafS, leafC)
+				leafRows = append(leafRows, keyRowS)
+				leafRows = append(leafRows, keyRowC)
+				leafRows = append(leafRows, nonceBalanceRowS)
+				leafRows = append(leafRows, nonceBalanceRowC)
+				leafRows = append(leafRows, storageCodeHashRowS)
+				leafRows = append(leafRows, storageCodeHashRowC)
+
+				leafS = append(leafS, 5)
+				leafC = append(leafC, 5)
+				leafForHashing = append(leafForHashing, leafS)
+				leafForHashing = append(leafForHashing, leafC)
+			} else {
+				var leafForHashingS []byte
+				leafRows, leafForHashingS = prepareStorageLeafRows(proof1[len1-1], 2, false)
+				leafForHashing = append(leafForHashing, leafForHashingS)
+			}
+
 			// We now get the first nibble of the leaf that was turned into branch.
 			// This first nibble presents the position of the leaf once it moved
 			// into the new branch.
@@ -1073,7 +1185,6 @@ func prepareWitness(proof1, proof2, extNibbles [][]byte, key []byte, neighbourNo
 			if isExtension {
 				rows[len(rows)-branchRows][isExtensionPos] = 1
 
-				// new selectors:
 				if numberOfNibbles == 1 {
 					if branchC16 == 1 {
 						rows[len(rows)-branchRows][isExtShortC16Pos] = 1
@@ -1096,33 +1207,46 @@ func prepareWitness(proof1, proof2, extNibbles [][]byte, key []byte, neighbourNo
 					}
 				}
 			}
-			rows = append(rows, leafRows...)
-			toBeHashed = append(toBeHashed, leafForHashing)
 
-			leafRows, leafForHashing = prepareStorageLeafRows(proof2[len2-1], 3, false)
-			rows = append(rows, leafRows...)
-			toBeHashed = append(toBeHashed, leafForHashing)
+			toBeHashed = append(toBeHashed, leafForHashing...)
+			// All account leaf rows already generated above, for storage leaf only S is generated above.
+			if isAccountProof {
+				rows = append(rows, leafRows...)
+			} else {
+				rows = append(rows, leafRows...)
+				var leafForHashingC []byte
+				leafRows, leafForHashingC = prepareStorageLeafRows(proof2[len2-1], 3, false)
+				rows = append(rows, leafRows...)
+				toBeHashed = append(toBeHashed, leafForHashingC)
+			}
 
 			// The branch contains hash of the neighbouring leaf, to be able
 			// to check it, we add node RLP to toBeHashed
 			addForHashing(neighbourNode, &toBeHashed)
 			
-			sLeafRows, _ := prepareStorageLeafRows(neighbourNode, 15, false)
 			// Neighbouring leaf - the leaf that used to be one level above,
 			// but it was "drifted down" when additional branch was added.
-			// Value (sLeafRows[1]) is not needed because we already have it
+			// Only key is needed because we already have the value (it doesn't change)
 			// in the parallel proof.
-			rows = append(rows, sLeafRows[0])
+			if isAccountProof {
+				keyRowS, _, _, _, _, _ :=
+					prepareAccountLeafRows(neighbourNode, neighbourNode)
+				rows = append(rows, keyRowS)
+			} else {
+				sLeafRows, _ := prepareStorageLeafRows(neighbourNode, 15, false)
+				rows = append(rows, sLeafRows[0])
+			}
 		} else {
 			// No leaf means value is 0, set valueIsZero = true:
 			if isAccountProof {
 				leafC := proof2[len2-1]
 				leafS := proof2[len2-1] // placeholder
 
-				keyRow, nonceBalanceRowS, nonceBalanceRowC, storageCodeHashRowS, storageCodeHashRowC :=
+				keyRowS, keyRowC, nonceBalanceRowS, nonceBalanceRowC, storageCodeHashRowS, storageCodeHashRowC :=
 					prepareAccountLeafRows(leafS, leafC)
 				
-				rows = append(rows, keyRow)
+				rows = append(rows, keyRowS)
+				rows = append(rows, keyRowC)
 				rows = append(rows, nonceBalanceRowS)
 				rows = append(rows, nonceBalanceRowC)
 				rows = append(rows, storageCodeHashRowS)
@@ -1226,7 +1350,7 @@ func prepareAccountProof(i int, tMod TrieModification, tModsLen int, statedb *st
 		oracle.PrefetchAccount(statedb.Db.BlockNumber, tMod.Address, nil)
 	}
 
-	accountProof, _, _, err := statedb.GetProof(addr)
+	accountProof, aNeighbourNode1, aExtNibbles1, err := statedb.GetProof(addr)
 	check(err)
 
 	var startRoot common.Hash
@@ -1256,11 +1380,19 @@ func prepareAccountProof(i int, tMod TrieModification, tModsLen int, statedb *st
 		finalRoot = cRoot
 	}
 
-	accountProof1, _, extNibblesAccount, err := statedb.GetProof(addr)
+	accountProof1, aNeighbourNode2, aExtNibbles2, err := statedb.GetProof(addr)
 	check(err)
+
+	aNode := aNeighbourNode2
+	aExtNibbles := aExtNibbles2
+	if len(accountProof) > len(accountProof1) {
+		// delete operation
+		aNode = aNeighbourNode1
+		aExtNibbles = aExtNibbles1
+	}
 	
 	rowsState, toBeHashedAcc, _ :=
-		prepareWitness(accountProof, accountProof1, extNibblesAccount, accountAddr, nil, true)
+		prepareWitness(accountProof, accountProof1, aExtNibbles, accountAddr, aNode, true)
 	proof := prepareProof(i, rowsState, addrh, sRoot, cRoot, startRoot, finalRoot, tMod.Type)
 
 	return proof, toBeHashedAcc
@@ -1282,7 +1414,7 @@ func getProof(trieModifications []TrieModification, statedb *state.StateDB) [][]
 			addr := tMod.Address
 			addrh := crypto.Keccak256(addr.Bytes())
 			accountAddr := trie.KeybytesToHex(addrh)
-			accountProof, _, _, err := statedb.GetProof(addr)
+			accountProof, aNeighbourNode1, aExtNibbles1, err := statedb.GetProof(addr)
 			check(err)
 			storageProof, neighbourNode1, extNibbles1, err := statedb.GetStorageProof(addr, tMod.Key)
 			check(err)
@@ -1300,11 +1432,19 @@ func getProof(trieModifications []TrieModification, statedb *state.StateDB) [][]
 				finalRoot = cRoot
 			}
 
-			accountProof1, _, extNibblesAccount, err := statedb.GetProof(addr)
+			accountProof1, aNeighbourNode2, aExtNibbles2, err := statedb.GetProof(addr)
 			check(err)
 
 			storageProof1, neighbourNode2, extNibbles2, err := statedb.GetStorageProof(addr, tMod.Key)
 			check(err)
+
+			aNode := aNeighbourNode2
+			aExtNibbles := aExtNibbles2
+			if len(accountProof) > len(accountProof1) {
+				// delete operation
+				aNode = aNeighbourNode1
+				aExtNibbles = aExtNibbles1
+			}
 
 			node := neighbourNode2
 			extNibbles := extNibbles2
@@ -1315,7 +1455,7 @@ func getProof(trieModifications []TrieModification, statedb *state.StateDB) [][]
 			}
 			
 			rowsState, toBeHashedAcc, _ :=
-				prepareWitness(accountProof, accountProof1, extNibblesAccount, accountAddr, nil, true)
+				prepareWitness(accountProof, accountProof1, aExtNibbles, accountAddr, aNode, true)
 			rowsStorage, toBeHashedStorage, _ :=
 				prepareWitness(storageProof, storageProof1, extNibbles, keyHashed, node, false)
 			rowsState = append(rowsState, rowsStorage...)

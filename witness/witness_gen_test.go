@@ -1652,6 +1652,51 @@ func TestDeleteAccount(t *testing.T) {
 	GenerateProof("DeleteAccount", trieModifications, statedb)
 }
 
+/*
+func TestFindAccountWithPlaceholderBranch(t *testing.T) {
+	blockNum := 13284469
+	blockNumberParent := big.NewInt(int64(blockNum))
+	blockHeaderParent := oracle.PrefetchBlock(blockNumberParent, true, nil)
+	database := state.NewDatabase(blockHeaderParent)
+	statedb, _ := state.New(blockHeaderParent.Root, database, nil)
+	
+	for i := 0; i < 100; i++ {
+		h := fmt.Sprintf("0x%d", i)
+		addr := common.HexToAddress(h)
+		oracle.PrefetchAccount(statedb.Db.BlockNumber, addr, nil)
+
+		accountProof, _, _, _ := statedb.GetProof(addr)
+		statedb.CreateAccount(addr)
+		statedb.IntermediateRoot(false)
+		accountProof1, _, _, _ := statedb.GetProof(addr)
+
+		if len(accountProof1) == len(accountProof) + 2 {
+			fmt.Println("a;lskdfja;slkdfj")
+		}
+	}
+}
+*/
+
+func TestAddAccountPlaceholderExtension(t *testing.T) {
+	blockNum := 13284469
+	blockNumberParent := big.NewInt(int64(blockNum))
+	blockHeaderParent := oracle.PrefetchBlock(blockNumberParent, true, nil)
+	database := state.NewDatabase(blockHeaderParent)
+	statedb, _ := state.New(blockHeaderParent.Root, database, nil)
+	
+	i := 40
+	h := fmt.Sprintf("0x%d", i)
+	addr := common.HexToAddress(h)
+
+	trieMod := TrieModification{
+		Address: addr,
+    	Type: CreateAccount,
+	}
+	trieModifications := []TrieModification{trieMod}
+
+	GenerateProof("AddAccountPlaceholderExtension", trieModifications, statedb)
+}
+
 /* TODO
 func TestOnlyAccount(t *testing.T) {
 	blockNum := 14209217
