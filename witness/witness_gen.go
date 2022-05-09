@@ -49,9 +49,11 @@ Info about row type (given as the last element of the row):
 3: storage leaf c key
 5: hash to be computed (for example branch RLP whose hash needs to be checked in the parent)
 6: account leaf key S
+4: account leaf key C
 7: account leaf nonce balance S
 8: account leaf nonce balance C
 9: account leaf root codehash S
+10: account leaf neighbouring leaf
 11: account leaf root codehash C
 13: storage leaf s value
 14: storage leaf c value
@@ -112,17 +114,6 @@ func listToJson(row []byte) string {
 	json += "]"
 
 	return json
-}
-
-func computeRLC(stream []byte) int {
-	sum := 0
-	mult := 1
-	for i := 0; i < len(stream); i++ {
-		sum += int(stream[i]) * mult
-		mult *= 2 // just some value that is not 1 to enable testing the multiplier too
-	}
-
-	return sum
 }
 
 // Equip proof with intermediate state roots, first level info, counter, address RLC,
@@ -311,11 +302,15 @@ func prepareBranchWitness(rows [][]byte, branch []byte, branchStart int, branchR
 	}
 }
 
-func preparePlaceholderRows() [][]byte {
-	leaf_in_added_branch := make([]byte, rowLen)
-	leaf_in_added_branch = append(leaf_in_added_branch, 15)
+func prepareDriftedLeafPlaceholder(isAccount bool) [][]byte {
+	driftedLeaf := make([]byte, rowLen)
+	if isAccount {
+		driftedLeaf = append(driftedLeaf, 10)
+	} else {
+		driftedLeaf = append(driftedLeaf, 15)
+	}
 
-	return [][]byte{leaf_in_added_branch}
+	return [][]byte{driftedLeaf}
 }
 
 func addForHashing(toBeHashed []byte, toBeHashedCollection *[][]byte) {
@@ -624,6 +619,7 @@ func prepareAccountLeafRows(leafS, leafC []byte) ([]byte, []byte, []byte, []byte
 	storageCodeHashRowC := getStorageCodeHashRow(leafC, storageStartC)
 
 	keyRowS = append(keyRowS, 6)
+	keyRowC = append(keyRowS, 4)
 	nonceBalanceRowS = append(nonceBalanceRowS, 7)
 	nonceBalanceRowC = append(nonceBalanceRowC, 8)
 	storageCodeHashRowS = append(storageCodeHashRowS, 9)
@@ -1069,6 +1065,7 @@ func prepareWitness(proof1, proof2, extNibbles [][]byte, key []byte, neighbourNo
 			if isAccountProof {
 				keyRowS, _, _, _, _, _ :=
 					prepareAccountLeafRows(neighbourNode, neighbourNode)
+				keyRowS = append(keyRowS, 10)
 				rows = append(rows, keyRowS)
 			} else {
 				sLeafRows, _ := prepareStorageLeafRows(neighbourNode, 15, false)
@@ -1091,6 +1088,9 @@ func prepareWitness(proof1, proof2, extNibbles [][]byte, key []byte, neighbourNo
 				rows = append(rows, storageCodeHashRowS)
 				rows = append(rows, storageCodeHashRowC)
 
+				pRows := prepareDriftedLeafPlaceholder(true)
+				rows = append(rows, pRows...)
+
 				leafS = append(leafS, 5)
 				leafC = append(leafC, 5)
 				toBeHashed = append(toBeHashed, leafS)
@@ -1104,7 +1104,7 @@ func prepareWitness(proof1, proof2, extNibbles [][]byte, key []byte, neighbourNo
 				leafRows, _ = prepareStorageLeafRows(proof1[len1-1], 3, true)
 				rows = append(rows, leafRows...)
 
-				pRows := preparePlaceholderRows()
+				pRows := prepareDriftedLeafPlaceholder(false)
 				rows = append(rows, pRows...)
 			}
 		}
@@ -1231,6 +1231,7 @@ func prepareWitness(proof1, proof2, extNibbles [][]byte, key []byte, neighbourNo
 			if isAccountProof {
 				keyRowS, _, _, _, _, _ :=
 					prepareAccountLeafRows(neighbourNode, neighbourNode)
+				keyRowS = append(keyRowS, 10)
 				rows = append(rows, keyRowS)
 			} else {
 				sLeafRows, _ := prepareStorageLeafRows(neighbourNode, 15, false)
@@ -1252,6 +1253,9 @@ func prepareWitness(proof1, proof2, extNibbles [][]byte, key []byte, neighbourNo
 				rows = append(rows, storageCodeHashRowS)
 				rows = append(rows, storageCodeHashRowC)
 
+				pRows := prepareDriftedLeafPlaceholder(true)
+				rows = append(rows, pRows...)
+
 				leafS = append(leafS, 5)
 				leafC = append(leafC, 5)
 				toBeHashed = append(toBeHashed, leafS)
@@ -1264,12 +1268,12 @@ func prepareWitness(proof1, proof2, extNibbles [][]byte, key []byte, neighbourNo
 				leafRows, _ = prepareStorageLeafRows(proof2[len2-1], 3, false)
 				rows = append(rows, leafRows...)
 
-				pRows := preparePlaceholderRows()
+				pRows := prepareDriftedLeafPlaceholder(false)
 				rows = append(rows, pRows...)
 			}
 		}
-	} else if !isAccountProof {
-		pRows := preparePlaceholderRows()
+	} else {
+		pRows := prepareDriftedLeafPlaceholder(isAccountProof)
 		rows = append(rows, pRows...)
 	}
 
