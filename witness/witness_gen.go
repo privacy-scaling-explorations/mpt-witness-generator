@@ -985,7 +985,6 @@ func prepareWitness(proof1, proof2, extNibbles [][]byte, key []byte, neighbourNo
 			addBranch(proof1[len1-2], proof1[len1-2], key[keyIndex + numberOfNibbles], true, branchC16, branchC1)
 			rows = append(rows, extRows...)
 
-
 			var leafRows [][]byte
 			var leafForHashing [][]byte
 			if isAccountProof {
@@ -1011,37 +1010,6 @@ func prepareWitness(proof1, proof2, extNibbles [][]byte, key []byte, neighbourNo
 				leafForHashing = append(leafForHashing, leafForHashingS)
 			}
 
-			// We now get the first nibble of the leaf that was turned into branch.
-			// This first nibble presents the position of the leaf once it moved
-			// into the new branch.
-			rows[len(rows)-branchRows-2][driftedPos] =
-				getDriftedPosition(leafRows[0], numberOfNibbles) // -branchRows-2 lands into branch init
-
-			if isExtension {
-				rows[len(rows)-branchRows-2][isExtensionPos] = 1
-
-				if numberOfNibbles == 1 {
-					if branchC16 == 1 {
-						rows[len(rows)-branchRows-2][isExtShortC16Pos] = 1
-					} else {
-						rows[len(rows)-branchRows-2][isExtShortC1Pos] = 1
-					}
-				} else {
-					if numberOfNibbles % 2 == 0 {
-						if branchC16 == 1 {
-							rows[len(rows)-branchRows-2][isExtLongEvenC16Pos] = 1
-						} else {
-							rows[len(rows)-branchRows-2][isExtLongEvenC1Pos] = 1
-						}
-					} else {
-						if branchC16 == 1 {
-							rows[len(rows)-branchRows-2][isExtLongOddC16Pos] = 1
-						} else {
-							rows[len(rows)-branchRows-2][isExtLongOddC1Pos] = 1
-						}
-					}
-				}
-			}
 			toBeHashed = append(toBeHashed, leafForHashing...)
 			// All account leaf rows already generated above, for storage leaf only S is generated above.
 			if isAccountProof {
@@ -1052,6 +1020,41 @@ func prepareWitness(proof1, proof2, extNibbles [][]byte, key []byte, neighbourNo
 				leafRows, leafForHashingC = prepareStorageLeafRows(proof2[len2-1], 3, false)
 				rows = append(rows, leafRows...)
 				toBeHashed = append(toBeHashed, leafForHashingC)
+			}
+
+			// We now get the first nibble of the leaf that was turned into branch.
+			// This first nibble presents the position of the leaf once it moved
+			// into the new branch.
+
+			// Note: leafRows[0] in this case (len1 > len2) is leafRowS[0],
+			// leafRows[0] in case below (len2 > len1) is leafRowC[0],
+			rows[len(rows)-branchRows-4][driftedPos] =
+				getDriftedPosition(leafRows[0], numberOfNibbles) // -branchRows-4 lands into branch init
+
+			if isExtension {
+				rows[len(rows)-branchRows-4][isExtensionPos] = 1
+
+				if numberOfNibbles == 1 {
+					if branchC16 == 1 {
+						rows[len(rows)-branchRows-4][isExtShortC16Pos] = 1
+					} else {
+						rows[len(rows)-branchRows-4][isExtShortC1Pos] = 1
+					}
+				} else {
+					if numberOfNibbles % 2 == 0 {
+						if branchC16 == 1 {
+							rows[len(rows)-branchRows-4][isExtLongEvenC16Pos] = 1
+						} else {
+							rows[len(rows)-branchRows-4][isExtLongEvenC1Pos] = 1
+						}
+					} else {
+						if branchC16 == 1 {
+							rows[len(rows)-branchRows-4][isExtLongOddC16Pos] = 1
+						} else {
+							rows[len(rows)-branchRows-4][isExtLongOddC1Pos] = 1
+						}
+					}
+				}
 			}
 
 			// The branch contains hash of the neighbouring leaf, to be able
@@ -1074,44 +1077,20 @@ func prepareWitness(proof1, proof2, extNibbles [][]byte, key []byte, neighbourNo
 		} else {
 			// We don't have a leaf in the shorter proof, but we will add it there
 			// as a placeholder.
-			if isAccountProof {
-				leafS := proof1[len1-1]
-				leafC := proof1[len1-1] // placeholder
+			leafRows, leafForHashing := prepareStorageLeafRows(proof1[len1-1], 2, false)
+			rows = append(rows, leafRows...)
+			toBeHashed = append(toBeHashed, leafForHashing)
 
-				keyRowS, keyRowC, nonceBalanceRowS, nonceBalanceRowC, storageCodeHashRowS, storageCodeHashRowC :=
-					prepareAccountLeafRows(leafS, leafC)
-				
-				rows = append(rows, keyRowS)
-				rows = append(rows, keyRowC)
-				rows = append(rows, nonceBalanceRowS)
-				rows = append(rows, nonceBalanceRowC)
-				rows = append(rows, storageCodeHashRowS)
-				rows = append(rows, storageCodeHashRowC)
+			// No leaf means value is 0, set valueIsZero = true:
+			leafRows, _ = prepareStorageLeafRows(proof1[len1-1], 3, true)
+			rows = append(rows, leafRows...)
 
-				pRows := prepareDriftedLeafPlaceholder(true)
-				rows = append(rows, pRows...)
-
-				leafS = append(leafS, 5)
-				leafC = append(leafC, 5)
-				toBeHashed = append(toBeHashed, leafS)
-				toBeHashed = append(toBeHashed, leafC)
-			} else {
-				leafRows, leafForHashing := prepareStorageLeafRows(proof1[len1-1], 2, false)
-				rows = append(rows, leafRows...)
-				toBeHashed = append(toBeHashed, leafForHashing)
-
-				// No leaf means value is 0, set valueIsZero = true:
-				leafRows, _ = prepareStorageLeafRows(proof1[len1-1], 3, true)
-				rows = append(rows, leafRows...)
-
-				pRows := prepareDriftedLeafPlaceholder(false)
-				rows = append(rows, pRows...)
-			}
+			pRows := prepareDriftedLeafPlaceholder(isAccountProof)
+			rows = append(rows, pRows...)
 		}
 	} else if len2 > len1 {
 		if additionalBranch {
 			// S branch is just a placeholder here.
-
 			numberOfNibbles := 0
 			var extRows [][]byte
 			isExtension := len2 == len1 + 2
@@ -1151,6 +1130,8 @@ func prepareWitness(proof1, proof2, extNibbles [][]byte, key []byte, neighbourNo
 			// Note that this is not just reversed order compared to
 			// len1 > len2 case - the first leaf is always from proof S
 			// (the order of leaves at the end is always: first S, then C).
+			// The difference is in the leaf that is used by getting the drifted position.
+
 			// TODO: write some functions to avoid having almost the same code twice nevertheless
 
 			var leafRows [][]byte
@@ -1182,6 +1163,7 @@ func prepareWitness(proof1, proof2, extNibbles [][]byte, key []byte, neighbourNo
 			// This first nibble presents the position of the leaf once it moved
 			// into the new branch.
 			rows[len(rows)-branchRows][driftedPos] = getDriftedPosition(leafRows[0], numberOfNibbles) // -branchRows lands into branch init
+
 			if isExtension {
 				rows[len(rows)-branchRows][isExtensionPos] = 1
 
