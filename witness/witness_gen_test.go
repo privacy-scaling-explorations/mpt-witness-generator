@@ -1719,3 +1719,39 @@ func TestOnlyAccount(t *testing.T) {
 	GenerateProof("OnlyAccount", trieModifications, statedb)
 }
 */
+
+func TestNonceCShortChange(t *testing.T) {
+	blockNum := 14766377
+	blockNumberParent := big.NewInt(int64(blockNum))
+	blockHeaderParent := oracle.PrefetchBlock(blockNumberParent, true, nil)
+	database := state.NewDatabase(blockHeaderParent)
+	statedb, _ := state.New(blockHeaderParent.Root, database, nil)
+	addr := common.HexToAddress("0x68D5a6E78BD8734B7d190cbD98549B72bFa0800B")
+
+	trieMod := TrieModification{
+    	Type: NonceMod,
+		Nonce: 33,
+		Address: addr,
+	}
+	trieModifications := []TrieModification{trieMod}
+
+	GenerateProof("NonceCShort", trieModifications, statedb)
+}
+
+func TestNonceCLongChange(t *testing.T) {
+	blockNum := 14766377
+	blockNumberParent := big.NewInt(int64(blockNum))
+	blockHeaderParent := oracle.PrefetchBlock(blockNumberParent, true, nil)
+	database := state.NewDatabase(blockHeaderParent)
+	statedb, _ := state.New(blockHeaderParent.Root, database, nil)
+	addr := common.HexToAddress("0x68D5a6E78BD8734B7d190cbD98549B72bFa0800B")
+
+	trieMod := TrieModification{
+    	Type: NonceMod,
+		Nonce: 142, // for long needs to be >= 128
+		Address: addr,
+	}
+	trieModifications := []TrieModification{trieMod}
+
+	GenerateProof("NonceCLong", trieModifications, statedb)
+}

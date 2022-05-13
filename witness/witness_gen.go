@@ -518,13 +518,14 @@ func prepareAccountLeafRows(leafS, leafC []byte) ([]byte, []byte, []byte, []byte
 	nonceStartS := 3 + keyLenS + 1 + 1 + 1 + 1
 	nonceStartC := 3 + keyLenC + 1 + 1 + 1 + 1
 
-	// TODO: this requires branching in the circuit too
 	var nonceRlpLenS byte
 	var nonceRlpLenC byte
 	var balanceStartS int
 	var balanceStartC int
 	var nonceS []byte
 	var nonceC []byte
+	// If the first nonce byte is >= 128, it means it presents (nonce_len - 128),
+	// if the first nonce byte is < 128, the actual nonce value is < 128 and is exactly this first byte
 	if leafS[nonceStartS] < 128 {
 		// only one nonce byte
 		nonceRlpLenS = 1
@@ -1330,11 +1331,7 @@ func prepareAccountProof(i int, tMod TrieModification, tModsLen int, statedb *st
 	addr := tMod.Address
 	addrh := crypto.Keccak256(addr.Bytes())
 	accountAddr := trie.KeybytesToHex(addrh)
-
-	// TODO:
-	if tMod.Type == CreateAccount || tMod.Type == DeleteAccount {
-		oracle.PrefetchAccount(statedb.Db.BlockNumber, tMod.Address, nil)
-	}
+	oracle.PrefetchAccount(statedb.Db.BlockNumber, tMod.Address, nil)
 
 	accountProof, aNeighbourNode1, aExtNibbles1, err := statedb.GetProof(addr)
 	check(err)
