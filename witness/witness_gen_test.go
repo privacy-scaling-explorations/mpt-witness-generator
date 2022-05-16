@@ -1632,26 +1632,6 @@ func TestAddAccount(t *testing.T) {
 	GenerateProof("AddAccount", trieModifications, statedb)
 }
 
-func TestDeleteAccount(t *testing.T) {
-	blockNum := 1
-	blockNumberParent := big.NewInt(int64(blockNum))
-	blockHeaderParent := oracle.PrefetchBlock(blockNumberParent, true, nil)
-	database := state.NewDatabase(blockHeaderParent)
-	statedb, _ := state.New(blockHeaderParent.Root, database, nil)
-	
-	addr := common.HexToAddress("0xaaaccf12580138bc2bbceeeaa111df4e42ab81ab")
-	statedb.CreateAccount(addr)
-	statedb.IntermediateRoot(false)
-
-	trieMod := TrieModification{
-		Address: addr,
-    	Type: DeleteAccount,
-	}
-	trieModifications := []TrieModification{trieMod}
-
-	GenerateProof("DeleteAccount", trieModifications, statedb)
-}
-
 /*
 func TestFindAccountWithPlaceholderBranch(t *testing.T) {
 	blockNum := 13284469
@@ -1677,6 +1657,98 @@ func TestFindAccountWithPlaceholderBranch(t *testing.T) {
 }
 */
 
+func TestNonceModCShort(t *testing.T) {
+	blockNum := 14766377
+	blockNumberParent := big.NewInt(int64(blockNum))
+	blockHeaderParent := oracle.PrefetchBlock(blockNumberParent, true, nil)
+	database := state.NewDatabase(blockHeaderParent)
+	statedb, _ := state.New(blockHeaderParent.Root, database, nil)
+	addr := common.HexToAddress("0x68D5a6E78BD8734B7d190cbD98549B72bFa0800B")
+
+	trieMod := TrieModification{
+    	Type: NonceMod,
+		Nonce: 33,
+		Address: addr,
+	}
+	trieModifications := []TrieModification{trieMod}
+
+	GenerateProof("NonceModCShort", trieModifications, statedb)
+}
+
+func TestNonceModCLong(t *testing.T) {
+	blockNum := 14766377
+	blockNumberParent := big.NewInt(int64(blockNum))
+	blockHeaderParent := oracle.PrefetchBlock(blockNumberParent, true, nil)
+	database := state.NewDatabase(blockHeaderParent)
+	statedb, _ := state.New(blockHeaderParent.Root, database, nil)
+	addr := common.HexToAddress("0x68D5a6E78BD8734B7d190cbD98549B72bFa0800B")
+
+	trieMod := TrieModification{
+    	Type: NonceMod,
+		Nonce: 142, // for long needs to be >= 128
+		Address: addr,
+	}
+	trieModifications := []TrieModification{trieMod}
+
+	GenerateProof("NonceModCLong", trieModifications, statedb)
+}
+
+func TestBalanceModCShort(t *testing.T) {
+	blockNum := 14766377
+	blockNumberParent := big.NewInt(int64(blockNum))
+	blockHeaderParent := oracle.PrefetchBlock(blockNumberParent, true, nil)
+	database := state.NewDatabase(blockHeaderParent)
+	statedb, _ := state.New(blockHeaderParent.Root, database, nil)
+	addr := common.HexToAddress("0x68D5a6E78BD8734B7d190cbD98549B72bFa0800B")
+
+	trieMod := TrieModification{
+    	Type: BalanceMod,
+		Balance: big.NewInt(98),
+		Address: addr,
+	}
+	trieModifications := []TrieModification{trieMod}
+
+	GenerateProof("BalanceModCShort", trieModifications, statedb)
+}
+
+func TestBalanceModCLong(t *testing.T) {
+	blockNum := 14766377
+	blockNumberParent := big.NewInt(int64(blockNum))
+	blockHeaderParent := oracle.PrefetchBlock(blockNumberParent, true, nil)
+	database := state.NewDatabase(blockHeaderParent)
+	statedb, _ := state.New(blockHeaderParent.Root, database, nil)
+	addr := common.HexToAddress("0x68D5a6E78BD8734B7d190cbD98549B72bFa0800B")
+
+	trieMod := TrieModification{
+    	Type: BalanceMod,
+		Balance: big.NewInt(439),
+		Address: addr,
+	}
+	trieModifications := []TrieModification{trieMod}
+
+	GenerateProof("BalanceModCLong", trieModifications, statedb)
+}
+
+func TestDeleteAccount(t *testing.T) {
+	blockNum := 1
+	blockNumberParent := big.NewInt(int64(blockNum))
+	blockHeaderParent := oracle.PrefetchBlock(blockNumberParent, true, nil)
+	database := state.NewDatabase(blockHeaderParent)
+	statedb, _ := state.New(blockHeaderParent.Root, database, nil)
+	
+	addr := common.HexToAddress("0xaaaccf12580138bc2bbceeeaa111df4e42ab81ab")
+	statedb.CreateAccount(addr)
+	statedb.IntermediateRoot(false)
+
+	trieMod := TrieModification{
+		Address: addr,
+    	Type: DeleteAccount,
+	}
+	trieModifications := []TrieModification{trieMod}
+
+	GenerateProof("DeleteAccount", trieModifications, statedb)
+}
+
 func TestAddAccountPlaceholderExtension(t *testing.T) {
 	blockNum := 13284469
 	blockNumberParent := big.NewInt(int64(blockNum))
@@ -1695,63 +1767,4 @@ func TestAddAccountPlaceholderExtension(t *testing.T) {
 	trieModifications := []TrieModification{trieMod}
 
 	GenerateProof("AddAccountPlaceholderExtension", trieModifications, statedb)
-}
-
-/* TODO
-func TestOnlyAccount(t *testing.T) {
-	blockNum := 14209217
-	blockNumberParent := big.NewInt(int64(blockNum))
-	blockHeaderParent := oracle.PrefetchBlock(blockNumberParent, true, nil)
-	database := state.NewDatabase(blockHeaderParent)
-	statedb, _ := state.New(blockHeaderParent.Root, database, nil)
-	
-	addr := common.HexToAddress("0xaaaccf12580138bc2bbceeeaa111df4e42ab81ff")
-	statedb.CreateAccount(addr)
-	statedb.IntermediateRoot(false)
-
-	trieMod := TrieModification{
-		Address: addr,
-    	Type: NonceMod,
-		Nonce: 5,
-	}
-	trieModifications := []TrieModification{trieMod}
-
-	GenerateProof("OnlyAccount", trieModifications, statedb)
-}
-*/
-
-func TestNonceCShortChange(t *testing.T) {
-	blockNum := 14766377
-	blockNumberParent := big.NewInt(int64(blockNum))
-	blockHeaderParent := oracle.PrefetchBlock(blockNumberParent, true, nil)
-	database := state.NewDatabase(blockHeaderParent)
-	statedb, _ := state.New(blockHeaderParent.Root, database, nil)
-	addr := common.HexToAddress("0x68D5a6E78BD8734B7d190cbD98549B72bFa0800B")
-
-	trieMod := TrieModification{
-    	Type: NonceMod,
-		Nonce: 33,
-		Address: addr,
-	}
-	trieModifications := []TrieModification{trieMod}
-
-	GenerateProof("NonceCShort", trieModifications, statedb)
-}
-
-func TestNonceCLongChange(t *testing.T) {
-	blockNum := 14766377
-	blockNumberParent := big.NewInt(int64(blockNum))
-	blockHeaderParent := oracle.PrefetchBlock(blockNumberParent, true, nil)
-	database := state.NewDatabase(blockHeaderParent)
-	statedb, _ := state.New(blockHeaderParent.Root, database, nil)
-	addr := common.HexToAddress("0x68D5a6E78BD8734B7d190cbD98549B72bFa0800B")
-
-	trieMod := TrieModification{
-    	Type: NonceMod,
-		Nonce: 142, // for long needs to be >= 128
-		Address: addr,
-	}
-	trieModifications := []TrieModification{trieMod}
-
-	GenerateProof("NonceCLong", trieModifications, statedb)
 }

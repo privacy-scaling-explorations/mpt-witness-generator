@@ -620,7 +620,7 @@ func prepareAccountLeafRows(leafS, leafC []byte) ([]byte, []byte, []byte, []byte
 	storageCodeHashRowC := getStorageCodeHashRow(leafC, storageStartC)
 
 	keyRowS = append(keyRowS, 6)
-	keyRowC = append(keyRowS, 4)
+	keyRowC = append(keyRowC, 4)
 	nonceBalanceRowS = append(nonceBalanceRowS, 7)
 	nonceBalanceRowC = append(nonceBalanceRowC, 8)
 	storageCodeHashRowS = append(storageCodeHashRowS, 9)
