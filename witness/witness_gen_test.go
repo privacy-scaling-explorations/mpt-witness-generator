@@ -1613,25 +1613,6 @@ func TestUpdateTwoModifications(t *testing.T) {
 	UpdateStateAndGenProof("UpdateTwoModifications", ks[:], values, addresses, trieModifications)
 }
 
-func TestAddAccount(t *testing.T) {
-	blockNum := 1
-	blockNumberParent := big.NewInt(int64(blockNum))
-	blockHeaderParent := oracle.PrefetchBlock(blockNumberParent, true, nil)
-	database := state.NewDatabase(blockHeaderParent)
-	statedb, _ := state.New(blockHeaderParent.Root, database, nil)
-	
-	addr := common.HexToAddress("0xaaaccf12580138bc2bbceeeaa111df4e42ab81ab")
-	statedb.IntermediateRoot(false)
-
-	trieMod := TrieModification{
-		Address: addr,
-    	Type: CreateAccount,
-	}
-	trieModifications := []TrieModification{trieMod}
-
-	GenerateProof("AddAccount", trieModifications, statedb)
-}
-
 /*
 func TestFindAccountWithPlaceholderBranch(t *testing.T) {
 	blockNum := 13284469
@@ -1729,6 +1710,25 @@ func TestBalanceModCLong(t *testing.T) {
 	GenerateProof("BalanceModCLong", trieModifications, statedb)
 }
 
+func TestAddAccount(t *testing.T) {
+	blockNum := 1
+	blockNumberParent := big.NewInt(int64(blockNum))
+	blockHeaderParent := oracle.PrefetchBlock(blockNumberParent, true, nil)
+	database := state.NewDatabase(blockHeaderParent)
+	statedb, _ := state.New(blockHeaderParent.Root, database, nil)
+	
+	addr := common.HexToAddress("0xaaaccf12580138bc2bbceeeaa111df4e42ab81ab")
+	statedb.IntermediateRoot(false)
+
+	trieMod := TrieModification{
+		Address: addr,
+    	Type: CreateAccount,
+	}
+	trieModifications := []TrieModification{trieMod}
+
+	GenerateProof("AddAccount", trieModifications, statedb)
+}
+
 func TestDeleteAccount(t *testing.T) {
 	blockNum := 1
 	blockNumberParent := big.NewInt(int64(blockNum))
@@ -1749,7 +1749,45 @@ func TestDeleteAccount(t *testing.T) {
 	GenerateProof("DeleteAccount", trieModifications, statedb)
 }
 
-func TestAddAccountPlaceholderExtension(t *testing.T) {
+func TestImplicitlyCreateAccountWithNonce(t *testing.T) {
+	blockNum := 1
+	blockNumberParent := big.NewInt(int64(blockNum))
+	blockHeaderParent := oracle.PrefetchBlock(blockNumberParent, true, nil)
+	database := state.NewDatabase(blockHeaderParent)
+	statedb, _ := state.New(blockHeaderParent.Root, database, nil)
+	
+	addr := common.HexToAddress("0xaabccf12580138bc2bbceeeaa111df4e42ab81ab")
+
+	trieMod := TrieModification{
+    	Type: NonceMod,
+		Nonce: 142,
+		Address: addr,
+	}
+	trieModifications := []TrieModification{trieMod}
+
+	GenerateProof("ImplicitlyCreateAccountWithNonce", trieModifications, statedb)
+}
+
+func TestImplicitlyCreateAccountWithBalance(t *testing.T) {
+	blockNum := 1
+	blockNumberParent := big.NewInt(int64(blockNum))
+	blockHeaderParent := oracle.PrefetchBlock(blockNumberParent, true, nil)
+	database := state.NewDatabase(blockHeaderParent)
+	statedb, _ := state.New(blockHeaderParent.Root, database, nil)
+	
+	addr := common.HexToAddress("0xaabccf12580138bc2bbceeeaa111df4e42ab81ab")
+
+	trieMod := TrieModification{
+    	Type: BalanceMod,
+		Nonce: 142,
+		Address: addr,
+	}
+	trieModifications := []TrieModification{trieMod}
+
+	GenerateProof("ImplicitlyCreateAccountWithBalance", trieModifications, statedb)
+}
+
+func TestAccountPlaceholderExtension(t *testing.T) {
 	blockNum := 13284469
 	blockNumberParent := big.NewInt(int64(blockNum))
 	blockHeaderParent := oracle.PrefetchBlock(blockNumberParent, true, nil)
@@ -1761,10 +1799,11 @@ func TestAddAccountPlaceholderExtension(t *testing.T) {
 	addr := common.HexToAddress(h)
 
 	trieMod := TrieModification{
+    	Type: BalanceMod,
+		Balance: big.NewInt(23),
 		Address: addr,
-    	Type: CreateAccount,
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	GenerateProof("AddAccountPlaceholderExtension", trieModifications, statedb)
+	GenerateProof("AccountPlaceholderExtension", trieModifications, statedb)
 }

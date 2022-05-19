@@ -1078,16 +1078,39 @@ func prepareWitness(proof1, proof2, extNibbles [][]byte, key []byte, neighbourNo
 		} else {
 			// We don't have a leaf in the shorter proof, but we will add it there
 			// as a placeholder.
-			leafRows, leafForHashing := prepareStorageLeafRows(proof1[len1-1], 2, false)
-			rows = append(rows, leafRows...)
-			toBeHashed = append(toBeHashed, leafForHashing)
+			if isAccountProof {
+				leafS := proof1[len1-1]
+				leafC := proof1[len1-1] // placeholder
 
-			// No leaf means value is 0, set valueIsZero = true:
-			leafRows, _ = prepareStorageLeafRows(proof1[len1-1], 3, true)
-			rows = append(rows, leafRows...)
+				keyRowS, keyRowC, nonceBalanceRowS, nonceBalanceRowC, storageCodeHashRowS, storageCodeHashRowC :=
+					prepareAccountLeafRows(leafS, leafC)
+				
+				rows = append(rows, keyRowS)
+				rows = append(rows, keyRowC)
+				rows = append(rows, nonceBalanceRowS)
+				rows = append(rows, nonceBalanceRowC)
+				rows = append(rows, storageCodeHashRowS)
+				rows = append(rows, storageCodeHashRowC)
 
-			pRows := prepareDriftedLeafPlaceholder(isAccountProof)
-			rows = append(rows, pRows...)
+				pRows := prepareDriftedLeafPlaceholder(true)
+				rows = append(rows, pRows...)
+
+				leafS = append(leafS, 5)
+				leafC = append(leafC, 5)
+				toBeHashed = append(toBeHashed, leafS)
+				toBeHashed = append(toBeHashed, leafC)
+			} else {
+				leafRows, leafForHashing := prepareStorageLeafRows(proof1[len1-1], 2, false)
+				rows = append(rows, leafRows...)
+				toBeHashed = append(toBeHashed, leafForHashing)
+
+				// No leaf means value is 0, set valueIsZero = true:
+				leafRows, _ = prepareStorageLeafRows(proof1[len1-1], 3, true)
+				rows = append(rows, leafRows...)
+
+				pRows := prepareDriftedLeafPlaceholder(isAccountProof)
+				rows = append(rows, pRows...)
+			}
 		}
 	} else if len2 > len1 {
 		if additionalBranch {
@@ -1222,6 +1245,8 @@ func prepareWitness(proof1, proof2, extNibbles [][]byte, key []byte, neighbourNo
 			}
 		} else {
 			// No leaf means value is 0, set valueIsZero = true:
+			// We don't have a leaf in the shorter proof, but we will add it there
+			// as a placeholder.
 			if isAccountProof {
 				leafC := proof2[len2-1]
 				leafS := proof2[len2-1] // placeholder
@@ -1333,6 +1358,8 @@ func prepareAccountProof(i int, tMod TrieModification, tModsLen int, statedb *st
 	accountAddr := trie.KeybytesToHex(addrh)
 	oracle.PrefetchAccount(statedb.Db.BlockNumber, tMod.Address, nil)
 
+	// TODO: if account exists in the trie, put it in stateObjects
+
 	accountProof, aNeighbourNode1, aExtNibbles1, err := statedb.GetProof(addr)
 	check(err)
 
@@ -1363,7 +1390,9 @@ func prepareAccountProof(i int, tMod TrieModification, tModsLen int, statedb *st
 		finalRoot = cRoot
 	}
 
+	fmt.Println(statedb.GetNonce(addr))
 	accountProof1, aNeighbourNode2, aExtNibbles2, err := statedb.GetProof(addr)
+	fmt.Println(statedb.GetNonce(addr))
 	check(err)
 
 	aNode := aNeighbourNode2
