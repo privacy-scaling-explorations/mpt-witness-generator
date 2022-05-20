@@ -2,6 +2,7 @@ package witness
 
 import (
 	"encoding/binary"
+	"encoding/hex"
 	"fmt"
 	"log"
 	"math/big"
@@ -1353,13 +1354,17 @@ func prepareProof(ind int, newProof [][]byte, addrh []byte, sRoot, cRoot, startR
 }
 
 func prepareAccountProof(i int, tMod TrieModification, tModsLen int, statedb *state.StateDB) ([][]byte, [][]byte) {
+	statedb.IntermediateRoot(false)
+
 	addr := tMod.Address
 	addrh := crypto.Keccak256(addr.Bytes())
 	accountAddr := trie.KeybytesToHex(addrh)
-	oracle.PrefetchAccount(statedb.Db.BlockNumber, tMod.Address, nil)
 
-	// TODO: if account exists in the trie, put it in stateObjects
-
+	// To avoid creating a new account in GetOrNewStateObject (called from example from SetBalance):
+	ap := oracle.PrefetchAccount(statedb.Db.BlockNumber, tMod.Address, nil)
+	ret, _ := hex.DecodeString(ap[len(ap)-1][2:])
+	statedb.SetStateObjectFromEncoding(addr, ret)
+	
 	accountProof, aNeighbourNode1, aExtNibbles1, err := statedb.GetProof(addr)
 	check(err)
 
@@ -1390,9 +1395,7 @@ func prepareAccountProof(i int, tMod TrieModification, tModsLen int, statedb *st
 		finalRoot = cRoot
 	}
 
-	fmt.Println(statedb.GetNonce(addr))
 	accountProof1, aNeighbourNode2, aExtNibbles2, err := statedb.GetProof(addr)
-	fmt.Println(statedb.GetNonce(addr))
 	check(err)
 
 	aNode := aNeighbourNode2
@@ -1426,6 +1429,16 @@ func getProof(trieModifications []TrieModification, statedb *state.StateDB) [][]
 			addr := tMod.Address
 			addrh := crypto.Keccak256(addr.Bytes())
 			accountAddr := trie.KeybytesToHex(addrh)
+
+			// To avoid creating a new account in GetOrNewStateObject:
+			oracle.PrefetchAccount(statedb.Db.BlockNumber, tMod.Address, nil)
+			/*
+			ap := oracle.PrefetchAccount(statedb.Db.BlockNumber, tMod.Address, nil)
+			ret, _ := hex.DecodeString(ap[len(ap)-1][2:])
+			statedb.SetStateObjectFromEncoding(addr, ret)
+			statedb.IntermediateRoot(false)
+			*/
+
 			accountProof, aNeighbourNode1, aExtNibbles1, err := statedb.GetProof(addr)
 			check(err)
 			storageProof, neighbourNode1, extNibbles1, err := statedb.GetStorageProof(addr, tMod.Key)

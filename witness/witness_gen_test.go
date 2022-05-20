@@ -1807,3 +1807,27 @@ func TestAccountPlaceholderExtension(t *testing.T) {
 
 	GenerateProof("AccountPlaceholderExtension", trieModifications, statedb)
 }
+
+func TestFoo(t *testing.T) {
+	blockNum := 13284469
+	blockNumberParent := big.NewInt(int64(blockNum))
+	blockHeaderParent := oracle.PrefetchBlock(blockNumberParent, true, nil)
+	database := state.NewDatabase(blockHeaderParent)
+	statedb, _ := state.New(blockHeaderParent.Root, database, nil)
+
+	i := 40
+	h := fmt.Sprintf("0x%d", i)
+	addr := common.HexToAddress(h)
+
+	toBeModified := common.HexToHash("0x1")
+	val := common.BigToHash(big.NewInt(int64(17)))
+	trieMod := TrieModification{
+    	Type: StorageMod,
+		Key: toBeModified,
+		Value: val,
+		Address: addr,
+	}
+	trieModifications := []TrieModification{trieMod}
+
+	GenerateProof("Foo", trieModifications, statedb)
+}

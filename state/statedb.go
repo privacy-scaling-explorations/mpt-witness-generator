@@ -557,6 +557,29 @@ func (s *StateDB) getDeletedStateObject(addr common.Address) *stateObject {
 	return obj
 }
 
+// Added for MPT generator. This loads account into stateObjects - if an account is not
+// in stateObjects, a new account is created in GetOrNewStateObject.
+func (s *StateDB) SetStateObjectFromEncoding(addr common.Address, enc []byte) error {
+	if len(enc) == 0 {
+		return errors.New("encoding of account is of length 0")
+	}
+	data := new(Account)
+	keyLen := enc[2] - 128;
+	accData := enc[3 + keyLen + 2:]
+	
+	if err := rlp.DecodeBytes(accData, data); err != nil {
+		// If it's not account RLP, nothing is set (in stateObjects) - this is to prevent
+		// the need of checking whether enc is account RLP or something else (like branch RLP).
+		fmt.Println("failed to decode account")
+		return nil
+	}
+
+	obj := newObject(s, addr, *data)
+	s.setStateObject(obj)
+
+	return nil
+}
+
 func (s *StateDB) setStateObject(object *stateObject) {
 	s.stateObjects[object.Address()] = object
 }
