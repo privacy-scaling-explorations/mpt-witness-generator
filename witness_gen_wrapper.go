@@ -17,8 +17,8 @@ type Config struct {
 	Values []string `json:"Values"`
 }
 
-//export GetProofs
-func GetProofs(proofConf *C.char) *C.char {
+//export GetParallelProofs
+func GetParallelProofs(proofConf *C.char) *C.char {
 	var config Config
 
 	err := json.Unmarshal([]byte(C.GoString(proofConf)), &config)
@@ -38,7 +38,7 @@ func GetProofs(proofConf *C.char) *C.char {
 		trieModifications = append(trieModifications, trieMod)
 	}
 
-	proof := witness.GetProof(config.NodeUrl, config.BlockNum, trieModifications)
+	proof := witness.GetParallelProofs(config.NodeUrl, config.BlockNum, trieModifications)
 
 	return C.CString(witness.MatrixToJson(proof))
 }

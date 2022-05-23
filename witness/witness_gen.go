@@ -1289,7 +1289,7 @@ func prepareWitness(proof1, proof2, extNibbles [][]byte, key []byte, neighbourNo
 	return rows, toBeHashed, extensionNodeInd > 0
 }
 
-func GetProof(nodeUrl string, blockNum int, trieModifications []TrieModification) [][]byte {
+func GetParallelProofs(nodeUrl string, blockNum int, trieModifications []TrieModification) [][]byte {
 	blockNumberParent := big.NewInt(int64(blockNum))
 	oracle.NodeUrl = nodeUrl
 	blockHeaderParent := oracle.PrefetchBlock(blockNumberParent, true, nil)
@@ -1306,7 +1306,7 @@ func GetProof(nodeUrl string, blockNum int, trieModifications []TrieModification
 		// statedb.GetState(addr, keys[i])
 	}
 
-	return getProof(trieModifications, statedb)
+	return getParallelProofs(trieModifications, statedb)
 }
 
 func prepareProof(ind int, newProof [][]byte, addrh []byte, sRoot, cRoot, startRoot, finalRoot common.Hash, mType ModType) [][]byte {
@@ -1413,7 +1413,7 @@ func prepareAccountProof(i int, tMod TrieModification, tModsLen int, statedb *st
 	return proof, toBeHashedAcc
 }
 
-func getProof(trieModifications []TrieModification, statedb *state.StateDB) [][]byte {
+func getParallelProofs(trieModifications []TrieModification, statedb *state.StateDB) [][]byte {
 	statedb.IntermediateRoot(false)
 	allProofs := [][]byte{}
 	toBeHashed := [][]byte{}	
@@ -1430,13 +1430,19 @@ func getProof(trieModifications []TrieModification, statedb *state.StateDB) [][]
 			addrh := crypto.Keccak256(addr.Bytes())
 			accountAddr := trie.KeybytesToHex(addrh)
 
-			// To avoid creating a new account in GetOrNewStateObject:
-			oracle.PrefetchAccount(statedb.Db.BlockNumber, tMod.Address, nil)
-			/*
+			// To avoid creating a new account in getDeletedStateObject:
 			ap := oracle.PrefetchAccount(statedb.Db.BlockNumber, tMod.Address, nil)
 			ret, _ := hex.DecodeString(ap[len(ap)-1][2:])
 			statedb.SetStateObjectFromEncoding(addr, ret)
-			statedb.IntermediateRoot(false)
+
+			oracle.PrefetchStorage(statedb.Db.BlockNumber, addr, tMod.Key, nil)
+			/*
+			testing
+			for i := 10000; i < 50000; i++ {
+				t := fmt.Sprintf("0x%d", i)
+				toBeModified := common.HexToHash(t)
+				oracle.PrefetchStorage(statedb.Db.BlockNumber, addr, toBeModified, nil)
+			}
 			*/
 
 			accountProof, aNeighbourNode1, aExtNibbles1, err := statedb.GetProof(addr)
@@ -1504,7 +1510,7 @@ func getProof(trieModifications []TrieModification, statedb *state.StateDB) [][]
 }
 
 func GenerateProof(testName string, trieModifications []TrieModification, statedb *state.StateDB) {
-	proof := getProof(trieModifications, statedb)
+	proof := getParallelProofs(trieModifications, statedb)
 
 	w := MatrixToJson(proof)
 	fmt.Println(w)
@@ -1531,7 +1537,7 @@ func UpdateStateAndGenProof(testName string, keys, values []common.Hash, address
 		statedb.SetState(addresses[i], keys[i], values[i])
 	}
 	
-	proof := getProof(trieModifications, statedb)
+	proof := getParallelProofs(trieModifications, statedb)
 
 	w := MatrixToJson(proof)
 	fmt.Println(w)

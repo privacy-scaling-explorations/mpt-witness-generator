@@ -1808,16 +1808,18 @@ func TestAccountPlaceholderExtension(t *testing.T) {
 	GenerateProof("AccountPlaceholderExtension", trieModifications, statedb)
 }
 
-func TestFoo(t *testing.T) {
+func TestStateFromEnc(t *testing.T) {
+	// The tests above create new account implicitly when calling SetState (either in
+	// UpdateStateAndGenProof or before calling GenerateProof inside the test).
+	// This test does not create a new account, statedb.SetStateObjectFromEncoding now enables
+	// to load the account into stateObjects.
 	blockNum := 13284469
 	blockNumberParent := big.NewInt(int64(blockNum))
 	blockHeaderParent := oracle.PrefetchBlock(blockNumberParent, true, nil)
 	database := state.NewDatabase(blockHeaderParent)
 	statedb, _ := state.New(blockHeaderParent.Root, database, nil)
 
-	i := 40
-	h := fmt.Sprintf("0x%d", i)
-	addr := common.HexToAddress(h)
+	addr := common.HexToAddress("0x21a31ee1afc51d94c2efccaa2092ad1028285549")
 
 	toBeModified := common.HexToHash("0x1")
 	val := common.BigToHash(big.NewInt(int64(17)))
@@ -1829,5 +1831,5 @@ func TestFoo(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	GenerateProof("Foo", trieModifications, statedb)
+	GenerateProof("StateFromEnc", trieModifications, statedb)
 }
