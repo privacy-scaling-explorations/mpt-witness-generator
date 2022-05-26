@@ -1067,6 +1067,9 @@ func prepareWitness(proof1, proof2, extNibbles [][]byte, key []byte, neighbourNo
 			// Only key is needed because we already have the value (it doesn't change)
 			// in the parallel proof.
 			if isAccountProof {
+				h := append(neighbourNode, 5)
+				toBeHashed = append(toBeHashed, h)
+
 				keyRowS, _, _, _, _, _ :=
 					prepareAccountLeafRows(neighbourNode, neighbourNode)
 				keyRowS = append(keyRowS, 10)
@@ -1235,6 +1238,9 @@ func prepareWitness(proof1, proof2, extNibbles [][]byte, key []byte, neighbourNo
 			// Only key is needed because we already have the value (it doesn't change)
 			// in the parallel proof.
 			if isAccountProof {
+				h := append(neighbourNode, 5)
+				toBeHashed = append(toBeHashed, h)
+
 				keyRowS, _, _, _, _, _ :=
 					prepareAccountLeafRows(neighbourNode, neighbourNode)
 				keyRowS = append(keyRowS, 10)
