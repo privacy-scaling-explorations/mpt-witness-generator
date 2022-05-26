@@ -1359,6 +1359,12 @@ func prepareAccountProof(i int, tMod TrieModification, tModsLen int, statedb *st
 	addrh := crypto.Keccak256(addr.Bytes())
 	accountAddr := trie.KeybytesToHex(addrh)
 
+	// This needs to called before oracle.PrefetchAccount, otherwise oracle.PrefetchAccount
+	// will cache the proof and won't return it.
+	// Calling oracle.PrefetchAccount after statedb.SetStateObjectIfExists is needed only
+	// for cases when statedb.loadRemoteAccountsIntoStateObjects = false.
+	statedb.SetStateObjectIfExists(tMod.Address)
+
 	oracle.PrefetchAccount(statedb.Db.BlockNumber, tMod.Address, nil)
 	accountProof, aNeighbourNode1, aExtNibbles1, err := statedb.GetProof(addr)
 	check(err)
