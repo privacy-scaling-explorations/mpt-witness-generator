@@ -18,6 +18,7 @@
 package state
 
 import (
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"math/big"
@@ -108,6 +109,8 @@ type StateDB struct {
 	validRevisions []revision
 	nextRevisionId int
 
+	loadRemoteAccountsIntoStateObjects bool // for MPT generator
+
 	// Measurements gathered during execution for debugging purposes
 	AccountReads         time.Duration
 	AccountHashes        time.Duration
@@ -140,6 +143,7 @@ func New(root common.Hash, db Database, snaps *snapshot.Tree) (*StateDB, error) 
 		journal:             newJournal(),
 		accessList:          newAccessList(),
 		hasher:              crypto.NewKeccakState(),
+		loadRemoteAccountsIntoStateObjects: true,
 	}
 	/*if sdb.snaps != nil {
 		if sdb.snap = sdb.snaps.Snapshot(root); sdb.snap != nil {
@@ -356,6 +360,7 @@ func (s *StateDB) HasSuicided(addr common.Address) bool {
 
 // AddBalance adds amount to the account associated with addr.
 func (s *StateDB) AddBalance(addr common.Address, amount *big.Int) {
+	s.setStateObjectIfExists(addr)
 	stateObject := s.GetOrNewStateObject(addr)
 	if stateObject != nil {
 		stateObject.AddBalance(amount)
@@ -364,6 +369,7 @@ func (s *StateDB) AddBalance(addr common.Address, amount *big.Int) {
 
 // SubBalance subtracts amount from the account associated with addr.
 func (s *StateDB) SubBalance(addr common.Address, amount *big.Int) {
+	s.setStateObjectIfExists(addr)
 	stateObject := s.GetOrNewStateObject(addr)
 	if stateObject != nil {
 		stateObject.SubBalance(amount)
@@ -371,6 +377,7 @@ func (s *StateDB) SubBalance(addr common.Address, amount *big.Int) {
 }
 
 func (s *StateDB) SetBalance(addr common.Address, amount *big.Int) {
+	s.setStateObjectIfExists(addr)
 	stateObject := s.GetOrNewStateObject(addr)
 	if stateObject != nil {
 		stateObject.SetBalance(amount)
@@ -378,6 +385,7 @@ func (s *StateDB) SetBalance(addr common.Address, amount *big.Int) {
 }
 
 func (s *StateDB) SetNonce(addr common.Address, nonce uint64) {
+	s.setStateObjectIfExists(addr)
 	stateObject := s.GetOrNewStateObject(addr)
 	if stateObject != nil {
 		stateObject.SetNonce(nonce)
@@ -385,6 +393,7 @@ func (s *StateDB) SetNonce(addr common.Address, nonce uint64) {
 }
 
 func (s *StateDB) SetCode(addr common.Address, code []byte) {
+	s.setStateObjectIfExists(addr)
 	stateObject := s.GetOrNewStateObject(addr)
 	if stateObject != nil {
 		stateObject.SetCode(crypto.Keccak256Hash(code), code)
@@ -392,6 +401,7 @@ func (s *StateDB) SetCode(addr common.Address, code []byte) {
 }
 
 func (s *StateDB) SetState(addr common.Address, key, value common.Hash) {
+	s.setStateObjectIfExists(addr)
 	stateObject := s.GetOrNewStateObject(addr)
 	if stateObject != nil {
 		stateObject.SetState(s.Db, key, value)
@@ -401,9 +411,24 @@ func (s *StateDB) SetState(addr common.Address, key, value common.Hash) {
 // SetStorage replaces the entire storage for the specified account with given
 // storage. This function should only be used for debugging.
 func (s *StateDB) SetStorage(addr common.Address, storage map[common.Hash]common.Hash) {
+	s.setStateObjectIfExists(addr)
 	stateObject := s.GetOrNewStateObject(addr)
 	if stateObject != nil {
 		stateObject.SetStorage(storage)
+	}
+}
+
+// Retrieve an account from chain instead of
+// creating a new account in GetOrNewStateObject (called from example from SetBalance).
+// The reason the new account is created without this call is that the local statedb.stateObjects
+// is populated only with the objects that are created locally.
+func (s *StateDB) setStateObjectIfExists(addr common.Address) {
+	if s.loadRemoteAccountsIntoStateObjects {
+		ap := oracle.PrefetchAccount(s.Db.BlockNumber, addr, nil)
+		if len(ap) > 0 {
+			ret, _ := hex.DecodeString(ap[len(ap)-1][2:])
+			s.setStateObjectFromEncoding(addr, ret)
+		}
 	}
 }
 
@@ -559,7 +584,7 @@ func (s *StateDB) getDeletedStateObject(addr common.Address) *stateObject {
 
 // Added for MPT generator. This loads account into stateObjects - if an account is not
 // in stateObjects, a new account is created in GetOrNewStateObject.
-func (s *StateDB) SetStateObjectFromEncoding(addr common.Address, enc []byte) error {
+func (s *StateDB) setStateObjectFromEncoding(addr common.Address, enc []byte) error {
 	if len(enc) == 0 {
 		return errors.New("encoding of account is of length 0")
 	}
@@ -1066,4 +1091,10 @@ func (s *StateDB) AddressInAccessList(addr common.Address) bool {
 // SlotInAccessList returns true if the given (address, slot)-tuple is in the access list.
 func (s *StateDB) SlotInAccessList(addr common.Address, slot common.Hash) (addressPresent bool, slotPresent bool) {
 	return s.accessList.Contains(addr, slot)
+}
+
+// MPT generator: used only because the tests have been written by creating a new account
+// for each address - changing this would mean the tests would change.
+func (s *StateDB) DisableLoadingRemoteAccounts() () {
+	s.loadRemoteAccountsIntoStateObjects = false
 }

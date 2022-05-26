@@ -2,7 +2,6 @@ package witness
 
 import (
 	"encoding/binary"
-	"encoding/hex"
 	"fmt"
 	"log"
 	"math/big"
@@ -1360,11 +1359,7 @@ func prepareAccountProof(i int, tMod TrieModification, tModsLen int, statedb *st
 	addrh := crypto.Keccak256(addr.Bytes())
 	accountAddr := trie.KeybytesToHex(addrh)
 
-	// To avoid creating a new account in GetOrNewStateObject (called from example from SetBalance):
-	ap := oracle.PrefetchAccount(statedb.Db.BlockNumber, tMod.Address, nil)
-	ret, _ := hex.DecodeString(ap[len(ap)-1][2:])
-	statedb.SetStateObjectFromEncoding(addr, ret)
-	
+	oracle.PrefetchAccount(statedb.Db.BlockNumber, tMod.Address, nil)
 	accountProof, aNeighbourNode1, aExtNibbles1, err := statedb.GetProof(addr)
 	check(err)
 
@@ -1430,20 +1425,8 @@ func getParallelProofs(trieModifications []TrieModification, statedb *state.Stat
 			addrh := crypto.Keccak256(addr.Bytes())
 			accountAddr := trie.KeybytesToHex(addrh)
 
-			// To avoid creating a new account in getDeletedStateObject:
-			ap := oracle.PrefetchAccount(statedb.Db.BlockNumber, tMod.Address, nil)
-			ret, _ := hex.DecodeString(ap[len(ap)-1][2:])
-			statedb.SetStateObjectFromEncoding(addr, ret)
-
-			oracle.PrefetchStorage(statedb.Db.BlockNumber, addr, tMod.Key, nil)
-			/*
-			testing
-			for i := 10000; i < 50000; i++ {
-				t := fmt.Sprintf("0x%d", i)
-				toBeModified := common.HexToHash(t)
-				oracle.PrefetchStorage(statedb.Db.BlockNumber, addr, toBeModified, nil)
-			}
-			*/
+			oracle.PrefetchAccount(statedb.Db.BlockNumber, tMod.Address, nil)
+			// oracle.PrefetchStorage(statedb.Db.BlockNumber, addr, tMod.Key, nil)
 
 			accountProof, aNeighbourNode1, aExtNibbles1, err := statedb.GetProof(addr)
 			check(err)
@@ -1531,6 +1514,8 @@ func UpdateStateAndGenProof(testName string, keys, values []common.Hash, address
 	blockHeaderParent := oracle.PrefetchBlock(blockNumberParent, true, nil)
 	database := state.NewDatabase(blockHeaderParent)
 	statedb, _ := state.New(blockHeaderParent.Root, database, nil)
+
+	statedb.DisableLoadingRemoteAccounts()
 
 	// Set the state needed for the test:
 	for i := 0; i < len(keys); i++ {

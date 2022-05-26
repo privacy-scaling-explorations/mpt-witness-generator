@@ -1128,6 +1128,8 @@ func TestExtensionInFirstStorageLevelOneKeyByte(t *testing.T) {
 	statedb, _ := state.New(blockHeaderParent.Root, database, nil)
 	addr := common.HexToAddress("0x50efbf12580138bc623c95757286df4e24eb81c9")
 
+	statedb.DisableLoadingRemoteAccounts()
+
 	key1 := common.HexToHash("0x12")
 	val1 := common.BigToHash(big.NewInt(int64(1)))
 
@@ -1159,6 +1161,8 @@ func TestExtensionAddedInFirstStorageLevelOneKeyByte(t *testing.T) {
 	statedb, _ := state.New(blockHeaderParent.Root, database, nil)
 	addr := common.HexToAddress("0x50efbf12580138bc623c95757286df4e24eb81c9")
 
+	statedb.DisableLoadingRemoteAccounts()
+
 	key1 := common.HexToHash("0x12")
 	val1 := common.BigToHash(big.NewInt(int64(1)))
 
@@ -1186,6 +1190,8 @@ func TestExtensionInFirstStorageLevelTwoKeyBytes(t *testing.T) {
 	database := state.NewDatabase(blockHeaderParent)
 	statedb, _ := state.New(blockHeaderParent.Root, database, nil)
 	addr := common.HexToAddress("0x50efbf12580138bc623c95757286df4e24eb81c9")
+
+	statedb.DisableLoadingRemoteAccounts()
 
 	key1 := common.HexToHash("0x12")
 	val1 := common.BigToHash(big.NewInt(int64(1)))
@@ -1216,6 +1222,8 @@ func TestExtensionAddedInFirstStorageLevelTwoKeyBytes(t *testing.T) {
 	statedb, _ := state.New(blockHeaderParent.Root, database, nil)
 	addr := common.HexToAddress("0x50efbf12580138bc623c95757286df4e24eb81c9")
 
+	statedb.DisableLoadingRemoteAccounts()
+
 	key1 := common.HexToHash("0x12")
 	val1 := common.BigToHash(big.NewInt(int64(1)))
 
@@ -1244,6 +1252,8 @@ func TestExtensionThreeKeyBytesSel2(t *testing.T) {
 	database := state.NewDatabase(blockHeaderParent)
 	statedb, _ := state.New(blockHeaderParent.Root, database, nil)
 	addr := common.HexToAddress("0x50feb1f2580138bc623c97557286df4e24eb81c9")
+
+	statedb.DisableLoadingRemoteAccounts()
 
 	for i := 0; i < 14; i++ {
 		h := fmt.Sprintf("0x%d", i)
@@ -1276,6 +1286,8 @@ func TestExtensionAddedThreeKeyBytesSel2(t *testing.T) {
 	statedb, _ := state.New(blockHeaderParent.Root, database, nil)
 	addr := common.HexToAddress("0x50feb1f2580138bc623c97557286df4e24eb81c9")
 
+	statedb.DisableLoadingRemoteAccounts()
+
 	for i := 0; i < 14; i++ {
 		h := fmt.Sprintf("0x%d", i)
 		key2 := common.HexToHash(h)
@@ -1304,6 +1316,8 @@ func TestExtensionDeletedThreeKeyBytesSel2(t *testing.T) {
 	database := state.NewDatabase(blockHeaderParent)
 	statedb, _ := state.New(blockHeaderParent.Root, database, nil)
 	addr := common.HexToAddress("0x50feb1f2580138bc623c97557286df4e24eb81c9")
+
+	statedb.DisableLoadingRemoteAccounts()
 
 	for i := 0; i < 14; i++ {
 		h := fmt.Sprintf("0x%d", i)
@@ -1335,6 +1349,8 @@ func TestExtensionThreeKeyBytes(t *testing.T) {
 	database := state.NewDatabase(blockHeaderParent)
 	statedb, _ := state.New(blockHeaderParent.Root, database, nil)
 	addr := common.HexToAddress("0x50fbe1f25aa0843b623c97557286df4e24eb81c9")
+
+	statedb.DisableLoadingRemoteAccounts()
 
 	for i := 0; i < 140; i++ {
 		h := fmt.Sprintf("0x%d", i)
@@ -1375,6 +1391,8 @@ func TestOnlyLeafInStorageProof(t *testing.T) {
 	blockHeaderParent := oracle.PrefetchBlock(blockNumberParent, true, nil)
 	database := state.NewDatabase(blockHeaderParent)
 	statedb, _ := state.New(blockHeaderParent.Root, database, nil)
+
+	statedb.DisableLoadingRemoteAccounts()
 	
 	h := fmt.Sprintf("0x%d", 0)
 	addr := common.HexToAddress(h)
@@ -1412,6 +1430,8 @@ func TestLeafAddedToEmptyTrie(t *testing.T) {
 	blockHeaderParent := oracle.PrefetchBlock(blockNumberParent, true, nil)
 	database := state.NewDatabase(blockHeaderParent)
 	statedb, _ := state.New(blockHeaderParent.Root, database, nil)
+
+	statedb.DisableLoadingRemoteAccounts()
 	
 	h := fmt.Sprintf("0x%d", 0)
 	addr := common.HexToAddress(h)
@@ -1452,6 +1472,8 @@ func TestDeleteToEmptyTrie(t *testing.T) {
 	blockHeaderParent := oracle.PrefetchBlock(blockNumberParent, true, nil)
 	database := state.NewDatabase(blockHeaderParent)
 	statedb, _ := state.New(blockHeaderParent.Root, database, nil)
+
+	statedb.DisableLoadingRemoteAccounts()
 	
 	h := fmt.Sprintf("0x%d", 0)
 	addr := common.HexToAddress(h)
@@ -1811,7 +1833,7 @@ func TestAccountPlaceholderExtension(t *testing.T) {
 func TestStateFromEnc(t *testing.T) {
 	// The tests above create new account implicitly when calling SetState (either in
 	// UpdateStateAndGenProof or before calling GenerateProof inside the test).
-	// This test does not create a new account, statedb.SetStateObjectFromEncoding now enables
+	// This test does not create a new account, statedb.setStateObjectFromEncoding now enables
 	// to load the account into stateObjects.
 	blockNum := 13284469
 	blockNumberParent := big.NewInt(int64(blockNum))
