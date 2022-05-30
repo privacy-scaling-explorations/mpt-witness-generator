@@ -524,9 +524,10 @@ func prepareAccountLeafRows(leafS, leafC []byte) ([]byte, []byte, []byte, []byte
 	var balanceStartC int
 	var nonceS []byte
 	var nonceC []byte
-	// If the first nonce byte is >= 128, it means it presents (nonce_len - 128),
-	// if the first nonce byte is < 128, the actual nonce value is < 128 and is exactly this first byte
-	if leafS[nonceStartS] < 128 {
+	// If the first nonce byte is > 128, it means it presents (nonce_len - 128),
+	// if the first nonce byte is <= 128, the actual nonce value is < 128 and is exactly this first byte
+	// (however, when nonce = 0, the actual value that is stored is 128)
+	if leafS[nonceStartS] <= 128 {
 		// only one nonce byte
 		nonceRlpLenS = 1
 		nonceS = leafS[nonceStartS : nonceStartS+int(nonceRlpLenS)]
@@ -536,7 +537,7 @@ func prepareAccountLeafRows(leafS, leafC []byte) ([]byte, []byte, []byte, []byte
 		nonceS = leafS[nonceStartS : nonceStartS+int(nonceRlpLenS)+1]
 		balanceStartS = nonceStartS + int(nonceRlpLenS) + 1
 	}
-	if leafC[nonceStartC] < 128 {
+	if leafC[nonceStartC] <= 128 {
 		// only one nonce byte
 		nonceRlpLenC = 1
 		nonceC = leafC[nonceStartC : nonceStartC+int(nonceRlpLenC)]
@@ -551,7 +552,7 @@ func prepareAccountLeafRows(leafS, leafC []byte) ([]byte, []byte, []byte, []byte
 	var balanceRlpLenC byte
 	var storageStartS int
 	var storageStartC int
-	if leafS[balanceStartS] < 128 {
+	if leafS[balanceStartS] <= 128 {
 		// only one balance byte
 		balanceRlpLenS = 1
 		storageStartS = balanceStartS + int(balanceRlpLenS)
@@ -559,7 +560,7 @@ func prepareAccountLeafRows(leafS, leafC []byte) ([]byte, []byte, []byte, []byte
 		balanceRlpLenS = leafS[balanceStartS] - 128
 		storageStartS = balanceStartS + int(balanceRlpLenS) + 1
 	}
-	if leafC[balanceStartC] < 128 {
+	if leafC[balanceStartC] <= 128 {
 		// only one balance byte
 		balanceRlpLenC = 1
 		storageStartC = balanceStartC + int(balanceRlpLenC)
@@ -1029,30 +1030,34 @@ func prepareWitness(proof1, proof2, extNibbles [][]byte, key []byte, neighbourNo
 
 			// Note: leafRows[0] in this case (len1 > len2) is leafRowS[0],
 			// leafRows[0] in case below (len2 > len1) is leafRowC[0],
-			rows[len(rows)-branchRows-4][driftedPos] =
+			offset := 4
+			if isAccountProof {
+				offset = 6
+			}
+			rows[len(rows)-branchRows-offset][driftedPos] =
 				getDriftedPosition(leafRows[0], numberOfNibbles) // -branchRows-4 lands into branch init
 
 			if isExtension {
-				rows[len(rows)-branchRows-4][isExtensionPos] = 1
+				rows[len(rows)-branchRows-offset][isExtensionPos] = 1
 
 				if numberOfNibbles == 1 {
 					if branchC16 == 1 {
-						rows[len(rows)-branchRows-4][isExtShortC16Pos] = 1
+						rows[len(rows)-branchRows-offset][isExtShortC16Pos] = 1
 					} else {
-						rows[len(rows)-branchRows-4][isExtShortC1Pos] = 1
+						rows[len(rows)-branchRows-offset][isExtShortC1Pos] = 1
 					}
 				} else {
 					if numberOfNibbles % 2 == 0 {
 						if branchC16 == 1 {
-							rows[len(rows)-branchRows-4][isExtLongEvenC16Pos] = 1
+							rows[len(rows)-branchRows-offset][isExtLongEvenC16Pos] = 1
 						} else {
-							rows[len(rows)-branchRows-4][isExtLongEvenC1Pos] = 1
+							rows[len(rows)-branchRows-offset][isExtLongEvenC1Pos] = 1
 						}
 					} else {
 						if branchC16 == 1 {
-							rows[len(rows)-branchRows-4][isExtLongOddC16Pos] = 1
+							rows[len(rows)-branchRows-offset][isExtLongOddC16Pos] = 1
 						} else {
-							rows[len(rows)-branchRows-4][isExtLongOddC1Pos] = 1
+							rows[len(rows)-branchRows-offset][isExtLongOddC1Pos] = 1
 						}
 					}
 				}
