@@ -1031,11 +1031,13 @@ func prepareWitness(proof1, proof2, extNibbles [][]byte, key []byte, neighbourNo
 			// Note: leafRows[0] in this case (len1 > len2) is leafRowS[0],
 			// leafRows[0] in case below (len2 > len1) is leafRowC[0],
 			offset := 4
+			leafRow := leafRows[0]
 			if isAccountProof {
 				offset = 6
+				leafRow = leafRows[1]
 			}
 			rows[len(rows)-branchRows-offset][driftedPos] =
-				getDriftedPosition(leafRows[0], numberOfNibbles) // -branchRows-4 lands into branch init
+				getDriftedPosition(leafRow, numberOfNibbles) // -branchRows-offset lands into branch init
 
 			if isExtension {
 				rows[len(rows)-branchRows-offset][isExtensionPos] = 1

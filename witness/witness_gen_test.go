@@ -1653,7 +1653,7 @@ func TestFindAccountWithPlaceholderBranch(t *testing.T) {
 		statedb.IntermediateRoot(false)
 		accountProof1, _, _, _ := statedb.GetProof(addr)
 
-		if len(accountProof1) == len(accountProof) + 2 {
+		if len(accountProof1) == len(accountProof) + 1 {
 			fmt.Println("a;lskdfja;slkdfj")
 		}
 	}
@@ -1809,6 +1809,29 @@ func TestImplicitlyCreateAccountWithBalance(t *testing.T) {
 	GenerateProof("ImplicitlyCreateAccountWithBalance", trieModifications, statedb)
 }
 
+func TestAccountAddPlaceholderBranch(t *testing.T) {
+	blockNum := 13284469
+	blockNumberParent := big.NewInt(int64(blockNum))
+	blockHeaderParent := oracle.PrefetchBlock(blockNumberParent, true, nil)
+	database := state.NewDatabase(blockHeaderParent)
+	statedb, _ := state.New(blockHeaderParent.Root, database, nil)
+	
+	// We need an account that doesn't exist yet.
+	i := 21
+	h := fmt.Sprintf("0x%d", i)
+	addr := common.HexToAddress(h)
+
+	trieMod := TrieModification{
+    	Type: BalanceMod, // implicitly creating account
+		Balance: big.NewInt(23),
+		Address: addr,
+	}
+	trieModifications := []TrieModification{trieMod}
+
+	GenerateProof("AccountAddPlaceholderExtension", trieModifications, statedb)
+}
+
+
 func TestAccountAddPlaceholderExtension(t *testing.T) {
 	blockNum := 13284469
 	blockNumberParent := big.NewInt(int64(blockNum))
@@ -1816,6 +1839,7 @@ func TestAccountAddPlaceholderExtension(t *testing.T) {
 	database := state.NewDatabase(blockHeaderParent)
 	statedb, _ := state.New(blockHeaderParent.Root, database, nil)
 	
+	// We need an account that doesn't exist yet.
 	i := 40
 	h := fmt.Sprintf("0x%d", i)
 	addr := common.HexToAddress(h)
