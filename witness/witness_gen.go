@@ -118,12 +118,12 @@ func listToJson(row []byte) string {
 
 // Equip proof with intermediate state roots, first level info, counter, address RLC,
 // modification tag (whether it is storage / nonce / balance change).
-func insertMetaInfo(stream, sRoot, cRoot, address, counter []byte, notFirstLevel, isStorageMod, isNonceMod, isBalanceMod, isCodeHashMod byte) []byte {
+func insertMetaInfo(stream, sRoot, cRoot, address, counter []byte, notFirstLevel, isStorageMod, isNonceMod, isBalanceMod, isCodeHashMod, isAccountDeleteMod byte) []byte {
 	// The last byte (-1) in a row determines the type of the row.
 	// Byte -2 determines whether it's the first level or not.
 	// Bytes before that store intermediate final and end roots.
 	l := len(stream)
-	extendLen := 64 + 32 + 32 + counterLen + 1 + 4
+	extendLen := 64 + 32 + 32 + counterLen + 1 + 5
 	extended := make([]byte, l + extendLen) // make space for 32 + 32 + 32 + 1 (s hash, c hash, public_root, notFirstLevel)
 	copy(extended, stream)
 	extended[l+extendLen-1] = extended[l-1] // put selector to the last place
@@ -146,6 +146,7 @@ func insertMetaInfo(stream, sRoot, cRoot, address, counter []byte, notFirstLevel
 	extended[l+extendLen-4] = isNonceMod
 	extended[l+extendLen-5] = isBalanceMod
 	extended[l+extendLen-6] = isCodeHashMod
+	extended[l+extendLen-7] = isAccountDeleteMod
 
 	return extended
 }
@@ -1333,6 +1334,7 @@ func prepareProof(ind int, newProof [][]byte, addrh []byte, sRoot, cRoot, startR
 	isNonceMod := byte(0)
 	isBalanceMod := byte(0)
 	isCodeHashMod := byte(0)
+	isAccountDeleteMod := byte(0)
 	if mType == StorageMod {
 		isStorageMod = 1
 	} else if mType == NonceMod {
@@ -1344,7 +1346,7 @@ func prepareProof(ind int, newProof [][]byte, addrh []byte, sRoot, cRoot, startR
 	} else if mType == CreateAccount {
 		isNonceMod = 1 // TODO: setting as nonce mod for now, this depends on the lookup
 	} else if mType == DeleteAccount {
-		isNonceMod = 1 // TODO: setting as nonce mod for now, this depends on the lookup
+		isAccountDeleteMod = 1
 	}
 
 	counter := make([]byte, counterLen)
@@ -1357,7 +1359,7 @@ func prepareProof(ind int, newProof [][]byte, addrh []byte, sRoot, cRoot, startR
 			notFirstLevel = 0
 		}
 		r := insertMetaInfo(newProof[j], sRoot.Bytes(), cRoot.Bytes(), addrh, counter, notFirstLevel, 
-			isStorageMod, isNonceMod, isBalanceMod, isCodeHashMod)
+			isStorageMod, isNonceMod, isBalanceMod, isCodeHashMod, isAccountDeleteMod)
 		proof = append(proof, r)
 	}
 	insertPublicRoot(newProof, startRoot.Bytes(), finalRoot.Bytes())

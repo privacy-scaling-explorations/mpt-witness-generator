@@ -1828,9 +1828,30 @@ func TestAccountAddPlaceholderBranch(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	GenerateProof("AccountAddPlaceholderExtension", trieModifications, statedb)
+	GenerateProof("AccountAddPlaceholderBranch", trieModifications, statedb)
 }
 
+func TestAccountDeletePlaceholderBranch(t *testing.T) {
+	blockNum := 13284469
+	blockNumberParent := big.NewInt(int64(blockNum))
+	blockHeaderParent := oracle.PrefetchBlock(blockNumberParent, true, nil)
+	database := state.NewDatabase(blockHeaderParent)
+	statedb, _ := state.New(blockHeaderParent.Root, database, nil)
+	
+	i := 21
+	h := fmt.Sprintf("0x%d", i)
+	addr := common.HexToAddress(h)
+
+	statedb.CreateAccount(addr)
+
+	trieMod := TrieModification{
+    	Type: DeleteAccount,
+		Address: addr,
+	}
+	trieModifications := []TrieModification{trieMod}
+
+	GenerateProof("AccountDeletePlaceholderBranch", trieModifications, statedb)
+}
 
 func TestAccountAddPlaceholderExtension(t *testing.T) {
 	blockNum := 13284469
