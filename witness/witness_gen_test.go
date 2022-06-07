@@ -1896,3 +1896,45 @@ func TestAccountDeletePlaceholderExtension(t *testing.T) {
 
 	GenerateProof("AccountDeletePlaceholderExtension", trieModifications, statedb)
 }
+
+func TestNonExistingAccountNilObject(t *testing.T) {
+	// At the account address, there is a nil object.
+	blockNum := 1
+	blockNumberParent := big.NewInt(int64(blockNum))
+	blockHeaderParent := oracle.PrefetchBlock(blockNumberParent, true, nil)
+	database := state.NewDatabase(blockHeaderParent)
+	statedb, _ := state.New(blockHeaderParent.Root, database, nil)
+	
+	addr := common.HexToAddress("0xaaaccf12580138bc2bbceeeaa111df4e42ab81ab")
+	statedb.IntermediateRoot(false)
+
+	trieMod := TrieModification{
+		Address: addr,
+    	Type: NonExistingAccount,
+	}
+	trieModifications := []TrieModification{trieMod}
+
+	GenerateProof("NonExistingAccountNilObject", trieModifications, statedb)
+}
+
+func TestNonExistingAccount(t *testing.T) {
+	// The leaf is returned that doesn't have the required address - but the two addresses overlaps in all nibbles up to
+	// to the position in branch.
+	blockNum := 13284469
+	blockNumberParent := big.NewInt(int64(blockNum))
+	blockHeaderParent := oracle.PrefetchBlock(blockNumberParent, true, nil)
+	database := state.NewDatabase(blockHeaderParent)
+	statedb, _ := state.New(blockHeaderParent.Root, database, nil)
+
+	i := 21
+	h := fmt.Sprintf("0x%d", i)
+	addr := common.HexToAddress(h)
+
+	trieMod := TrieModification{
+		Address: addr,
+    	Type: NonExistingAccount,
+	}
+	trieModifications := []TrieModification{trieMod}
+
+	GenerateProof("NonExistingAccount", trieModifications, statedb)
+}
