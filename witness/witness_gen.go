@@ -480,8 +480,24 @@ func prepareAccountLeafRows(leafS, leafC, addressNibbles []byte) ([]byte, []byte
 		keyRowC[i] = leafC[i]
 	}
 
+	// nonExistingAccountRow is used only for proof that account doesn't exist
 	nonExistingAccountRow := make([]byte, rowLen)
 	nonExistingAccountRow = append(nonExistingAccountRow, 18)
+	// for non-existing account proof we have leafS = leafC
+	offset := 0	
+	nibblesNum := keyLenC * 2
+	if keyRowC[3] != 32 { // odd number of nibbles
+		nibblesNum = nibblesNum - 1
+		nonExistingAccountRow[3] = addressNibbles[64 - nibblesNum] + 48 
+		offset = 1
+	} else {
+		nonExistingAccountRow[3] = 32
+	}
+	// Get the last nibblesNum of address:
+	remainingNibbles := addressNibbles[64 - nibblesNum:64] // exclude the last one as it is not a nibble
+	for i := 0; i < keyLenC-1; i++ {
+		nonExistingAccountRow[4+i] = remainingNibbles[2*i + offset] * 16 + remainingNibbles[2*i+1 + offset]
+	}
 
 	rlpStringSecondPartLenS := leafS[3+keyLenS] - 183
 	if rlpStringSecondPartLenS != 1 {
