@@ -468,7 +468,10 @@ func prepareStorageLeafRows(row []byte, typ byte, valueIsZero bool) ([][]byte, [
 	return [][]byte{leaf1, leaf2}, leafForHashing
 }
 
-func prepareAccountLeafRows(leafS, leafC, addressNibbles []byte) ([]byte, []byte, []byte, []byte, []byte, []byte, []byte) {	
+func prepareAccountLeafRows(leafS, leafC, addressNibbles []byte, wrongLeaf byte) ([]byte, []byte, []byte, []byte, []byte, []byte, []byte) {	
+	// wrongLeaf has a meaning only for non existing account proof. For this proof, there are two cases:
+	// 1. A leaf is returned that is not at the required address (wrong leaf).
+	// 2. Only branches are returned and there is nil object at address position. Placeholder account leaf is added in this case.
 	keyLenS := int(leafS[2]) - 128
 	keyLenC := int(leafC[2]) - 128
 	keyRowS := make([]byte, rowLen)
@@ -484,6 +487,7 @@ func prepareAccountLeafRows(leafS, leafC, addressNibbles []byte) ([]byte, []byte
 	nonExistingAccountRow := make([]byte, rowLen)
 	nonExistingAccountRow = append(nonExistingAccountRow, 18)
 	// for non-existing account proof we have leafS = leafC
+	nonExistingAccountRow[0] = wrongLeaf
 	offset := 0	
 	nibblesNum := keyLenC * 2
 	if keyRowC[3] != 32 { // odd number of nibbles
@@ -498,150 +502,157 @@ func prepareAccountLeafRows(leafS, leafC, addressNibbles []byte) ([]byte, []byte
 	for i := 0; i < keyLenC-1; i++ {
 		nonExistingAccountRow[4+i] = remainingNibbles[2*i + offset] * 16 + remainingNibbles[2*i+1 + offset]
 	}
-
-	rlpStringSecondPartLenS := leafS[3+keyLenS] - 183
-	if rlpStringSecondPartLenS != 1 {
-		panic("Account leaf RLP at this position should be 1 (S)")
-	}
-	rlpStringSecondPartLenC := leafC[3+keyLenC] - 183
-	if rlpStringSecondPartLenC != 1 {
-		panic("Account leaf RLP at this position should be 1 (C)")
-	}
-	rlpStringLenS := leafS[3+keyLenS+1]
-	rlpStringLenC := leafC[3+keyLenC+1]
-
-	// [248,112,157,59,158,160,175,159,65,212,107,23,98,208,38,205,150,63,244,2,185,236,246,95,240,224,191,229,27,102,202,231,184,80,248,78
-	// In this example RLP, there are first 36 bytes of a leaf.
-	// 157 means there are 29 bytes for key (157 - 128).
-	// Positions 32-35: 184, 80, 248, 78.
-	// 184 - 183 = 1 means length of the second part of a string.
-	// 80 means length of a string.
-	// 248 - 247 = 1 means length of the second part of a list.
-	// 78 means length of a list.
-
-	rlpListSecondPartLenS := leafS[3+keyLenS+1+1] - 247
-	if rlpListSecondPartLenS != 1 {
-		panic("Account leaf RLP 1 (S)")
-	}
-	rlpListSecondPartLenC := leafC[3+keyLenC+1+1] - 247
-	if rlpListSecondPartLenC != 1 {
-		panic("Account leaf RLP 1 (C)")
-	}
-
-	rlpListLenS := leafS[3+keyLenS+1+1+1]
-	if rlpStringLenS != rlpListLenS+2 {
-		panic("Account leaf RLP 2 (S)")
-	}
-
-	rlpListLenC := leafC[3+keyLenC+1+1+1]
-	if rlpStringLenC != rlpListLenC+2 {
-		panic("Account leaf RLP 2 (C)")
-	}
-
-	nonceStartS := 3 + keyLenS + 1 + 1 + 1 + 1
-	nonceStartC := 3 + keyLenC + 1 + 1 + 1 + 1
-
-	var nonceRlpLenS byte
-	var nonceRlpLenC byte
-	var balanceStartS int
-	var balanceStartC int
-	var nonceS []byte
-	var nonceC []byte
-	// If the first nonce byte is > 128, it means it presents (nonce_len - 128),
-	// if the first nonce byte is <= 128, the actual nonce value is < 128 and is exactly this first byte
-	// (however, when nonce = 0, the actual value that is stored is 128)
-	if leafS[nonceStartS] <= 128 {
-		// only one nonce byte
-		nonceRlpLenS = 1
-		nonceS = leafS[nonceStartS : nonceStartS+int(nonceRlpLenS)]
-		balanceStartS = nonceStartS + int(nonceRlpLenS)
-	} else {
-		nonceRlpLenS = leafS[nonceStartS] - 128
-		nonceS = leafS[nonceStartS : nonceStartS+int(nonceRlpLenS)+1]
-		balanceStartS = nonceStartS + int(nonceRlpLenS) + 1
-	}
-	if leafC[nonceStartC] <= 128 {
-		// only one nonce byte
-		nonceRlpLenC = 1
-		nonceC = leafC[nonceStartC : nonceStartC+int(nonceRlpLenC)]
-		balanceStartC = nonceStartC + int(nonceRlpLenC)
-	} else {
-		nonceRlpLenC = leafC[nonceStartC] - 128
-		nonceC = leafC[nonceStartC : nonceStartC+int(nonceRlpLenC)+1]
-		balanceStartC = nonceStartC + int(nonceRlpLenC) + 1
-	}
-
-	var balanceRlpLenS byte
-	var balanceRlpLenC byte
-	var storageStartS int
-	var storageStartC int
-	if leafS[balanceStartS] <= 128 {
-		// only one balance byte
-		balanceRlpLenS = 1
-		storageStartS = balanceStartS + int(balanceRlpLenS)
-	} else {
-		balanceRlpLenS = leafS[balanceStartS] - 128
-		storageStartS = balanceStartS + int(balanceRlpLenS) + 1
-	}
-	if leafC[balanceStartC] <= 128 {
-		// only one balance byte
-		balanceRlpLenC = 1
-		storageStartC = balanceStartC + int(balanceRlpLenC)
-	} else {
-		balanceRlpLenC = leafC[balanceStartC] - 128
-		storageStartC = balanceStartC + int(balanceRlpLenC) + 1
-	}
-
-	getNonceBalanceRow := func(leaf, nonce []byte, keyLen, balanceStart int, balanceRlpLen byte) []byte {
-		nonceBalanceRow := make([]byte, rowLen)
-		for i := 0; i < len(nonce); i++ {
-			nonceBalanceRow[branchNodeRLPLen+i] = nonce[i]
-		}
-		nonceBalanceRow[0] = leaf[3+keyLen]
-		nonceBalanceRow[1] = leaf[3+keyLen+1]
-		nonceBalanceRow[branch2start] = leaf[3+keyLen+1+1]
-		nonceBalanceRow[branch2start+1] = leaf[3+keyLen+1+1+1]
-		var balance []byte
-		if balanceRlpLen == 1 {
-			balance = leaf[balanceStart : balanceStart+int(balanceRlpLen)]
-		} else {
-			balance = leaf[balanceStart : balanceStart+int(balanceRlpLen)+1]
-		}
-		for i := 0; i < len(balance); i++ {
-			nonceBalanceRow[branch2start+2+i] = balance[i] // c_advices
-		}
-
-		return nonceBalanceRow
-	}
 	
-	nonceBalanceRowS := getNonceBalanceRow(leafS, nonceS, keyLenS, balanceStartS, balanceRlpLenS)
-	nonceBalanceRowC := getNonceBalanceRow(leafC, nonceC, keyLenC, balanceStartC, balanceRlpLenC)
+	nonceBalanceRowS := make([]byte, rowLen)
+	nonceBalanceRowC := make([]byte, rowLen)
+	storageCodeHashRowS := make([]byte, rowLen)
+	storageCodeHashRowC := make([]byte, rowLen)
 
-	getStorageCodeHashRow := func(leaf []byte, storageStart int) []byte {
-		storageCodeHashRow := make([]byte, rowLen)
-		storageRlpLen := leaf[storageStart] - 128
-		if storageRlpLen != 32 {
-			panic("Account leaf RLP 3")
+	if wrongLeaf != 0 {
+		rlpStringSecondPartLenS := leafS[3+keyLenS] - 183
+		if rlpStringSecondPartLenS != 1 {
+			panic("Account leaf RLP at this position should be 1 (S)")
 		}
-		storage := leaf[storageStart : storageStart+32+1]
-		for i := 0; i < 33; i++ {
-			storageCodeHashRow[branchNodeRLPLen-1+i] = storage[i]
+		rlpStringSecondPartLenC := leafC[3+keyLenC] - 183
+		if rlpStringSecondPartLenC != 1 {
+			panic("Account leaf RLP at this position should be 1 (C)")
 		}
-		codeHashStart := storageStart + int(storageRlpLen) + 1
-		codeHashRlpLen := leaf[codeHashStart] - 128
-		if codeHashRlpLen != 32 {
-			panic("Account leaf RLP 4")
+		rlpStringLenS := leafS[3+keyLenS+1]
+		rlpStringLenC := leafC[3+keyLenC+1]
+
+		// [248,112,157,59,158,160,175,159,65,212,107,23,98,208,38,205,150,63,244,2,185,236,246,95,240,224,191,229,27,102,202,231,184,80,248,78
+		// In this example RLP, there are first 36 bytes of a leaf.
+		// 157 means there are 29 bytes for key (157 - 128).
+		// Positions 32-35: 184, 80, 248, 78.
+		// 184 - 183 = 1 means length of the second part of a string.
+		// 80 means length of a string.
+		// 248 - 247 = 1 means length of the second part of a list.
+		// 78 means length of a list.
+
+		rlpListSecondPartLenS := leafS[3+keyLenS+1+1] - 247
+		if rlpListSecondPartLenS != 1 {
+			panic("Account leaf RLP 1 (S)")
 		}
-		codeHash := leaf[codeHashStart : codeHashStart+32+1]
-		for i := 0; i < 33; i++ {
-			storageCodeHashRow[branch2start+1+i] = codeHash[i] // start from c_rlp2
+		rlpListSecondPartLenC := leafC[3+keyLenC+1+1] - 247
+		if rlpListSecondPartLenC != 1 {
+			panic("Account leaf RLP 1 (C)")
 		}
 
-		return storageCodeHashRow
-	}
+		rlpListLenS := leafS[3+keyLenS+1+1+1]
+		if rlpStringLenS != rlpListLenS+2 {
+			panic("Account leaf RLP 2 (S)")
+		}
 
-	storageCodeHashRowS := getStorageCodeHashRow(leafS, storageStartS)
-	storageCodeHashRowC := getStorageCodeHashRow(leafC, storageStartC)
+		rlpListLenC := leafC[3+keyLenC+1+1+1]
+		if rlpStringLenC != rlpListLenC+2 {
+			panic("Account leaf RLP 2 (C)")
+		}
+
+		nonceStartS := 3 + keyLenS + 1 + 1 + 1 + 1
+		nonceStartC := 3 + keyLenC + 1 + 1 + 1 + 1
+
+		var nonceRlpLenS byte
+		var nonceRlpLenC byte
+		var balanceStartS int
+		var balanceStartC int
+		var nonceS []byte
+		var nonceC []byte
+		// If the first nonce byte is > 128, it means it presents (nonce_len - 128),
+		// if the first nonce byte is <= 128, the actual nonce value is < 128 and is exactly this first byte
+		// (however, when nonce = 0, the actual value that is stored is 128)
+		if leafS[nonceStartS] <= 128 {
+			// only one nonce byte
+			nonceRlpLenS = 1
+			nonceS = leafS[nonceStartS : nonceStartS+int(nonceRlpLenS)]
+			balanceStartS = nonceStartS + int(nonceRlpLenS)
+		} else {
+			nonceRlpLenS = leafS[nonceStartS] - 128
+			nonceS = leafS[nonceStartS : nonceStartS+int(nonceRlpLenS)+1]
+			balanceStartS = nonceStartS + int(nonceRlpLenS) + 1
+		}
+		if leafC[nonceStartC] <= 128 {
+			// only one nonce byte
+			nonceRlpLenC = 1
+			nonceC = leafC[nonceStartC : nonceStartC+int(nonceRlpLenC)]
+			balanceStartC = nonceStartC + int(nonceRlpLenC)
+		} else {
+			nonceRlpLenC = leafC[nonceStartC] - 128
+			nonceC = leafC[nonceStartC : nonceStartC+int(nonceRlpLenC)+1]
+			balanceStartC = nonceStartC + int(nonceRlpLenC) + 1
+		}
+
+		var balanceRlpLenS byte
+		var balanceRlpLenC byte
+		var storageStartS int
+		var storageStartC int
+		if leafS[balanceStartS] <= 128 {
+			// only one balance byte
+			balanceRlpLenS = 1
+			storageStartS = balanceStartS + int(balanceRlpLenS)
+		} else {
+			balanceRlpLenS = leafS[balanceStartS] - 128
+			storageStartS = balanceStartS + int(balanceRlpLenS) + 1
+		}
+		if leafC[balanceStartC] <= 128 {
+			// only one balance byte
+			balanceRlpLenC = 1
+			storageStartC = balanceStartC + int(balanceRlpLenC)
+		} else {
+			balanceRlpLenC = leafC[balanceStartC] - 128
+			storageStartC = balanceStartC + int(balanceRlpLenC) + 1
+		}
+
+		getNonceBalanceRow := func(leaf, nonce []byte, keyLen, balanceStart int, balanceRlpLen byte) []byte {
+			nonceBalanceRow := make([]byte, rowLen)
+			for i := 0; i < len(nonce); i++ {
+				nonceBalanceRow[branchNodeRLPLen+i] = nonce[i]
+			}
+			nonceBalanceRow[0] = leaf[3+keyLen]
+			nonceBalanceRow[1] = leaf[3+keyLen+1]
+			nonceBalanceRow[branch2start] = leaf[3+keyLen+1+1]
+			nonceBalanceRow[branch2start+1] = leaf[3+keyLen+1+1+1]
+			var balance []byte
+			if balanceRlpLen == 1 {
+				balance = leaf[balanceStart : balanceStart+int(balanceRlpLen)]
+			} else {
+				balance = leaf[balanceStart : balanceStart+int(balanceRlpLen)+1]
+			}
+			for i := 0; i < len(balance); i++ {
+				nonceBalanceRow[branch2start+2+i] = balance[i] // c_advices
+			}
+
+			return nonceBalanceRow
+		}
+		
+		nonceBalanceRowS = getNonceBalanceRow(leafS, nonceS, keyLenS, balanceStartS, balanceRlpLenS)
+		nonceBalanceRowC = getNonceBalanceRow(leafC, nonceC, keyLenC, balanceStartC, balanceRlpLenC)
+
+		getStorageCodeHashRow := func(leaf []byte, storageStart int) []byte {
+			storageCodeHashRow := make([]byte, rowLen)
+			storageRlpLen := leaf[storageStart] - 128
+			if storageRlpLen != 32 {
+				panic("Account leaf RLP 3")
+			}
+			storage := leaf[storageStart : storageStart+32+1]
+			for i := 0; i < 33; i++ {
+				storageCodeHashRow[branchNodeRLPLen-1+i] = storage[i]
+			}
+			codeHashStart := storageStart + int(storageRlpLen) + 1
+			codeHashRlpLen := leaf[codeHashStart] - 128
+			if codeHashRlpLen != 32 {
+				panic("Account leaf RLP 4")
+			}
+			codeHash := leaf[codeHashStart : codeHashStart+32+1]
+			for i := 0; i < 33; i++ {
+				storageCodeHashRow[branch2start+1+i] = codeHash[i] // start from c_rlp2
+			}
+
+			return storageCodeHashRow
+		}
+
+		storageCodeHashRowS = getStorageCodeHashRow(leafS, storageStartS)
+		storageCodeHashRowC = getStorageCodeHashRow(leafC, storageStartC)
+	} 
 
 	keyRowS = append(keyRowS, 6)
 	keyRowC = append(keyRowC, 4)
@@ -797,7 +808,7 @@ func prepareWitness(proof1, proof2, extNibbles [][]byte, key []byte, neighbourNo
 				leafC := proof2[l-1]
 
 				keyRowS, keyRowC, nonExistingAccountRow, nonceBalanceRowS, nonceBalanceRowC, storageCodeHashRowS, storageCodeHashRowC :=
-					prepareAccountLeafRows(leafS, leafC, key)
+					prepareAccountLeafRows(leafS, leafC, key, 1)
 				
 				rows = append(rows, keyRowS)
 				rows = append(rows, keyRowC)
@@ -1020,7 +1031,7 @@ func prepareWitness(proof1, proof2, extNibbles [][]byte, key []byte, neighbourNo
 				// When generating a proof that account doesn't exist, the length of both proofs is the same (doesn't reach
 				// this code).
 				keyRowS, keyRowC, nonExistingAccountRow, nonceBalanceRowS, nonceBalanceRowC, storageCodeHashRowS, storageCodeHashRowC :=
-					prepareAccountLeafRows(leafS, leafC, key)
+					prepareAccountLeafRows(leafS, leafC, key, 1)
 				leafRows = append(leafRows, keyRowS)
 				leafRows = append(leafRows, keyRowC)
 				leafRows = append(leafRows, nonExistingAccountRow) // not really needed
@@ -1105,7 +1116,7 @@ func prepareWitness(proof1, proof2, extNibbles [][]byte, key []byte, neighbourNo
 				toBeHashed = append(toBeHashed, h)
 
 				keyRowS, _, _, _, _, _, _ :=
-					prepareAccountLeafRows(neighbourNode, neighbourNode, key)
+					prepareAccountLeafRows(neighbourNode, neighbourNode, key, 1)
 				keyRowS = append(keyRowS, 10)
 				rows = append(rows, keyRowS)
 			} else {
@@ -1122,7 +1133,7 @@ func prepareWitness(proof1, proof2, extNibbles [][]byte, key []byte, neighbourNo
 				// When generating a proof that account doesn't exist, the length of both proofs is the same (doesn't reach
 				// this code).
 				keyRowS, keyRowC, nonExistingAccountRow, nonceBalanceRowS, nonceBalanceRowC, storageCodeHashRowS, storageCodeHashRowC :=
-					prepareAccountLeafRows(leafS, leafC, key)
+					prepareAccountLeafRows(leafS, leafC, key, 1)
 				
 				rows = append(rows, keyRowS)
 				rows = append(rows, keyRowC)
@@ -1207,7 +1218,7 @@ func prepareWitness(proof1, proof2, extNibbles [][]byte, key []byte, neighbourNo
 				// When generating a proof that account doesn't exist, the length of both proofs is the same (doesn't reach
 				// this code).
 				keyRowS, keyRowC, nonExistingAccountRow, nonceBalanceRowS, nonceBalanceRowC, storageCodeHashRowS, storageCodeHashRowC :=
-					prepareAccountLeafRows(leafS, leafC, key)
+					prepareAccountLeafRows(leafS, leafC, key, 1)
 				leafRows = append(leafRows, keyRowS)
 				leafRows = append(leafRows, keyRowC)
 				leafRows = append(leafRows, nonExistingAccountRow)
@@ -1282,7 +1293,7 @@ func prepareWitness(proof1, proof2, extNibbles [][]byte, key []byte, neighbourNo
 				toBeHashed = append(toBeHashed, h)
 
 				keyRowS, _, _, _, _, _, _ :=
-					prepareAccountLeafRows(neighbourNode, neighbourNode, key)
+					prepareAccountLeafRows(neighbourNode, neighbourNode, key, 1)
 				keyRowS = append(keyRowS, 10)
 				rows = append(rows, keyRowS)
 			} else {
@@ -1300,7 +1311,7 @@ func prepareWitness(proof1, proof2, extNibbles [][]byte, key []byte, neighbourNo
 				// When generating a proof that account doesn't exist, the length of both proofs is the same (doesn't reach
 				// this code).
 				keyRowS, keyRowC, nonExistingAccountRow, nonceBalanceRowS, nonceBalanceRowC, storageCodeHashRowS, storageCodeHashRowC :=
-					prepareAccountLeafRows(leafS, leafC, key)
+					prepareAccountLeafRows(leafS, leafC, key, 1)
 				
 				rows = append(rows, keyRowS)
 				rows = append(rows, keyRowC)
@@ -1330,6 +1341,48 @@ func prepareWitness(proof1, proof2, extNibbles [][]byte, key []byte, neighbourNo
 			}
 		}
 	} else {
+		lastRLP := proof1[len(proof1)-1];
+		elems, _, err := rlp.SplitList(lastRLP)
+		check(err)
+		c, _ := rlp.CountValues(elems)
+		if c == 17 {
+			// When non existing account proof and len1 != len2, only the branches are returned.
+			// We add a placeholder leaf. This is to enable the lookup (in account leaf row), the constraints will be disabled.
+
+			// Just some leaf with values that don't trigger errors:
+			// leaf := []byte{248,102,157,55,236,125,29,155,142,209,241,75,145,144,143,254,65,81,209,56,13,192,157,236,195,213,73,132,11,251,149,241,184,70,248,68,1,128,160,112,158,181,221,162,20,124,79,184,25,162,13,167,162,146,25,237,242,59,120,184,154,118,137,92,181,187,152,115,82,223,48,160,7,190,1,231,231,32,111,227,30,206,233,26,215,93,173,166,90,214,186,67,58,230,71,161,185,51,4,105,247,198,103,124}
+
+			isEven := keyIndex % 2 == 0 
+			keyLen := 32 - keyIndex / 2
+			remainingNibbles := key[keyIndex:]
+			offset := 0
+			leaf := make([]byte, rowLen)
+			leaf[2] = byte(keyLen) + 128
+			leaf[3 + keyLen] = 184
+			leaf[3 + keyLen + 1 + 1] = 248
+			leaf[3 + keyLen + 1 + 1 + 1] = leaf[3 + keyLen + 1] - 2
+			if isEven {
+				leaf[3] = 32
+			} else {
+				leaf[3] = remainingNibbles[0] + 48
+				offset = 1
+			}
+			for i := 0; i < keyLen - 1; i++ {
+				leaf[4+i] = remainingNibbles[2*i + offset] * 16 + remainingNibbles[2*i + 1 + offset]
+			}
+			
+			keyRowS, keyRowC, nonExistingAccountRow, nonceBalanceRowS, nonceBalanceRowC, storageCodeHashRowS, storageCodeHashRowC :=
+				prepareAccountLeafRows(leaf, leaf, key, 0)
+			
+			rows = append(rows, keyRowS)
+			rows = append(rows, keyRowC)
+			rows = append(rows, nonExistingAccountRow)
+			rows = append(rows, nonceBalanceRowS)
+			rows = append(rows, nonceBalanceRowC)
+			rows = append(rows, storageCodeHashRowS)
+			rows = append(rows, storageCodeHashRowC)
+		}
+
 		pRows := prepareDriftedLeafPlaceholder(isAccountProof)
 		rows = append(rows, pRows...)
 	}
