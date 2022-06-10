@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"log"
+	"math"
 	"math/big"
 	"os"
 	"strconv"
@@ -468,7 +469,7 @@ func prepareStorageLeafRows(row []byte, typ byte, valueIsZero bool) ([][]byte, [
 	return [][]byte{leaf1, leaf2}, leafForHashing
 }
 
-func prepareAccountLeafRows(leafS, leafC, addressNibbles []byte, wrongLeaf byte) ([]byte, []byte, []byte, []byte, []byte, []byte, []byte) {	
+func prepareAccountLeafRows(leafS, leafC, addressNibbles []byte, nonExistingAccountProof, noLeaf bool) ([]byte, []byte, []byte, []byte, []byte, []byte, []byte) {	
 	// wrongLeaf has a meaning only for non existing account proof. For this proof, there are two cases:
 	// 1. A leaf is returned that is not at the required address (wrong leaf).
 	// 2. Only branches are returned and there is nil object at address position. Placeholder account leaf is added in this case.
@@ -486,12 +487,11 @@ func prepareAccountLeafRows(leafS, leafC, addressNibbles []byte, wrongLeaf byte)
 	// nonExistingAccountRow is used only for proof that account doesn't exist
 	nonExistingAccountRow := make([]byte, rowLen)
 	nonExistingAccountRow = append(nonExistingAccountRow, 18)
-	// for non-existing account proof we have leafS = leafC
-	nonExistingAccountRow[0] = wrongLeaf
+	
 	offset := 0	
-	nibblesNum := keyLenC * 2
+	nibblesNum := (keyLenC - 1) * 2
 	if keyRowC[3] != 32 { // odd number of nibbles
-		nibblesNum = nibblesNum - 1
+		nibblesNum = nibblesNum + 1
 		nonExistingAccountRow[3] = addressNibbles[64 - nibblesNum] + 48 
 		offset = 1
 	} else {
@@ -502,13 +502,18 @@ func prepareAccountLeafRows(leafS, leafC, addressNibbles []byte, wrongLeaf byte)
 	for i := 0; i < keyLenC-1; i++ {
 		nonExistingAccountRow[4+i] = remainingNibbles[2*i + offset] * 16 + remainingNibbles[2*i+1 + offset]
 	}
+
+	// for non-existing account proof we have leafS = leafC
+	if nonExistingAccountProof && !noLeaf {
+		nonExistingAccountRow[0] = 1 // whether it is wrong leaf
+	}
 	
 	nonceBalanceRowS := make([]byte, rowLen)
 	nonceBalanceRowC := make([]byte, rowLen)
 	storageCodeHashRowS := make([]byte, rowLen)
 	storageCodeHashRowC := make([]byte, rowLen)
 
-	if wrongLeaf != 0 {
+	if !noLeaf {
 		rlpStringSecondPartLenS := leafS[3+keyLenS] - 183
 		if rlpStringSecondPartLenS != 1 {
 			panic("Account leaf RLP at this position should be 1 (S)")
@@ -742,7 +747,8 @@ func prepareTwoBranchesWitness(branch1, branch2 []byte, key, branchC16, branchC1
 	return rows
 }
 
-func prepareWitness(proof1, proof2, extNibbles [][]byte, key []byte, neighbourNode []byte, isAccountProof bool) ([][]byte, [][]byte, bool) {
+func prepareWitness(proof1, proof2, extNibbles [][]byte, key []byte, neighbourNode []byte,
+		isAccountProof, nonExistingAccountProof bool) ([][]byte, [][]byte, bool) {
 	rows := make([][]byte, 0)
 	toBeHashed := make([][]byte, 0)
 
@@ -808,7 +814,7 @@ func prepareWitness(proof1, proof2, extNibbles [][]byte, key []byte, neighbourNo
 				leafC := proof2[l-1]
 
 				keyRowS, keyRowC, nonExistingAccountRow, nonceBalanceRowS, nonceBalanceRowC, storageCodeHashRowS, storageCodeHashRowC :=
-					prepareAccountLeafRows(leafS, leafC, key, 1)
+					prepareAccountLeafRows(leafS, leafC, key, nonExistingAccountProof, false)
 				
 				rows = append(rows, keyRowS)
 				rows = append(rows, keyRowC)
@@ -1031,7 +1037,7 @@ func prepareWitness(proof1, proof2, extNibbles [][]byte, key []byte, neighbourNo
 				// When generating a proof that account doesn't exist, the length of both proofs is the same (doesn't reach
 				// this code).
 				keyRowS, keyRowC, nonExistingAccountRow, nonceBalanceRowS, nonceBalanceRowC, storageCodeHashRowS, storageCodeHashRowC :=
-					prepareAccountLeafRows(leafS, leafC, key, 1)
+					prepareAccountLeafRows(leafS, leafC, key, nonExistingAccountProof, false)
 				leafRows = append(leafRows, keyRowS)
 				leafRows = append(leafRows, keyRowC)
 				leafRows = append(leafRows, nonExistingAccountRow) // not really needed
@@ -1116,7 +1122,7 @@ func prepareWitness(proof1, proof2, extNibbles [][]byte, key []byte, neighbourNo
 				toBeHashed = append(toBeHashed, h)
 
 				keyRowS, _, _, _, _, _, _ :=
-					prepareAccountLeafRows(neighbourNode, neighbourNode, key, 1)
+					prepareAccountLeafRows(neighbourNode, neighbourNode, key, nonExistingAccountProof, false)
 				keyRowS = append(keyRowS, 10)
 				rows = append(rows, keyRowS)
 			} else {
@@ -1133,7 +1139,7 @@ func prepareWitness(proof1, proof2, extNibbles [][]byte, key []byte, neighbourNo
 				// When generating a proof that account doesn't exist, the length of both proofs is the same (doesn't reach
 				// this code).
 				keyRowS, keyRowC, nonExistingAccountRow, nonceBalanceRowS, nonceBalanceRowC, storageCodeHashRowS, storageCodeHashRowC :=
-					prepareAccountLeafRows(leafS, leafC, key, 1)
+					prepareAccountLeafRows(leafS, leafC, key, nonExistingAccountProof, false)
 				
 				rows = append(rows, keyRowS)
 				rows = append(rows, keyRowC)
@@ -1218,7 +1224,7 @@ func prepareWitness(proof1, proof2, extNibbles [][]byte, key []byte, neighbourNo
 				// When generating a proof that account doesn't exist, the length of both proofs is the same (doesn't reach
 				// this code).
 				keyRowS, keyRowC, nonExistingAccountRow, nonceBalanceRowS, nonceBalanceRowC, storageCodeHashRowS, storageCodeHashRowC :=
-					prepareAccountLeafRows(leafS, leafC, key, 1)
+					prepareAccountLeafRows(leafS, leafC, key, nonExistingAccountProof, false)
 				leafRows = append(leafRows, keyRowS)
 				leafRows = append(leafRows, keyRowC)
 				leafRows = append(leafRows, nonExistingAccountRow)
@@ -1293,7 +1299,7 @@ func prepareWitness(proof1, proof2, extNibbles [][]byte, key []byte, neighbourNo
 				toBeHashed = append(toBeHashed, h)
 
 				keyRowS, _, _, _, _, _, _ :=
-					prepareAccountLeafRows(neighbourNode, neighbourNode, key, 1)
+					prepareAccountLeafRows(neighbourNode, neighbourNode, key, nonExistingAccountProof, false)
 				keyRowS = append(keyRowS, 10)
 				rows = append(rows, keyRowS)
 			} else {
@@ -1311,7 +1317,7 @@ func prepareWitness(proof1, proof2, extNibbles [][]byte, key []byte, neighbourNo
 				// When generating a proof that account doesn't exist, the length of both proofs is the same (doesn't reach
 				// this code).
 				keyRowS, keyRowC, nonExistingAccountRow, nonceBalanceRowS, nonceBalanceRowC, storageCodeHashRowS, storageCodeHashRowC :=
-					prepareAccountLeafRows(leafS, leafC, key, 1)
+					prepareAccountLeafRows(leafS, leafC, key, nonExistingAccountProof, false)
 				
 				rows = append(rows, keyRowS)
 				rows = append(rows, keyRowC)
@@ -1349,14 +1355,12 @@ func prepareWitness(proof1, proof2, extNibbles [][]byte, key []byte, neighbourNo
 			// When non existing account proof and len1 != len2, only the branches are returned.
 			// We add a placeholder leaf. This is to enable the lookup (in account leaf row), the constraints will be disabled.
 
-			// Just some leaf with values that don't trigger errors:
-			// leaf := []byte{248,102,157,55,236,125,29,155,142,209,241,75,145,144,143,254,65,81,209,56,13,192,157,236,195,213,73,132,11,251,149,241,184,70,248,68,1,128,160,112,158,181,221,162,20,124,79,184,25,162,13,167,162,146,25,237,242,59,120,184,154,118,137,92,181,187,152,115,82,223,48,160,7,190,1,231,231,32,111,227,30,206,233,26,215,93,173,166,90,214,186,67,58,230,71,161,185,51,4,105,247,198,103,124}
-
 			isEven := keyIndex % 2 == 0 
-			keyLen := 32 - keyIndex / 2
+			keyLen := int(math.Floor(float64(64-keyIndex) / float64(2))) + 1
 			remainingNibbles := key[keyIndex:]
 			offset := 0
 			leaf := make([]byte, rowLen)
+			leaf[0] = 248
 			leaf[2] = byte(keyLen) + 128
 			leaf[3 + keyLen] = 184
 			leaf[3 + keyLen + 1 + 1] = 248
@@ -1372,7 +1376,7 @@ func prepareWitness(proof1, proof2, extNibbles [][]byte, key []byte, neighbourNo
 			}
 			
 			keyRowS, keyRowC, nonExistingAccountRow, nonceBalanceRowS, nonceBalanceRowC, storageCodeHashRowS, storageCodeHashRowC :=
-				prepareAccountLeafRows(leaf, leaf, key, 0)
+				prepareAccountLeafRows(leaf, leaf, key, nonExistingAccountProof, true)
 			
 			rows = append(rows, keyRowS)
 			rows = append(rows, keyRowC)
@@ -1515,7 +1519,7 @@ func prepareAccountProof(i int, tMod TrieModification, tModsLen int, statedb *st
 	}
 	
 	rowsState, toBeHashedAcc, _ :=
-		prepareWitness(accountProof, accountProof1, aExtNibbles, accountAddr, aNode, true)
+		prepareWitness(accountProof, accountProof1, aExtNibbles, accountAddr, aNode, true, tMod.Type == NonExistingAccount)
 	proof := prepareProof(i, rowsState, addrh, sRoot, cRoot, startRoot, finalRoot, tMod.Type)
 
 	return proof, toBeHashedAcc
@@ -1582,9 +1586,9 @@ func getParallelProofs(trieModifications []TrieModification, statedb *state.Stat
 			}
 			
 			rowsState, toBeHashedAcc, _ :=
-				prepareWitness(accountProof, accountProof1, aExtNibbles, accountAddr, aNode, true)
+				prepareWitness(accountProof, accountProof1, aExtNibbles, accountAddr, aNode, true, false)
 			rowsStorage, toBeHashedStorage, _ :=
-				prepareWitness(storageProof, storageProof1, extNibbles, keyHashed, node, false)
+				prepareWitness(storageProof, storageProof1, extNibbles, keyHashed, node, false, false)
 			rowsState = append(rowsState, rowsStorage...)
 
 			proof := prepareProof(i, rowsState, addrh, sRoot, cRoot, startRoot, finalRoot, StorageMod)
