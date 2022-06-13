@@ -1938,3 +1938,51 @@ func TestNonExistingAccount(t *testing.T) {
 
 	GenerateProof("NonExistingAccount", trieModifications, statedb)
 }
+
+func TestNonExistingAccountNilObjectInFirstLevel(t *testing.T) {
+	// geth --dev --http --ipcpath ~/Library/Ethereum/geth.ipc
+	oracle.NodeUrl = oracle.LocalUrl
+	blockNum := 0
+	blockNumberParent := big.NewInt(int64(blockNum))
+	blockHeaderParent := oracle.PrefetchBlock(blockNumberParent, true, nil)
+	database := state.NewDatabase(blockHeaderParent)
+	statedb, _ := state.New(blockHeaderParent.Root, database, nil)
+
+	i := 21
+	h := fmt.Sprintf("0x%d", i)
+	addr := common.HexToAddress(h)
+
+	trieMod := TrieModification{
+		Address: addr,
+    	Type: NonExistingAccount,
+	}
+	trieModifications := []TrieModification{trieMod}
+
+	GenerateProof("NonExistingAccountNilObjectInFirstLevel", trieModifications, statedb)
+
+	oracle.NodeUrl = oracle.RemoteUrl
+}
+
+func TestNonExistingAccountAfterFirstLevel(t *testing.T) {
+	// geth --dev --http --ipcpath ~/Library/Ethereum/geth.ipc
+	oracle.NodeUrl = oracle.LocalUrl
+	blockNum := 0
+	blockNumberParent := big.NewInt(int64(blockNum))
+	blockHeaderParent := oracle.PrefetchBlock(blockNumberParent, true, nil)
+	database := state.NewDatabase(blockHeaderParent)
+	statedb, _ := state.New(blockHeaderParent.Root, database, nil)
+
+	i := 22
+	h := fmt.Sprintf("0x%d", i)
+	addr := common.HexToAddress(h)
+
+	trieMod := TrieModification{
+		Address: addr,
+    	Type: NonExistingAccount,
+	}
+	trieModifications := []TrieModification{trieMod}
+
+	GenerateProof("NonExistingAccountAfterFirstLevel", trieModifications, statedb)
+
+	oracle.NodeUrl = oracle.RemoteUrl
+}

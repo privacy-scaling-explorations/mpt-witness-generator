@@ -77,7 +77,8 @@ type Account struct {
 }
 
 var NodeUrl = "https://mainnet.infura.io/v3/9aa3d95b3bc440fa88ea12eaa4456161"
-// var NodeUrl = "http://localhost:8545"
+var RemoteUrl = "https://mainnet.infura.io/v3/9aa3d95b3bc440fa88ea12eaa4456161"
+var LocalUrl = "http://localhost:8545"
 
 func toFilename(key string) string {
 	return fmt.Sprintf("/tmp/eth/json_%s", key)
@@ -102,9 +103,11 @@ func cacheWrite(key string, value []byte) {
 
 func getAPI(jsonData []byte) io.Reader {
 	key := hexutil.Encode(crypto.Keccak256(jsonData))
+	/* Note: switching between two testnets (to prepare tests with account in the first level)
 	if cacheExists(key) {
 		return bytes.NewReader(cacheRead(key))
 	}
+	*/
 	resp, _ := http.Post(NodeUrl, "application/json", bytes.NewBuffer(jsonData))
 	defer resp.Body.Close()
 	ret, _ := ioutil.ReadAll(resp.Body)

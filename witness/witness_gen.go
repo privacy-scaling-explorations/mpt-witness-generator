@@ -1352,8 +1352,8 @@ func prepareWitness(proof1, proof2, extNibbles [][]byte, key []byte, neighbourNo
 		check(err)
 		c, _ := rlp.CountValues(elems)
 		if c == 17 {
-			// When non existing account proof and len1 != len2, only the branches are returned.
-			// We add a placeholder leaf. This is to enable the lookup (in account leaf row), the constraints will be disabled.
+			// When non existing account proof and only the branches are returned, we add a placeholder leaf.
+			// This is to enable the lookup (in account leaf row), most constraints are disabled for these rows.
 
 			isEven := keyIndex % 2 == 0 
 			keyLen := int(math.Floor(float64(64-keyIndex) / float64(2))) + 1
