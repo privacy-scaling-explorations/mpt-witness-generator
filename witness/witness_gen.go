@@ -1411,7 +1411,7 @@ func GetParallelProofs(nodeUrl string, blockNum int, trieModifications []TrieMod
 		// statedb.GetState(addr, keys[i])
 	}
 
-	return getParallelProofs(trieModifications, statedb)
+	return getParallelProofs(trieModifications, statedb, 0)
 }
 
 func prepareProof(ind int, newProof [][]byte, addrh []byte, sRoot, cRoot, startRoot, finalRoot common.Hash, mType ModType) [][]byte {
@@ -1462,7 +1462,7 @@ func prepareProof(ind int, newProof [][]byte, addrh []byte, sRoot, cRoot, startR
 	return proof
 }
 
-func prepareAccountProof(i int, tMod TrieModification, tModsLen int, statedb *state.StateDB) ([][]byte, [][]byte) {
+func prepareAccountProof(i int, tMod TrieModification, tModsLen int, statedb *state.StateDB, specialTest byte) ([][]byte, [][]byte) {
 	statedb.IntermediateRoot(false)
 
 	addr := tMod.Address
@@ -1510,6 +1510,33 @@ func prepareAccountProof(i int, tMod TrieModification, tModsLen int, statedb *st
 	accountProof1, aNeighbourNode2, aExtNibbles2, err := statedb.GetProof(addr)
 	check(err)
 
+	if (specialTest == 1) {
+		account := accountProof1[len(accountProof1)-1]
+
+		newAccount := make([]byte, len(account)+1) 
+		newAccount[0] = account[0]
+		newAccount[1] = account[1] + 1
+		newAccount[2] = 161
+		newAccount[3] = 32
+		// The following relies on the account being in the second level.
+		for i := 0; i < 32; i++ {
+			newAccount[4+i] = addrh[i]
+		}
+		for i := 0; i < int(account[1] - 34); i++ {
+			newAccount[4+32+i] = account[35+i]
+		}
+
+		newAccount1 := newAccount
+		accountProof = make([][]byte, 1)
+		accountProof[0] = newAccount
+		accountProof1 = make([][]byte, 1)
+		accountProof1[0] = newAccount1
+		
+		hasher := trie.NewHasher(false)
+		startRoot = common.BytesToHash(hasher.HashData(newAccount))
+		finalRoot = common.BytesToHash(hasher.HashData(newAccount1))
+	}
+
 	aNode := aNeighbourNode2
 	aExtNibbles := aExtNibbles2
 	if len(accountProof) > len(accountProof1) {
@@ -1525,7 +1552,7 @@ func prepareAccountProof(i int, tMod TrieModification, tModsLen int, statedb *st
 	return proof, toBeHashedAcc
 }
 
-func getParallelProofs(trieModifications []TrieModification, statedb *state.StateDB) [][]byte {
+func getParallelProofs(trieModifications []TrieModification, statedb *state.StateDB, specialTest byte) [][]byte {
 	statedb.IntermediateRoot(false)
 	allProofs := [][]byte{}
 	toBeHashed := [][]byte{}	
@@ -1599,7 +1626,7 @@ func getParallelProofs(trieModifications []TrieModification, statedb *state.Stat
 			toBeHashed = append(toBeHashed, toBeHashedAcc...)
 			toBeHashed = append(toBeHashed, toBeHashedStorage...)
 		} else {
-			proof, toBeHashedAcc := prepareAccountProof(i, tMod, len(trieModifications), statedb)
+			proof, toBeHashedAcc := prepareAccountProof(i, tMod, len(trieModifications), statedb, specialTest)
 			allProofs = append(allProofs, proof...)
 			toBeHashed = append(toBeHashed, toBeHashedAcc...)
 		}
@@ -1610,7 +1637,22 @@ func getParallelProofs(trieModifications []TrieModification, statedb *state.Stat
 }
 
 func GenerateProof(testName string, trieModifications []TrieModification, statedb *state.StateDB) {
-	proof := getParallelProofs(trieModifications, statedb)
+	proof := getParallelProofs(trieModifications, statedb, 0)
+
+	w := MatrixToJson(proof)
+	fmt.Println(w)
+
+	name := testName + ".json"
+	f, err := os.Create("../generated_witnesses/" + name)
+    check(err)
+	defer f.Close()
+	n3, err := f.WriteString(w)
+    check(err)
+    fmt.Printf("wrote %d bytes\n", n3)
+}
+
+func GenerateProofSpecial(testName string, trieModifications []TrieModification, statedb *state.StateDB, specialTest byte) {
+	proof := getParallelProofs(trieModifications, statedb, specialTest)
 
 	w := MatrixToJson(proof)
 	fmt.Println(w)
@@ -1639,7 +1681,7 @@ func UpdateStateAndGenProof(testName string, keys, values []common.Hash, address
 		statedb.SetState(addresses[i], keys[i], values[i])
 	}
 	
-	proof := getParallelProofs(trieModifications, statedb)
+	proof := getParallelProofs(trieModifications, statedb, 0)
 
 	w := MatrixToJson(proof)
 	fmt.Println(w)
