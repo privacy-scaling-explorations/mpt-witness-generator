@@ -21,7 +21,7 @@ const branchNodeRLPLen = 2 // we have two positions for RLP meta data
 const branch2start = branchNodeRLPLen + 32
 const branchRows = 19 // 1 (init) + 16 (children) + 2 (extension S and C)
 
-const accountLeafRows = 5
+const accountLeafRows = 8
 const counterLen = 4
 
 // rowLen - each branch node has 2 positions for RLP meta data and 32 positions for hash
@@ -1522,7 +1522,7 @@ func prepareAccountProof(i int, tMod TrieModification, tModsLen int, statedb *st
 		for i := 0; i < 32; i++ {
 			newAccount[4+i] = addrh[i]
 		}
-		for i := 0; i < int(account[1] - 34); i++ {
+		for i := 0; i < int(account[1] - 33); i++ {
 			newAccount[4+32+i] = account[35+i]
 		}
 
