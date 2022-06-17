@@ -2026,7 +2026,7 @@ func TestAccountInFirstLevel(t *testing.T) {
 	addr := common.HexToAddress(h)
 
 	trieMod := TrieModification{
-    	Type: BalanceMod,
+    	Type: NonceMod,
 		Balance: big.NewInt(23),
 		Address: addr,
 	}
@@ -2036,3 +2036,31 @@ func TestAccountInFirstLevel(t *testing.T) {
 
 	oracle.NodeUrl = oracle.RemoteUrl
 }
+
+func TestStorageInFirstAccountInFirstLevel(t *testing.T) {
+	// geth --dev --http --ipcpath ~/Library/Ethereum/geth.ipc
+	oracle.NodeUrl = oracle.LocalUrl
+	blockNum := 0
+	blockNumberParent := big.NewInt(int64(blockNum))
+	blockHeaderParent := oracle.PrefetchBlock(blockNumberParent, true, nil)
+	database := state.NewDatabase(blockHeaderParent)
+	statedb, _ := state.New(blockHeaderParent.Root, database, nil)
+
+	i := 21
+	h := fmt.Sprintf("0x%d", i)
+	addr := common.HexToAddress(h)
+
+	trieMod := TrieModification{
+    	Type: StorageMod,
+		Key: common.HexToHash("0x12"),
+		Value: common.BigToHash(big.NewInt(int64(17))),
+		Address: addr,
+	}
+	trieModifications := []TrieModification{trieMod}
+
+	GenerateProofSpecial("StorageInFirstAccountInFirstLevel", trieModifications, statedb, 1)
+
+	oracle.NodeUrl = oracle.RemoteUrl
+}
+
+// TODO: non-existent proofs in first level

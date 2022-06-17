@@ -1462,6 +1462,28 @@ func prepareProof(ind int, newProof [][]byte, addrh []byte, sRoot, cRoot, startR
 	return proof
 }
 
+// For generating special tests - it moves account from second level to first level.
+func prepareAccountsInFirstLevel(addrh []byte, account []byte) ([]byte, []byte) {
+	newAccount := make([]byte, len(account)+1) 
+	newAccount[0] = account[0]
+	newAccount[1] = account[1] + 1
+	newAccount[2] = 161
+	newAccount[3] = 32	
+	// The following code relies on the account being in the second level (and not being
+	// an extension node).
+	for i := 0; i < 32; i++ {
+		newAccount[4+i] = addrh[i]
+	}
+	for i := 0; i < int(account[1] - 33); i++ {
+		newAccount[4+32+i] = account[35+i]
+	}
+
+	newAccount1 := make([]byte, len(account)+1) 
+	copy(newAccount1, newAccount)
+
+	return newAccount, newAccount1
+}
+
 func prepareAccountProof(i int, tMod TrieModification, tModsLen int, statedb *state.StateDB, specialTest byte) ([][]byte, [][]byte) {
 	statedb.IntermediateRoot(false)
 
@@ -1512,29 +1534,22 @@ func prepareAccountProof(i int, tMod TrieModification, tModsLen int, statedb *st
 
 	if (specialTest == 1) {
 		account := accountProof1[len(accountProof1)-1]
-
-		newAccount := make([]byte, len(account)+1) 
-		newAccount[0] = account[0]
-		newAccount[1] = account[1] + 1
-		newAccount[2] = 161
-		newAccount[3] = 32
-		// The following relies on the account being in the second level.
-		for i := 0; i < 32; i++ {
-			newAccount[4+i] = addrh[i]
+		if len(accountProof1) != 2 {
+			panic("account should be in the second level (one branch above it)")
 		}
-		for i := 0; i < int(account[1] - 33); i++ {
-			newAccount[4+32+i] = account[35+i]
-		}
+		newAccount, newAccount1 := prepareAccountsInFirstLevel(addrh, account)
 
-		newAccount1 := newAccount
+		// change nonce:
+		newAccount1[3 + 33 + 4] = 1
+		
 		accountProof = make([][]byte, 1)
 		accountProof[0] = newAccount
 		accountProof1 = make([][]byte, 1)
 		accountProof1[0] = newAccount1
-		
+	
 		hasher := trie.NewHasher(false)
-		startRoot = common.BytesToHash(hasher.HashData(newAccount))
-		finalRoot = common.BytesToHash(hasher.HashData(newAccount1))
+		sRoot = common.BytesToHash(hasher.HashData(newAccount))
+		cRoot = common.BytesToHash(hasher.HashData(newAccount1))
 	}
 
 	aNode := aNeighbourNode2
@@ -1571,6 +1586,10 @@ func getParallelProofs(trieModifications []TrieModification, statedb *state.Stat
 
 			oracle.PrefetchAccount(statedb.Db.BlockNumber, tMod.Address, nil)
 			// oracle.PrefetchStorage(statedb.Db.BlockNumber, addr, tMod.Key, nil)
+
+			if specialTest == 1 {
+				statedb.CreateAccount(addr)
+			}
 
 			accountProof, aNeighbourNode1, aExtNibbles1, err := statedb.GetProof(addr)
 			check(err)
@@ -1610,6 +1629,32 @@ func getParallelProofs(trieModifications []TrieModification, statedb *state.Stat
 				// delete operation
 				node = neighbourNode1
 				extNibbles = extNibbles1
+			}
+
+			if (specialTest == 1) {
+				account := accountProof1[len(accountProof1)-1]
+				if len(accountProof1) != 2 {
+					panic("account should be in the second level (one branch above it)")
+				}
+				newAccount, newAccount1 := prepareAccountsInFirstLevel(addrh, account)
+				
+				accountProof = make([][]byte, 1)
+				accountProof[0] = newAccount
+				accountProof1 = make([][]byte, 1)
+				accountProof1[0] = newAccount1
+
+				// storage leaf in S proof is a placeholder, thus newAccount needs to have an empty trie hash
+				// for the root:
+				emptyTrieHash := []byte{86, 232, 31, 23, 27, 204, 85, 166, 255, 131, 69, 230, 146, 192, 248, 110, 91, 72, 224, 27, 153, 108, 173, 192, 1, 98, 47, 181, 227, 99, 180, 33}
+				rootStart := len(newAccount) - 64 - 1;
+
+				for i := 0; i < 32; i++ {
+					newAccount[rootStart + i] = emptyTrieHash[i]
+				}
+			
+				hasher := trie.NewHasher(false)
+				sRoot = common.BytesToHash(hasher.HashData(newAccount))
+				cRoot = common.BytesToHash(hasher.HashData(newAccount1))
 			}
 			
 			rowsState, toBeHashedAcc, _ :=
