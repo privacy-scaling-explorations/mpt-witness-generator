@@ -1424,6 +1424,48 @@ func TestOnlyLeafInStorageProof(t *testing.T) {
 	GenerateProof("OnlyLeafInStorageProof", trieModifications, statedb)
 }
 
+func TestStorageLeafInFirstLevelAfterPlaceholder(t *testing.T) {
+	blockNum := 14209217
+	blockNumberParent := big.NewInt(int64(blockNum))
+	blockHeaderParent := oracle.PrefetchBlock(blockNumberParent, true, nil)
+	database := state.NewDatabase(blockHeaderParent)
+	statedb, _ := state.New(blockHeaderParent.Root, database, nil)
+
+	statedb.DisableLoadingRemoteAccounts()
+	
+	h := fmt.Sprintf("0x%d", 0)
+	addr := common.HexToAddress(h)
+	// statedb.IntermediateRoot(false)
+	statedb.CreateAccount(addr)
+
+	accountProof, _, _, err := statedb.GetProof(addr)
+	fmt.Println(len(accountProof))
+	check(err)	
+
+	h1 := fmt.Sprintf("0x2111d%d", 0)
+	key1 := common.HexToHash(h1)
+	val1 := common.BigToHash(big.NewInt(int64(1)))
+	statedb.SetState(addr, key1, val1)
+	statedb.IntermediateRoot(false)
+
+	// storageProof, _, _, err := statedb.GetStorageProof(addr, key2)
+	// check(err)
+
+	h2 := fmt.Sprintf("0x2111%d", 0)
+	key2 := common.HexToHash(h2)
+
+	val := common.BigToHash(big.NewInt(int64(17)))
+	trieMod := TrieModification{
+    	Type: StorageMod,
+		Key: key2,
+		Value: val,
+		Address: addr,
+	}
+	trieModifications := []TrieModification{trieMod}
+
+	GenerateProof("StorageLeafInFirstLevelAfterPlaceholder", trieModifications, statedb)
+}
+
 func TestLeafAddedToEmptyTrie(t *testing.T) {
 	blockNum := 14209217
 	blockNumberParent := big.NewInt(int64(blockNum))
@@ -1897,6 +1939,7 @@ func TestAccountDeletePlaceholderExtension(t *testing.T) {
 	GenerateProof("AccountDeletePlaceholderExtension", trieModifications, statedb)
 }
 
+// Branch has nil at the specified address.
 func TestNonExistingAccountNilObject(t *testing.T) {
 	// At the account address, there is a nil object.
 	blockNum := 1
@@ -1917,6 +1960,8 @@ func TestNonExistingAccountNilObject(t *testing.T) {
 	GenerateProof("NonExistingAccountNilObject", trieModifications, statedb)
 }
 
+// Branch has a leaf at the specified address (not really at the specified address, but at the one
+// that partially overlaps with the specified one).
 func TestNonExistingAccount(t *testing.T) {
 	// The leaf is returned that doesn't have the required address - but the two addresses overlaps in all nibbles up to
 	// to the position in branch.
@@ -1987,6 +2032,7 @@ func TestNonExistingAccountAfterFirstLevel(t *testing.T) {
 	oracle.NodeUrl = oracle.RemoteUrl
 }
 
+// Account leaf after one branch. No storage proof.
 func TestAccountAfterFirstLevel(t *testing.T) {
 	// geth --dev --http --ipcpath ~/Library/Ethereum/geth.ipc
 	oracle.NodeUrl = oracle.LocalUrl
@@ -2012,6 +2058,7 @@ func TestAccountAfterFirstLevel(t *testing.T) {
 	oracle.NodeUrl = oracle.RemoteUrl
 }
 
+// Account leaf in first level. No storage proof.
 func TestAccountInFirstLevel(t *testing.T) {
 	// geth --dev --http --ipcpath ~/Library/Ethereum/geth.ipc
 	oracle.NodeUrl = oracle.LocalUrl
@@ -2062,5 +2109,3 @@ func TestStorageInFirstAccountInFirstLevel(t *testing.T) {
 
 	oracle.NodeUrl = oracle.RemoteUrl
 }
-
-// TODO: non-existent proofs in first level
