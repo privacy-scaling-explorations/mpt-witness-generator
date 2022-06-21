@@ -2084,6 +2084,92 @@ func TestAccountInFirstLevel(t *testing.T) {
 	oracle.NodeUrl = oracle.RemoteUrl
 }
 
+func TestAccountBranchPlaceholder(t *testing.T) {
+	// geth --dev --http --ipcpath ~/Library/Ethereum/geth.ipc
+	oracle.NodeUrl = oracle.LocalUrl
+	blockNum := 0
+	blockNumberParent := big.NewInt(int64(blockNum))
+	blockHeaderParent := oracle.PrefetchBlock(blockNumberParent, true, nil)
+	database := state.NewDatabase(blockHeaderParent)
+	statedb, _ := state.New(blockHeaderParent.Root, database, nil)
+
+	h := fmt.Sprintf("0xab%d", 0)
+	addr := common.HexToAddress(h)
+	// Implicitly create account such that the account from the first level will be
+	// replaced by a branch.
+	trieMod := TrieModification{
+    	Type: NonceMod,
+		Balance: big.NewInt(23),
+		Address: addr,
+	}
+	trieModifications := []TrieModification{trieMod}
+
+	GenerateProofSpecial("AccountBranchPlaceholder", trieModifications, statedb, 2) // don't use the same number as in the test below ("*PlaceholderInFirstLevel")
+
+	oracle.NodeUrl = oracle.RemoteUrl
+}
+
+func TestAccountBranchPlaceholderInFirstLevel(t *testing.T) {
+	// geth --dev --http --ipcpath ~/Library/Ethereum/geth.ipc
+	oracle.NodeUrl = oracle.LocalUrl
+	blockNum := 0
+	blockNumberParent := big.NewInt(int64(blockNum))
+	blockHeaderParent := oracle.PrefetchBlock(blockNumberParent, true, nil)
+	database := state.NewDatabase(blockHeaderParent)
+	statedb, _ := state.New(blockHeaderParent.Root, database, nil)
+
+	/*
+	for i := 0; i < 1000; i++ {
+		h := fmt.Sprintf("0xab%d", i)
+		addr := common.HexToAddress(h)
+
+		oracle.PrefetchAccount(statedb.Db.BlockNumber, addr, nil)
+		proof1, _, _, err := statedb.GetProof(addr)
+		check(err)
+
+		// addrHash1 := crypto.Keccak256Hash(addr.Bytes())
+		// addrHash1[31] = (addrHash1[31] + 1) % 255 // just some change
+
+		// oracle.PrefetchAccount(statedb.Db.BlockNumber, addr1, nil)
+		// proof11, _, _, err := statedb.GetProofByHash(common.BytesToHash(addrHash1.Bytes()))
+
+		statedb.CreateAccount(addr)
+		statedb.IntermediateRoot(false)
+
+		proof2, _, _, err := statedb.GetProof(addr)
+		check(err)
+		if len(proof1) + 1 == len(proof2) {
+			elems, _, err := rlp.SplitList(proof1[len(proof1)-1])
+			if err != nil {
+				fmt.Println("decode error", err)
+			}
+			switch c, _ := rlp.CountValues(elems); c {
+			case 2:
+				fmt.Println("2")
+			case 17:
+			default:
+				fmt.Println("invalid number of list elements")
+			}
+		}
+	}
+	*/
+
+	h := fmt.Sprintf("0xab%d", 0)
+	addr := common.HexToAddress(h)
+	// Implicitly create account such that the account from the first level will be
+	// replaced by a branch.
+	trieMod := TrieModification{
+    	Type: NonceMod,
+		Balance: big.NewInt(23),
+		Address: addr,
+	}
+	trieModifications := []TrieModification{trieMod}
+
+	GenerateProofSpecial("AccountBranchPlaceholderInFirstLevel", trieModifications, statedb, 3) // don't use the same number as in the test above
+
+	oracle.NodeUrl = oracle.RemoteUrl
+}
+
 func TestStorageInFirstAccountInFirstLevel(t *testing.T) {
 	// geth --dev --http --ipcpath ~/Library/Ethereum/geth.ipc
 	oracle.NodeUrl = oracle.LocalUrl

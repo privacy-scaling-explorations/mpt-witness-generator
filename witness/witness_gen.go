@@ -1550,6 +1550,17 @@ func prepareAccountProof(i int, tMod TrieModification, tModsLen int, statedb *st
 		hasher := trie.NewHasher(false)
 		sRoot = common.BytesToHash(hasher.HashData(newAccount))
 		cRoot = common.BytesToHash(hasher.HashData(newAccount1))
+	} else if specialTest == 3 {
+		if len(accountProof) != 2 && len(accountProof1) != 3 {
+			panic("account should be in the second level (one branch above it)")
+		}
+		// Let us have placeholder branch in the first level
+		accountProof = accountProof[1:]
+		accountProof1 = accountProof1[1:]
+
+		hasher := trie.NewHasher(false)
+		sRoot = common.BytesToHash(hasher.HashData(accountProof[0]))
+		cRoot = common.BytesToHash(hasher.HashData(accountProof1[0]))
 	}
 
 	aNode := aNeighbourNode2
