@@ -1462,15 +1462,16 @@ func prepareProof(ind int, newProof [][]byte, addrh []byte, sRoot, cRoot, startR
 	return proof
 }
 
-// For generating special tests - it moves account from second level to first level.
-func prepareAccountsInFirstLevel(addrh []byte, account []byte) ([]byte, []byte) {
+// For generating special tests - it moves account from second level to first level (key stored in a leaf
+// gets longer).
+func moveAccountFromSecondToFirstLevel(addrh []byte, account []byte) []byte {
 	newAccount := make([]byte, len(account)+1) 
 	newAccount[0] = account[0]
 	newAccount[1] = account[1] + 1
 	newAccount[2] = 161
 	newAccount[3] = 32	
 	// The following code relies on the account being in the second level (and not being
-	// an extension node).
+	// after an extension node).
 	for i := 0; i < 32; i++ {
 		newAccount[4+i] = addrh[i]
 	}
@@ -1478,10 +1479,21 @@ func prepareAccountsInFirstLevel(addrh []byte, account []byte) ([]byte, []byte) 
 		newAccount[4+32+i] = account[35+i]
 	}
 
-	newAccount1 := make([]byte, len(account)+1) 
-	copy(newAccount1, newAccount)
+	return newAccount
+}
 
-	return newAccount, newAccount1
+// For generating special tests - it moves account from third level to second level (key stored in a leaf
+// gets longer).
+func moveAccountFromThirdToSecondLevel(addrh []byte, account []byte) []byte {
+	// account = [248, 105, 160, 32, 77, 78,...]
+	newAccount := make([]byte, len(account)) 
+	copy(newAccount, account)
+	// The following code relies on the account being in the third level (and not being
+	// after an extension node).
+	posInBranch := addrh[0] % 16
+	newAccount[3] = 48 + posInBranch
+
+	return newAccount
 }
 
 func prepareAccountProof(i int, tMod TrieModification, tModsLen int, statedb *state.StateDB, specialTest byte) ([][]byte, [][]byte) {
@@ -1537,7 +1549,10 @@ func prepareAccountProof(i int, tMod TrieModification, tModsLen int, statedb *st
 		if len(accountProof1) != 2 {
 			panic("account should be in the second level (one branch above it)")
 		}
-		newAccount, newAccount1 := prepareAccountsInFirstLevel(addrh, account)
+		newAccount := moveAccountFromSecondToFirstLevel(addrh, account)
+
+		newAccount1 := make([]byte, len(account)+1) 
+		copy(newAccount1, newAccount)
 
 		// change nonce:
 		newAccount1[3 + 33 + 4] = 1
@@ -1554,11 +1569,40 @@ func prepareAccountProof(i int, tMod TrieModification, tModsLen int, statedb *st
 		if len(accountProof) != 2 && len(accountProof1) != 3 {
 			panic("account should be in the second level (one branch above it)")
 		}
-		// Let us have placeholder branch in the first level
-		accountProof = accountProof[1:]
-		accountProof1 = accountProof1[1:]
+		accountS := accountProof[len(accountProof)-1]
+		newAccount := moveAccountFromSecondToFirstLevel(addrh, accountS)
 
 		hasher := trie.NewHasher(false)
+
+		driftedPos := accountProof[1][3] - 48
+		branch := accountProof1[len(accountProof1)-2]
+		// drifted leaf (aNeighbourNode2) has one nibble more after moved one level up, we need to recompute the hash
+		fmt.Println(driftedPos)
+		aNeighbourNode2[3] = 48 + driftedPos
+		driftedLeafHash := common.BytesToHash(hasher.HashData(aNeighbourNode2))
+		startPos := 9 // TODO: don't have hardcoded value here
+		for i := 0; i < startPos - 3; i++ {
+			if branch[2+i] != 128 {
+				panic("start position of drifted leaf appears to be wrong")
+			}
+		}
+		if branch[startPos-1] != 160 {
+			panic("start position of drifted leaf appears to be wrong")
+		}
+		for i := 0; i < 32; i++ {
+			branch[startPos+i] = driftedLeafHash[i]
+		}
+
+		accountC3 := accountProof1[len(accountProof1)-1]
+		newAccountC2 := moveAccountFromThirdToSecondLevel(addrh, accountC3)
+		
+		// Let us have placeholder branch in the first level
+		accountProof = make([][]byte, 1)
+		accountProof[0] = newAccount
+		accountProof1 = make([][]byte, 2)
+		accountProof1[0] = branch
+		accountProof1[1] = newAccountC2
+
 		sRoot = common.BytesToHash(hasher.HashData(accountProof[0]))
 		cRoot = common.BytesToHash(hasher.HashData(accountProof1[0]))
 	}
@@ -1647,7 +1691,10 @@ func getParallelProofs(trieModifications []TrieModification, statedb *state.Stat
 				if len(accountProof1) != 2 {
 					panic("account should be in the second level (one branch above it)")
 				}
-				newAccount, newAccount1 := prepareAccountsInFirstLevel(addrh, account)
+				newAccount := moveAccountFromSecondToFirstLevel(addrh, account)
+
+				newAccount1 := make([]byte, len(account)+1) 
+				copy(newAccount1, newAccount)
 				
 				accountProof = make([][]byte, 1)
 				accountProof[0] = newAccount

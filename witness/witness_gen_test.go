@@ -2119,8 +2119,8 @@ func TestAccountBranchPlaceholderInFirstLevel(t *testing.T) {
 	statedb, _ := state.New(blockHeaderParent.Root, database, nil)
 
 	/*
-	for i := 0; i < 1000; i++ {
-		h := fmt.Sprintf("0xab%d", i)
+	for i := 0; i < 100000; i++ {
+		h := fmt.Sprintf("0xa21%d", i)
 		addr := common.HexToAddress(h)
 
 		oracle.PrefetchAccount(statedb.Db.BlockNumber, addr, nil)
@@ -2138,7 +2138,7 @@ func TestAccountBranchPlaceholderInFirstLevel(t *testing.T) {
 
 		proof2, _, _, err := statedb.GetProof(addr)
 		check(err)
-		if len(proof1) + 1 == len(proof2) {
+		if len(proof1) + 1 == len(proof2) && len(proof1) == 1 {
 			elems, _, err := rlp.SplitList(proof1[len(proof1)-1])
 			if err != nil {
 				fmt.Println("decode error", err)
