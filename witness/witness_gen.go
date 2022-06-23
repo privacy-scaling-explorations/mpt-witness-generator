@@ -1464,7 +1464,7 @@ func prepareProof(ind int, newProof [][]byte, addrh []byte, sRoot, cRoot, startR
 
 // For generating special tests - it moves account from second level to first level (key stored in a leaf
 // gets longer).
-func moveAccountFromSecondToFirstLevel(addrh []byte, account []byte) []byte {
+func moveAccountFromSecondToFirstLevel(firstNibble byte, account []byte) []byte {
 	newAccount := make([]byte, len(account)+1) 
 	newAccount[0] = account[0]
 	newAccount[1] = account[1] + 1
@@ -1472,8 +1472,9 @@ func moveAccountFromSecondToFirstLevel(addrh []byte, account []byte) []byte {
 	newAccount[3] = 32	
 	// The following code relies on the account being in the second level (and not being
 	// after an extension node).
-	for i := 0; i < 32; i++ {
-		newAccount[4+i] = addrh[i]
+	newAccount[4] = firstNibble * 16 + account[3] - 48
+	for i := 0; i < 31; i++ {
+		newAccount[5+i] = account[4+i]
 	}
 	for i := 0; i < int(account[1] - 33); i++ {
 		newAccount[4+32+i] = account[35+i]
@@ -1549,7 +1550,8 @@ func prepareAccountProof(i int, tMod TrieModification, tModsLen int, statedb *st
 		if len(accountProof1) != 2 {
 			panic("account should be in the second level (one branch above it)")
 		}
-		newAccount := moveAccountFromSecondToFirstLevel(addrh, account)
+		firstNibble := addrh[0] / 16
+		newAccount := moveAccountFromSecondToFirstLevel(firstNibble, account)
 
 		newAccount1 := make([]byte, len(account)+1) 
 		copy(newAccount1, newAccount)
@@ -1570,31 +1572,45 @@ func prepareAccountProof(i int, tMod TrieModification, tModsLen int, statedb *st
 			panic("account should be in the second level (one branch above it)")
 		}
 		accountS := accountProof[len(accountProof)-1]
-		newAccount := moveAccountFromSecondToFirstLevel(addrh, accountS)
+		account1Pos := addrh[0] / 16
+		// driftedPos := ((addrh[0] / 16) + 1) % 16 // something else than the first nibble of addrh
+		driftedPos := byte(0) // TODO: remove hardcoding
+		// addresses of both account now differ only in the first nibble (this is not needed,
+		// it is just in this construction)
+		newAccount := moveAccountFromSecondToFirstLevel(driftedPos, accountS)
 
 		hasher := trie.NewHasher(false)
 
-		driftedPos := accountProof[1][3] - 48
+		firstNibble := accountProof[1][3] - 48
+		// [248, 81, 128, 128, ...
 		branch := accountProof1[len(accountProof1)-2]
+		branch1 := make([]byte, len(branch))
+		for i := 0; i < len(branch1); i++ {
+			branch1[i] = 128
+		}
+		branch1[0] = branch[0]
+		branch1[1] = branch[1]
+		
 		// drifted leaf (aNeighbourNode2) has one nibble more after moved one level up, we need to recompute the hash
 		fmt.Println(driftedPos)
-		aNeighbourNode2[3] = 48 + driftedPos
+		aNeighbourNode2[3] = 48 + firstNibble
 		driftedLeafHash := common.BytesToHash(hasher.HashData(aNeighbourNode2))
-		startPos := 9 // TODO: don't have hardcoded value here
-		for i := 0; i < startPos - 3; i++ {
-			if branch[2+i] != 128 {
-				panic("start position of drifted leaf appears to be wrong")
-			}
-		}
-		if branch[startPos-1] != 160 {
-			panic("start position of drifted leaf appears to be wrong")
-		}
+		// branch is now one level higher, both leaves are at different positions now
+		// (one nibble to the left)
+
+		branch1[2 + int(driftedPos)] = 160
 		for i := 0; i < 32; i++ {
-			branch[startPos+i] = driftedLeafHash[i]
+			branch1[2 + int(driftedPos) + 1 + i] = driftedLeafHash[i]
 		}
 
 		accountC3 := accountProof1[len(accountProof1)-1]
 		newAccountC2 := moveAccountFromThirdToSecondLevel(addrh, accountC3)
+
+		driftedLeafHash2 := common.BytesToHash(hasher.HashData(newAccountC2))
+		branch1[2 + 32 + int(account1Pos)] = 160
+		for i := 0; i < 32; i++ {
+			branch1[2 + 32 + int(account1Pos) + 1 + i] = driftedLeafHash2[i]
+		}
 		
 		// Let us have placeholder branch in the first level
 		accountProof = make([][]byte, 1)
@@ -1691,7 +1707,8 @@ func getParallelProofs(trieModifications []TrieModification, statedb *state.Stat
 				if len(accountProof1) != 2 {
 					panic("account should be in the second level (one branch above it)")
 				}
-				newAccount := moveAccountFromSecondToFirstLevel(addrh, account)
+				firstNibble := addrh[0] / 16
+				newAccount := moveAccountFromSecondToFirstLevel(firstNibble, account)
 
 				newAccount1 := make([]byte, len(account)+1) 
 				copy(newAccount1, newAccount)
