@@ -472,7 +472,8 @@ func prepareStorageLeafRows(row []byte, typ byte, valueIsZero bool) ([][]byte, [
 func prepareAccountLeafRows(leafS, leafC, addressNibbles []byte, nonExistingAccountProof, noLeaf bool) ([]byte, []byte, []byte, []byte, []byte, []byte, []byte) {	
 	// wrongLeaf has a meaning only for non existing account proof. For this proof, there are two cases:
 	// 1. A leaf is returned that is not at the required address (wrong leaf).
-	// 2. Only branches are returned and there is nil object at address position. Placeholder account leaf is added in this case.
+	// 2. A branch is returned as the last element of getProof and
+	//    there is nil object at address position. Placeholder account leaf is added in this case.
 	keyLenS := int(leafS[2]) - 128
 	keyLenC := int(leafC[2]) - 128
 	keyRowS := make([]byte, rowLen)
@@ -483,6 +484,10 @@ func prepareAccountLeafRows(leafS, leafC, addressNibbles []byte, nonExistingAcco
 	for i := 0; i < 3+keyLenC; i++ {
 		keyRowC[i] = leafC[i]
 	}
+
+	// For non existing account proof, keyRowS (=keyRowC in this case) stores the key of
+	// the wrong leaf. We store the key of the required leaf (which doesn't exist)
+	// in nonExistingAccountRow.
 
 	// nonExistingAccountRow is used only for proof that account doesn't exist
 	nonExistingAccountRow := make([]byte, rowLen)
@@ -1616,7 +1621,7 @@ func prepareAccountProof(i int, tMod TrieModification, tModsLen int, statedb *st
 		accountProof = make([][]byte, 1)
 		accountProof[0] = newAccount
 		accountProof1 = make([][]byte, 2)
-		accountProof1[0] = branch
+		accountProof1[0] = branch1
 		accountProof1[1] = newAccountC2
 
 		sRoot = common.BytesToHash(hasher.HashData(accountProof[0]))

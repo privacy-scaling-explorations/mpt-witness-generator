@@ -2170,6 +2170,29 @@ func TestAccountBranchPlaceholderInFirstLevel(t *testing.T) {
 	oracle.NodeUrl = oracle.RemoteUrl
 }
 
+// Account proof after placeholder branch deeper in the trie (branch placeholder not in the
+// first or second level).
+func TestAccountBranchPlaceholderDeeper(t *testing.T) {
+	blockNum := 13284469
+	blockNumberParent := big.NewInt(int64(blockNum))
+	blockHeaderParent := oracle.PrefetchBlock(blockNumberParent, true, nil)
+	database := state.NewDatabase(blockHeaderParent)
+	statedb, _ := state.New(blockHeaderParent.Root, database, nil)
+
+	h := fmt.Sprintf("0xa21%d", 0)
+	addr := common.HexToAddress(h)
+	// Implicitly create account such that the account from the first level will be
+	// replaced by a branch.
+	trieMod := TrieModification{
+    	Type: NonceMod,
+		Balance: big.NewInt(23),
+		Address: addr,
+	}
+	trieModifications := []TrieModification{trieMod}
+
+	GenerateProofSpecial("AccountBranchPlaceholderDeeper", trieModifications, statedb, 0)
+}
+
 func TestStorageInFirstAccountInFirstLevel(t *testing.T) {
 	// geth --dev --http --ipcpath ~/Library/Ethereum/geth.ipc
 	oracle.NodeUrl = oracle.LocalUrl
