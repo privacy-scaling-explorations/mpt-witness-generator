@@ -110,6 +110,11 @@ func (t *Trie) Get(key []byte) []byte {
 	return res
 }
 
+// For Merkle Patricia Trie generator.
+func (t *Trie) GetRoot() Node {
+	return t.root
+}
+
 // TryGet returns the value for key stored in the trie.
 // The value bytes must not be modified by the caller.
 // If a node was not found in the database, a MissingNodeError is returned.

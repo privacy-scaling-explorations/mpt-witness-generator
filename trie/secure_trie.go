@@ -200,3 +200,8 @@ func (t *SecureTrie) getSecKeyCache() map[string][]byte {
 	}
 	return t.secKeyCache
 }
+
+// For Merkle Patricia Trie generator.
+func (t *SecureTrie) GetRoot() Node {
+	return t.trie.root
+}

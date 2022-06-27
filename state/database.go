@@ -97,6 +97,8 @@ type Trie interface {
 	Prove(key []byte, fromLevel uint, proofDb ethdb.KeyValueWriter) ([]byte, [][]byte, error)
 
 	GetNodeByNibbles(key []byte) ([]byte, error)
+
+	GetRoot() (trie.Node)
 }
 
 // stubbed: we don't prefetch

@@ -2008,6 +2008,32 @@ func TestNonExistingAccountNilObjectInFirstLevel(t *testing.T) {
 	oracle.NodeUrl = oracle.RemoteUrl
 }
 
+func TestNonExistingAccountInFirstLevel(t *testing.T) {
+	// Only one element in the trie - the account with "wrong" address.
+	// geth --dev --http --ipcpath ~/Library/Ethereum/geth.ipc
+	oracle.NodeUrl = oracle.LocalUrl
+	blockNum := 0
+	blockNumberParent := big.NewInt(int64(blockNum))
+	blockHeaderParent := oracle.PrefetchBlock(blockNumberParent, true, nil)
+	database := state.NewDatabase(blockHeaderParent)
+	statedb, _ := state.New(blockHeaderParent.Root, database, nil)
+
+	i := 10
+	h := fmt.Sprintf("0x%d", i)
+	addr := common.HexToAddress(h)
+
+	trieMod := TrieModification{
+    	Type: NonExistingAccount,
+		Balance: big.NewInt(23),
+		Address: addr,
+	}
+	trieModifications := []TrieModification{trieMod}
+
+	GenerateProofSpecial("NonExistingAccountInFirstLevel", trieModifications, statedb, 4)
+
+	oracle.NodeUrl = oracle.RemoteUrl
+}
+
 func TestNonExistingAccountAfterFirstLevel(t *testing.T) {
 	// geth --dev --http --ipcpath ~/Library/Ethereum/geth.ipc
 	oracle.NodeUrl = oracle.LocalUrl

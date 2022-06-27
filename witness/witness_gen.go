@@ -1550,6 +1550,19 @@ func prepareAccountProof(i int, tMod TrieModification, tModsLen int, statedb *st
 	accountProof1, aNeighbourNode2, aExtNibbles2, err := statedb.GetProof(addr)
 	check(err)
 
+	if tMod.Type == NonExistingAccount && len(accountProof) == 0 {
+		// If there is only one account in the state trie and we want to prove for some 
+		// other account that it doesn't exist.
+		// We get the root node (the only account) and put it as the only element of the proof,
+		// it will act as a "wrong" leaf.
+		account, err := statedb.GetTrieRootElement()
+		check(err)
+		accountProof = make([][]byte, 1)
+		accountProof[0] = account
+		accountProof1 = make([][]byte, 1)
+		accountProof1[0] = account
+	}
+
 	if (specialTest == 1) {
 		account := accountProof1[len(accountProof1)-1]
 		if len(accountProof1) != 2 {
@@ -1624,6 +1637,21 @@ func prepareAccountProof(i int, tMod TrieModification, tModsLen int, statedb *st
 		accountProof1[0] = branch1
 		accountProof1[1] = newAccountC2
 
+		sRoot = common.BytesToHash(hasher.HashData(accountProof[0]))
+		cRoot = common.BytesToHash(hasher.HashData(accountProof1[0]))
+	} else if (specialTest == 4) {
+		// This test simulates having only one account in the state trie:
+		account := []byte{248,106,161,32,252,237,52,8,133,130,180,167,143,97,28,115,102,25,94,62,148,249,8,6,55,244,16,75,187,208,208,127,251,120,61,73,184,70,248,68,128,128,160,86,232,31,23,27,204,85,166,255,131,69,230,146,192,248,110,91, 72,224,27,153,108,173,192,1,98,47,181,227,99,180,33,160,197,210,70,1,134,247,35,60,146,126,125,178,220,199,3,192,229,0,182,83,202,130,39,59,123,250,216,4,93,133,164,112}
+
+		// Note: the requested address (for which the account doesn't exist) should have
+		// a different address as the only one in the trie.
+				
+		accountProof = make([][]byte, 1)
+		accountProof[0] = account
+		accountProof1 = make([][]byte, 1)
+		accountProof1[0] = account
+	
+		hasher := trie.NewHasher(false)
 		sRoot = common.BytesToHash(hasher.HashData(accountProof[0]))
 		cRoot = common.BytesToHash(hasher.HashData(accountProof1[0]))
 	}
