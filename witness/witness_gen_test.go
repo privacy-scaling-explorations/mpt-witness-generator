@@ -2110,6 +2110,56 @@ func TestAccountInFirstLevel(t *testing.T) {
 	oracle.NodeUrl = oracle.RemoteUrl
 }
 
+func TestAccountExtensionInFirstLevel(t *testing.T) {
+	// geth --dev --http --ipcpath ~/Library/Ethereum/geth.ipc
+	oracle.NodeUrl = oracle.LocalUrl
+	blockNum := 0
+	blockNumberParent := big.NewInt(int64(blockNum))
+	blockHeaderParent := oracle.PrefetchBlock(blockNumberParent, true, nil)
+	database := state.NewDatabase(blockHeaderParent)
+	statedb, _ := state.New(blockHeaderParent.Root, database, nil)
+
+	h := fmt.Sprintf("0xa21%d", 0)
+	addr := common.HexToAddress(h)
+	found := false
+	for i := 0; i < 100000; i++ {
+		h := fmt.Sprintf("0xa21%d", i)
+		addr = common.HexToAddress(h)
+
+		statedb.CreateAccount(addr)
+		statedb.IntermediateRoot(false)
+
+		oracle.PrefetchAccount(statedb.Db.BlockNumber, addr, nil)
+		proof1, _, _, err := statedb.GetProof(addr)
+		check(err)
+
+		for j := 0; j < len(proof1) - 1; j++ {
+			if proof1[j][0] < 248 { // searching extension node
+				fmt.Println(proof1[j])
+				fmt.Println(proof1[j+1])
+				fmt.Println(proof1[j+2])
+				fmt.Println("=========")
+				found = true
+			} 
+		}	
+
+		if found {
+			break
+		}
+	}
+
+	trieMod := TrieModification{
+    	Type: NonceMod,
+		Balance: big.NewInt(23),
+		Address: addr,
+	}
+	trieModifications := []TrieModification{trieMod}
+
+	GenerateProofSpecial("AccountExtensionInFirstLevel", trieModifications, statedb, 5)
+
+	oracle.NodeUrl = oracle.RemoteUrl
+}
+
 func TestAccountBranchPlaceholder(t *testing.T) {
 	// geth --dev --http --ipcpath ~/Library/Ethereum/geth.ipc
 	oracle.NodeUrl = oracle.LocalUrl
@@ -2152,6 +2202,9 @@ func TestAccountBranchPlaceholderInFirstLevel(t *testing.T) {
 		oracle.PrefetchAccount(statedb.Db.BlockNumber, addr, nil)
 		proof1, _, _, err := statedb.GetProof(addr)
 		check(err)
+
+		statedb.CreateAccount(addr)
+		statedb.IntermediateRoot(false)
 
 		// addrHash1 := crypto.Keccak256Hash(addr.Bytes())
 		// addrHash1[31] = (addrHash1[31] + 1) % 255 // just some change

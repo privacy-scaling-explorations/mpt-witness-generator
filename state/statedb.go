@@ -195,12 +195,7 @@ func (s *StateDB) GetTrie() Trie {
 }
 
 func (s *StateDB) GetTrieRootElement() ([]byte, error) {
-	foo := s.trie.GetRoot()
-	goo, err := rlp.EncodeToBytes(foo)
-
-	fmt.Println(goo)
-
-	return goo, err
+	return rlp.EncodeToBytes(s.trie.GetRoot())
 }
 
 // AddPreimage records a SHA3 preimage seen by the VM.

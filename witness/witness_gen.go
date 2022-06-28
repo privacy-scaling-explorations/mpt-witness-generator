@@ -1654,6 +1654,59 @@ func prepareAccountProof(i int, tMod TrieModification, tModsLen int, statedb *st
 		hasher := trie.NewHasher(false)
 		sRoot = common.BytesToHash(hasher.HashData(accountProof[0]))
 		cRoot = common.BytesToHash(hasher.HashData(accountProof1[0]))
+	} else if (specialTest == 5) {
+		ext := []byte{226, 24, 160, 194, 200, 39, 82, 205, 97, 69, 91, 92, 98, 218, 180, 101, 42, 171, 150, 75, 251, 147, 154, 59, 215, 26, 164, 201, 90, 199, 185, 190, 205, 167, 64}
+		branch := []byte{248, 81, 128, 128, 128, 160, 53, 8, 52, 235, 77, 44, 138, 235, 20, 250, 15, 188, 176, 83, 178, 108, 212, 224, 40, 146, 117, 31, 154, 215, 103, 179, 234, 32, 168, 86, 167, 44, 128, 128, 128, 128, 128, 160, 174, 121, 120, 114, 157, 43, 164, 140, 103, 235, 28, 242, 186, 33, 76, 152, 157, 197, 109, 149, 229, 229, 22, 189, 233, 207, 92, 195, 82, 121, 240, 3, 128, 128, 128, 128, 128, 128, 128}
+		// The original proof returns `ext` and `branch` in 2. and 3. level. We move them to 1. and 2. level.
+
+		fmt.Println(ext)
+		fmt.Println(branch)
+
+		newAddrBytes := make([]byte, 32)
+		newAddrNibbles := make([]byte, 65)
+		newAddrNibbles[64] = accountAddr[16]
+		for i := 0; i < 63; i++ {
+			newAddrNibbles[i] = accountAddr[i+1]
+		}
+		newAddrNibbles[63] = accountAddr[0]
+
+		for i := 0; i < 32; i++ {
+			newAddrBytes[i] = newAddrNibbles[2*i] * 16 + newAddrNibbles[2*i + 1]
+		}
+
+		// We need to fix leaf key (adding last nibble):
+		// Original leaf:
+		// leaf := []byte{248, 104, 159, 59, 114, 3, 66, 104, 61, 61, 61, 175, 101, 56, 194, 213, 150, 208, 62, 118, 28, 175, 138, 112, 119, 76, 88, 109, 21, 102, 195, 8, 18, 185, 184, 70, 248, 68, 128, 128, 160, 86, 232, 31, 23, 27, 204, 85, 166, 255, 131, 69, 230, 146, 192, 248, 110, 91, 72, 224, 27, 153, 108, 173, 192, 1, 98, 47, 181, 227, 99, 180, 33, 160, 197, 210, 70, 1, 134, 247, 35, 60, 146, 126, 125, 178, 220, 199, 3, 192, 229, 0, 182, 83, 202, 130, 39, 59, 123, 250, 216, 4, 93, 133, 164, 112}
+		leaf := []byte{248, 105, 160, 32, 59, 114, 3, 66, 104, 61, 61, 61, 175, 101, 56, 194, 213, 150, 208, 62, 118, 28, 175, 138, 112, 119, 76, 88, 109, 21, 102, 195, 8, 18, 185, 184, 70, 248, 68, 128, 128, 160, 86, 232, 31, 23, 27, 204, 85, 166, 255, 131, 69, 230, 146, 192, 248, 110, 91, 72, 224, 27, 153, 108, 173, 192, 1, 98, 47, 181, 227, 99, 180, 33, 160, 197, 210, 70, 1, 134, 247, 35, 60, 146, 126, 125, 178, 220, 199, 3, 192, 229, 0, 182, 83, 202, 130, 39, 59, 123, 250, 216, 4, 93, 133, 164, 112}
+		for i := 0; i < 31; i++ {
+			leaf[4 + i] = newAddrBytes[i + 1]
+		}
+
+		hasher := trie.NewHasher(false)
+		// Update leaf hash in branch
+		newLeafHash := common.BytesToHash(hasher.HashData(leaf))
+		branch[2 + int(newAddrNibbles[1])] = 160
+		for i := 0; i < 32; i++ {
+			branch[2 + int(newAddrNibbles[1]) + 1 + i] = newLeafHash[i]
+		}
+
+		// Update branch hash in extension node
+		newBranchHash := common.BytesToHash(hasher.HashData(branch))
+		for i := 0; i < 32; i++ {
+			ext[3 + i] = newBranchHash[i]
+		}
+
+		accountAddr = newAddrNibbles
+		addrh = newAddrBytes
+
+		accountProof = make([][]byte, 3)
+		accountProof[0] = ext
+		accountProof[1] = branch
+		accountProof[2] = leaf
+		accountProof1 = accountProof
+
+		sRoot = common.BytesToHash(hasher.HashData(accountProof[0]))
+		cRoot = common.BytesToHash(hasher.HashData(accountProof1[0]))
 	}
 
 	aNode := aNeighbourNode2
