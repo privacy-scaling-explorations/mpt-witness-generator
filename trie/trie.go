@@ -279,6 +279,26 @@ func (t *Trie) TryUpdate(key, value []byte) error {
 	return nil
 }
 
+func (t *Trie) TryUpdateAlwaysHash(key, value []byte) error {
+	t.unhashed++
+	k := KeybytesToHex(key)	
+
+	if len(value) != 0 {
+		_, n, err := t.insert(t.root, nil, k, ValueNode(value))
+		if err != nil {
+			return err
+		}
+		t.root = n
+	} else {
+		_, n, err := t.delete(t.root, nil, k)
+		if err != nil {
+			return err
+		}
+		t.root = n
+	}
+	return nil
+}
+
 func (t *Trie) insert(n Node, prefix, key []byte, value Node) (bool, Node, error) {
 	if len(key) == 0 {
 		if v, ok := n.(ValueNode); ok {

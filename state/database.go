@@ -82,6 +82,8 @@ type Trie interface {
 	// database, a trie.MissingNodeError is returned.
 	TryUpdate(key, value []byte) error
 
+	TryUpdateAlwaysHash(key, value []byte) error
+
 	// TryDelete removes any existing value for key from the trie. If a node was not
 	// found in the database, a trie.MissingNodeError is returned.
 	TryDelete(key []byte) error

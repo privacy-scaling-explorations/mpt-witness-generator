@@ -315,7 +315,13 @@ func (s *StateDB) GetStorageProof(a common.Address, key common.Hash) ([][]byte, 
 	if trie == nil {
 		return proof, nil, nil, errors.New("storage trie for requested address does not exist")
 	}
-	neighbourNode, extNibbles, err := trie.Prove(crypto.Keccak256(key.Bytes()), 0, &proof)
+	var newKey []byte
+	if !oracle.PreventHashingInSecureTrie {
+		newKey = crypto.Keccak256(key.Bytes())
+	} else {
+		newKey = key.Bytes()
+	}
+	neighbourNode, extNibbles, err := trie.Prove(newKey, 0, &proof)
 	return proof, neighbourNode, extNibbles, err
 }
 
@@ -485,7 +491,7 @@ func (s *StateDB) updateStateObject(obj *stateObject) {
 	if err != nil {
 		panic(fmt.Errorf("can't encode object at %x: %v", addr[:], err))
 	}
-	if err = s.trie.TryUpdate(addr[:], data); err != nil {
+	if err = s.trie.TryUpdateAlwaysHash(addr[:], data); err != nil {
 		s.setError(fmt.Errorf("updateStateObject (%x) error: %v", addr[:], err))
 	}
 

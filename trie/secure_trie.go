@@ -21,6 +21,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
+	"github.com/miha-stopar/mpt/oracle"
 )
 
 // SecureTrie wraps a trie with key hashing. In a secure trie, all
@@ -115,6 +116,24 @@ func (t *SecureTrie) TryUpdate(key, value []byte) error {
 	return nil
 }
 
+// MPT circuit test generating.
+func (t *SecureTrie) TryUpdateAlwaysHash(key, value []byte) error {
+	// hk := t.hashKey(key)
+	h := NewHasher(false)
+	h.sha.Reset()
+	h.sha.Write(key)
+	h.sha.Read(t.hashKeyBuf[:])
+	returnHasherToPool(h)
+	hk := t.hashKeyBuf[:]
+
+	err := t.trie.TryUpdate(hk, value)
+	if err != nil {
+		return err
+	}
+	t.getSecKeyCache()[string(hk)] = common.CopyBytes(key)
+	return nil
+}
+
 // Delete removes any existing value for key from the trie.
 func (t *SecureTrie) Delete(key []byte) {
 	if err := t.TryDelete(key); err != nil {
@@ -182,12 +201,17 @@ func (t *SecureTrie) NodeIterator(start []byte) NodeIterator {
 // The caller must not hold onto the return value because it will become
 // invalid on the next call to hashKey or secKey.
 func (t *SecureTrie) hashKey(key []byte) []byte {
-	h := NewHasher(false)
-	h.sha.Reset()
-	h.sha.Write(key)
-	h.sha.Read(t.hashKeyBuf[:])
-	returnHasherToPool(h)
-	return t.hashKeyBuf[:]
+	if !oracle.PreventHashingInSecureTrie {
+		h := NewHasher(false)
+		h.sha.Reset()
+		h.sha.Write(key)
+		h.sha.Read(t.hashKeyBuf[:])
+		returnHasherToPool(h)
+		return t.hashKeyBuf[:]
+	} else {
+		// For generating special tests for MPT circuit.
+		return key
+	}
 }
 
 // getSecKeyCache returns the current secure key cache, creating a new one if
