@@ -2435,7 +2435,7 @@ func TestExtensionThreeNibblesInOddLevel(t *testing.T) {
 	oracle.NodeUrl = oracle.RemoteUrl
 }
 
-func TestLeafInLowestLevel(t *testing.T) {
+func TestLeafWithOneKeyByte(t *testing.T) {
 	blockNum := 0
 	blockNumberParent := big.NewInt(int64(blockNum))
 	blockHeaderParent := oracle.PrefetchBlock(blockNumberParent, true, nil)
@@ -2454,7 +2454,7 @@ func TestLeafInLowestLevel(t *testing.T) {
 
 	statedb.SetState(addr, key1, val1)
 
-	key2 := common.HexToHash("0x2")
+	key2 := common.HexToHash("0x3")
 	statedb.SetState(addr, key2, val1)
 	statedb.IntermediateRoot(false)
 
@@ -2472,7 +2472,49 @@ func TestLeafInLowestLevel(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	GenerateProof("LeafInLowestLevel", trieModifications, statedb)
+	GenerateProof("LeafWithOneKeyByte", trieModifications, statedb)
+
+	oracle.PreventHashingInSecureTrie = false
+}
+
+func TestLeafWithTwoKeyBytes(t *testing.T) {
+	blockNum := 0
+	blockNumberParent := big.NewInt(int64(blockNum))
+	blockHeaderParent := oracle.PrefetchBlock(blockNumberParent, true, nil)
+	database := state.NewDatabase(blockHeaderParent)
+	statedb, _ := state.New(blockHeaderParent.Root, database, nil)
+	addr := common.HexToAddress("0x50efbf12580138bc623c95757286df4e24eb81c9")
+
+	statedb.DisableLoadingRemoteAccounts()
+	
+	statedb.CreateAccount(addr)
+
+	oracle.PreventHashingInSecureTrie = true
+
+	key1 := common.HexToHash("0x100")
+	val1 := common.BigToHash(big.NewInt(int64(1)))
+
+	statedb.SetState(addr, key1, val1)
+
+	key2 := common.HexToHash("0x300")
+	statedb.SetState(addr, key2, val1)
+	statedb.IntermediateRoot(false)
+
+	storageProof, _, _, err := statedb.GetStorageProof(addr, key1)
+	check(err)
+
+	fmt.Println(storageProof[0])
+
+	val := common.BigToHash(big.NewInt(int64(17)))
+	trieMod := TrieModification{
+    	Type: StorageMod,
+		Key: key1,
+		Value: val,
+		Address: addr,
+	}
+	trieModifications := []TrieModification{trieMod}
+
+	GenerateProof("LeafWithTwoKeyBytes", trieModifications, statedb)
 
 	oracle.PreventHashingInSecureTrie = false
 }

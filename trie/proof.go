@@ -87,12 +87,12 @@ func (t *Trie) Prove(key []byte, fromLevel uint, proofDb ethdb.KeyValueWriter) (
 
 	var extNibbles [][]byte
 
-	for i, n := range nodes {
+	for _, n := range nodes {
 		if fromLevel > 0 {
 			fromLevel--
 			continue
 		}
-		var hn Node
+		// var hn Node
 
 		// We need nibbles in witness for extension keys.
  		// copy n.Key before it gets changed in ProofHash
@@ -105,16 +105,20 @@ func (t *Trie) Prove(key []byte, fromLevel uint, proofDb ethdb.KeyValueWriter) (
 			}
 		}
 
-		n, hn = hasher.ProofHash(n)
-		if hash, ok := hn.(HashNode); ok || i == 0 {
+		// n, hn = hasher.ProofHash(n)
+		n, _ = hasher.ProofHash(n)
+		// if hash, ok := hn.(HashNode); ok || i == 0 {
 			// If the node's database encoding is a hash (or is the
 			// root node), it becomes a proof element.
 			enc, _ := rlp.EncodeToBytes(n)
+			/*
 			if !ok {
 				hash = hasher.HashData(enc)
 			}
-			proofDb.Put(hash, enc)
-		}
+			*/
+			// proofDb.Put(hash, enc)
+			proofDb.Put([]byte{1, 1, 1}, enc)
+		// }
 	}
 
 	neighbourNodeRLP := []byte{}

@@ -265,44 +265,71 @@ func prepareBranchWitness(rows [][]byte, branch []byte, branchStart int, branchR
 	// TODO: ValueNode info is currently missing
 	rowInd := 1 // start with 1 because rows[0] contains some RLP data
 	colInd := branchNodeRLPLen
-	inside32Ind := -1
-	count := int(branch[1])
-	if branchRLPOffset == 3 {
-		count = int(branch[1])*256 + int(branch[2])
-	}
-	// TODO: don't loop to count when there is ValueNode
-	for i := 0; i < count; i++ {
-		if rowInd == 17 {
-			break
+	isHashedNode := branch[0] >= 248
+	if isHashedNode {
+		inside32Ind := -1
+		count := int(branch[1])
+		if branchRLPOffset == 3 {
+			count = int(branch[1])*256 + int(branch[2])
 		}
-		b := branch[branchRLPOffset+i]
-		if b == 160 && inside32Ind == -1 { // new child
-			inside32Ind = 0
-			colInd = branchNodeRLPLen - 1
-			rows[rowInd][branchStart+colInd] = b
-			colInd++
-			continue
-		}
+		// TODO: don't loop to count when there is ValueNode
+		for i := 0; i < count; i++ {
+			if rowInd == 17 {
+				break
+			}
+			b := branch[branchRLPOffset+i]
+			if b == 160 && inside32Ind == -1 { // new child
+				inside32Ind = 0
+				colInd = branchNodeRLPLen - 1
+				rows[rowInd][branchStart+colInd] = b
+				colInd++
+				continue
+			}
 
-		if inside32Ind >= 0 {
-			rows[rowInd][branchStart+colInd] = b
-			colInd++
-			inside32Ind++
-			// fmt.Println(rows[rowInd])
-			if inside32Ind == 32 {
-				inside32Ind = -1
+			if inside32Ind >= 0 {
+				rows[rowInd][branchStart+colInd] = b
+				colInd++
+				inside32Ind++
+				// fmt.Println(rows[rowInd])
+				if inside32Ind == 32 {
+					inside32Ind = -1
+					rowInd++
+					colInd = 0
+				}
+			} else {
+				// if we are not in a child, it can only be b = 128 which presents nil (no child
+				// at this position)
+				if b != 128 {
+					panic("not 128")
+				}
+				rows[rowInd][branchStart+branchNodeRLPLen] = b
 				rowInd++
-				colInd = 0
+				// fmt.Println(rows[rowInd-1])
 			}
-		} else {
-			// if we are not in a child, it can only be b = 128 which presents nil (no child
-			// at this position)
-			if b != 128 {
-				panic("not 128")
+		}
+	} else {
+		count := int(branch[0]) - 192
+		insideInd := -1
+		for i := 0; i < count - 1; i++ { // -1 because of the last 128 (branch value)
+			b := branch[branchRLPOffset+i]
+			if insideInd == -1 && branch[branchRLPOffset+i] == 128 {
+				rows[rowInd][branchStart + branchNodeRLPLen - 1] = b
+				rowInd++
+			} else if insideInd == -1 && branch[branchRLPOffset+i] > 192 {
+				insideInd = int(branch[branchRLPOffset+i]) - 192
+				colInd = branchNodeRLPLen - 1
+				rows[rowInd][branchStart + colInd] = b
+			} else {
+				colInd++
+				rows[rowInd][branchStart + colInd] = b
+				if insideInd == 1 {
+					insideInd = -1
+					rowInd++
+					colInd = 0
+				} else {
+					insideInd--
+				}
 			}
-			rows[rowInd][branchStart+branchNodeRLPLen] = b
-			rowInd++
-			// fmt.Println(rows[rowInd-1])
 		}
 	}
 }
@@ -425,10 +452,19 @@ func prepareExtensionRow(witnessRow, proofEl []byte, setKey bool) {
 			}
 		}
 		if proofEl[2+lenK] != 160 {
-			panic("Extension node should be 160 S")
+			fmt.Println("This extension node stores non-hashed node")
 		}
-		witnessRow[branch2start+branchNodeRLPLen-1] = proofEl[2+lenK]
-		for j := 0; j < 32; j++ {
+		encodedNodeLen := proofEl[2+lenK]
+		nodeLen := byte(0)
+		if encodedNodeLen > 192 {
+			// non-hashed node
+			nodeLen = encodedNodeLen - 192
+		} else {
+			// hashed-node
+			nodeLen = encodedNodeLen - 128
+		}
+		witnessRow[branch2start+branchNodeRLPLen-1] = encodedNodeLen
+		for j := 0; j < int(nodeLen); j++ {
 			witnessRow[branch2start+branchNodeRLPLen+j] = proofEl[3+lenK+j]
 		}
 	}
@@ -678,6 +714,9 @@ func prepareTwoBranchesWitness(branch1, branch2 []byte, key, branchC16, branchC1
 	rows := make([][]byte, 17)
 	rows[0] = make([]byte, rowLen)
 
+	// Branch (length 21 = 213 - 192) with one byte of RLP meta data
+	// [213,128,194,32,1,128,194,32,1,128,128,128,128,128,128,128,128,128,128,128,128,128]
+
 	// Branch (length 83) with two bytes of RLP meta data
 	// [248,81,128,128,...
 
@@ -699,6 +738,10 @@ func prepareTwoBranchesWitness(branch1, branch2 []byte, key, branchC16, branchC1
 		branch1RLPOffset = 3
 		rows[0][0] = 0 // 0 1 means three RLP bytes
 		rows[0][1] = 1
+	} else if branch1[0] < 248 {
+		branch1RLPOffset = 1
+		rows[0][0] = 1 // 1 1 means one RLP byte
+		rows[0][1] = 1
 	}
 
 	branch2RLPOffset := 2
@@ -708,14 +751,23 @@ func prepareTwoBranchesWitness(branch1, branch2 []byte, key, branchC16, branchC1
 		branch2RLPOffset = 3
 		rows[0][2] = 0 // 0 1 means three RLP bytes
 		rows[0][3] = 1
+	} else if branch2[0] < 248 {
+		branch2RLPOffset = 1
+		rows[0][2] = 1 // 1 1 means one RLP byte
+		rows[0][3] = 1
 	}
 
 	// Let's put in the 0-th row some RLP data (the length of the whole branch RLP)
 	rows[0][4] = branch1[0]
-	rows[0][5] = branch1[1]
-
 	rows[0][7] = branch2[0]
-	rows[0][8] = branch2[1]
+
+	if branch1RLPOffset == 2 {
+		rows[0][5] = branch1[1]
+	}
+
+	if branch2RLPOffset == 2 {
+		rows[0][8] = branch2[1]
+	}
 
 	if branch1RLPOffset == 3 {
 		rows[0][6] = branch1[2]
