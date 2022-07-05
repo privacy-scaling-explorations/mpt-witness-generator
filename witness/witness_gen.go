@@ -265,73 +265,39 @@ func prepareBranchWitness(rows [][]byte, branch []byte, branchStart int, branchR
 	// TODO: ValueNode info is currently missing
 	rowInd := 1 // start with 1 because rows[0] contains some RLP data
 	colInd := branchNodeRLPLen
-	isHashedNode := branch[0] >= 248
-	if isHashedNode {
-		inside32Ind := -1
-		count := int(branch[1])
-		if branchRLPOffset == 3 {
-			count = int(branch[1])*256 + int(branch[2])
-		}
-		// TODO: don't loop to count when there is ValueNode
-		for i := 0; i < count; i++ {
-			if rowInd == 17 {
-				break
-			}
-			b := branch[branchRLPOffset+i]
-			if b == 160 && inside32Ind == -1 { // new child
-				inside32Ind = 0
-				colInd = branchNodeRLPLen - 1
-				rows[rowInd][branchStart+colInd] = b
-				colInd++
-				continue
-			}
 
-			if inside32Ind >= 0 {
-				rows[rowInd][branchStart+colInd] = b
-				colInd++
-				inside32Ind++
-				// fmt.Println(rows[rowInd])
-				if inside32Ind == 32 {
-					inside32Ind = -1
-					rowInd++
-					colInd = 0
-				}
-			} else {
-				// if we are not in a child, it can only be b = 128 which presents nil (no child
-				// at this position)
-				if b != 128 {
-					panic("not 128")
-				}
-				rows[rowInd][branchStart+branchNodeRLPLen] = b
-				rowInd++
-				// fmt.Println(rows[rowInd-1])
-			}
+	i := 0
+	insideInd := -1
+	for {
+		if (branchRLPOffset + i == len(branch) - 1) { // -1 because of the last 128 (branch value)
+			break
 		}
-	} else {
-		count := int(branch[0]) - 192
-		insideInd := -1
-		for i := 0; i < count - 1; i++ { // -1 because of the last 128 (branch value)
-			b := branch[branchRLPOffset+i]
-			if insideInd == -1 && branch[branchRLPOffset+i] == 128 {
-				rows[rowInd][branchStart + branchNodeRLPLen - 1] = b
-				rowInd++
-			} else if insideInd == -1 && branch[branchRLPOffset+i] > 192 {
-				insideInd = int(branch[branchRLPOffset+i]) - 192
-				colInd = branchNodeRLPLen - 1
-				rows[rowInd][branchStart + colInd] = b
+		b := branch[branchRLPOffset+i]
+		if insideInd == -1 && b == 128 {
+			rows[rowInd][branchStart + branchNodeRLPLen] = b
+			rowInd++
+		} else if insideInd == -1 && b != 128 {
+			if b == 160 {
+				insideInd = 32
 			} else {
-				colInd++
-				rows[rowInd][branchStart + colInd] = b
-				if insideInd == 1 {
-					insideInd = -1
-					rowInd++
-					colInd = 0
-				} else {
-					insideInd--
-				}
+				insideInd = int(b) - 192
 			}
-		}
-	}
+			colInd = branchNodeRLPLen - 1
+			rows[rowInd][branchStart + colInd] = b
+		} else {
+			colInd++
+			rows[rowInd][branchStart + colInd] = b
+			if insideInd == 1 {
+				insideInd = -1
+				rowInd++
+				colInd = 0
+			} else {
+				insideInd--
+			}
+		}	
+
+		i++
+	}	
 }
 
 func prepareDriftedLeafPlaceholder(isAccount bool) [][]byte {
@@ -408,35 +374,34 @@ func prepareExtensionRows(extNibbles[][]byte, extensionNodeInd int, proofEl1, pr
 }
 
 func getExtensionNodeKeyLen(proofEl []byte) byte {
-	// is_long means there is more than one extension node key - there is one addition RLP
-	// byte to start an array (at position 1).
-	is_long := proofEl[1] > 128
-	if !is_long {
+	if proofEl[0] == 226 {
 		return 1
-	} else {
+	} else if proofEl[0] <= 247 {
 		return proofEl[1] - 128
+	} else {
+		return proofEl[2] - 128
 	}
 }
 
 func prepareExtensionRow(witnessRow, proofEl []byte, setKey bool) {
 	// storageProof[i]:
 	// [228,130,0,149,160,114,253,150,133,18,192,156,19,241,162,51,210,24,1,151,16,48,7,177,42,60,49,34,230,254,242,79,132,165,90,75,249]
-	// elems:
-	// [130,0,149,160,114,253,150,133,18,192,156,19,241,162,51,210,24,1,151,16,48,7,177,42,60,49,34,230,254,242,79,132,165,90,75,249]
-	// rlp.SplitList doesn't return tag (228).
+	// Note that the first element (228 in this case) can go much higher - for example, if there
+	// are 40 nibbles, this would take 20 bytes which would make the first element 248.
 
 	// If only one byte in key:
 	// [226,16,160,172,105,12...
-	// [16,160,172,105,12...
 
 	// Extension node with non-hashed branch:
 	// List contains up to 55 bytes (192 + 55)
 	// [247,160,16,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,213,128,194,32,1,128,194,32,1,128,128,128,128,128,128,128,128,128,128,128,128,128]
+
 	// List contains more than 55 bytes
 	// [248,58,159,16,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,217,128,196,130,32,0,1,128,196,130,32,0,1,128,128,128,128,128,128,128,128,128,128,128,128,128]
 
 	/*
-	If proofEl[0] < 247 (proofEl[1] doesn't specify the length of the whole remaining stream, only of the next substream)
+	If proofEl[0] <= 247 (length at most 55, so proofEl[1] doesn't specify the length of the whole
+		remaining stream, only of the next substream)
 	  If proofEl[1] <= 128:
 	    There is only 1 byte for nibbles (keyLen = 1) and this is proofEl[1].
 	  Else:
@@ -452,68 +417,38 @@ func prepareExtensionRow(witnessRow, proofEl []byte, setKey bool) {
 		witnessRow[1] = proofEl[1]
 	}
 
-	nonHashedBranch := false
-	if proofEl[0] >= 247 {
-		nonHashedBranch = true
+	lenKey := 0
+	startKey := 0
+	if proofEl[0] == 226 {
+		lenKey = 1
+		startKey = 1
+	} else if proofEl[0] <= 247 {
+		lenKey = int(proofEl[1] - 128)
+		startKey = 2
+	} else {
+		lenKey = int(proofEl[2] - 128)
+		startKey = 3
+		witnessRow[2] = proofEl[2]
 	}
 
-	if nonHashedBranch {
-		lenK := int(proofEl[2] - 128)
-		if setKey {
-			witnessRow[2] = proofEl[2]
-			for j := 0; j < lenK; j++ {
-				witnessRow[3+j] = proofEl[3+j]
-			}
+	if setKey {
+		for j := 0; j < lenKey; j++ {
+			witnessRow[startKey+j] = proofEl[startKey+j]
 		}
-		encodedNodeLen := proofEl[3+lenK]
-		nodeLen := byte(0)
-		if encodedNodeLen > 192 {
-			// non-hashed node
-			nodeLen = encodedNodeLen - 192
-		} else {
-			// hashed-node
-			nodeLen = encodedNodeLen - 128
-		}
-		witnessRow[branch2start+branchNodeRLPLen-1] = encodedNodeLen
-		for j := 0; j < int(nodeLen); j++ {
-			witnessRow[branch2start+branchNodeRLPLen+j] = proofEl[4+lenK+j]
-		}
-	} else {
-		// is_long means there is more than one extension node key - there is one addition RLP
-		// byte to start an array (at position 1).
-		is_long := (proofEl[1] > 128) && !nonHashedBranch	
+	}
 
-		if !is_long {
-			if proofEl[2] != 160 {
-				panic("Extension node should be 160 S short")
-			}
-			for j := 0; j < 33; j++ {
-				witnessRow[branch2start+branchNodeRLPLen+j-1] = proofEl[2+j]
-			}
-		} else {
-			lenK := int(proofEl[1] - 128)
-			if setKey {
-				for j := 0; j < lenK; j++ {
-					witnessRow[2+j] = proofEl[2+j]
-				}
-			}
-			if proofEl[2+lenK] != 160 {
-				fmt.Println("This extension node stores non-hashed node")
-			}
-			encodedNodeLen := proofEl[2+lenK]
-			nodeLen := byte(0)
-			if encodedNodeLen > 192 {
-				// non-hashed node
-				nodeLen = encodedNodeLen - 192
-			} else {
-				// hashed-node
-				nodeLen = encodedNodeLen - 128
-			}
-			witnessRow[branch2start+branchNodeRLPLen-1] = encodedNodeLen
-			for j := 0; j < int(nodeLen); j++ {
-				witnessRow[branch2start+branchNodeRLPLen+j] = proofEl[3+lenK+j]
-			}
-		}
+	encodedNodeLen := proofEl[startKey+lenKey]
+	nodeLen := byte(0)
+	if encodedNodeLen > 192 {
+		// we have a list, that means a non-hashed node
+		nodeLen = encodedNodeLen - 192
+	} else if encodedNodeLen == 160 {
+		// hashed-node
+		nodeLen = encodedNodeLen - 128
+	}
+	witnessRow[branch2start+branchNodeRLPLen-1] = encodedNodeLen
+	for j := 0; j < int(nodeLen); j++ {
+		witnessRow[branch2start+branchNodeRLPLen+j] = proofEl[startKey+lenKey+1+j]
 	}
 }
 
@@ -863,6 +798,7 @@ func prepareTwoBranchesWitness(branch1, branch2 []byte, key, branchC16, branchC1
 			rows[i][rowLen-1] = 1
 		}
 	}
+
 	prepareBranchWitness(rows, branch1, 0, branch1RLPOffset)
 	prepareBranchWitness(rows, branch2, 2+32, branch2RLPOffset)
 
@@ -1852,6 +1788,9 @@ func getParallelProofs(trieModifications []TrieModification, statedb *state.Stat
 		tMod := trieModifications[i]
 		if tMod.Type == StorageMod {
 			kh := crypto.Keccak256(tMod.Key.Bytes())
+			if oracle.PreventHashingInSecureTrie {
+				kh = tMod.Key.Bytes()
+			}
 			keyHashed := trie.KeybytesToHex(kh)
 
 			addr := tMod.Address

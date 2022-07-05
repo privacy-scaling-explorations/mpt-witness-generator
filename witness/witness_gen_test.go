@@ -2477,6 +2477,51 @@ func TestLeafWithOneKeyByte(t *testing.T) {
 	oracle.PreventHashingInSecureTrie = false
 }
 
+func TestLeafWithOneKeyByteLongVal(t *testing.T) {
+	// one leaf is hashed, one is not
+	blockNum := 0
+	blockNumberParent := big.NewInt(int64(blockNum))
+	blockHeaderParent := oracle.PrefetchBlock(blockNumberParent, true, nil)
+	database := state.NewDatabase(blockHeaderParent)
+	statedb, _ := state.New(blockHeaderParent.Root, database, nil)
+	addr := common.HexToAddress("0x50efbf12580138bc623c95757286df4e24eb81c9")
+
+	statedb.DisableLoadingRemoteAccounts()
+	
+	statedb.CreateAccount(addr)
+
+	oracle.PreventHashingInSecureTrie = true
+
+	key1 := common.HexToHash("0x1")
+	
+	v1 := common.FromHex("0xbbefaa12580138bc263c95757826df4e24eb81c9aaaaaaaaaaaaaaaaaaaaaaaa")
+	val1 := common.BytesToHash(v1)
+
+	statedb.SetState(addr, key1, val1)
+
+	key2 := common.HexToHash("0x3")
+	statedb.SetState(addr, key2, val1)
+	statedb.IntermediateRoot(false)
+
+	storageProof, _, _, err := statedb.GetStorageProof(addr, key1)
+	check(err)
+
+	fmt.Println(storageProof[0])
+
+	val := common.BigToHash(big.NewInt(int64(17)))
+	trieMod := TrieModification{
+    	Type: StorageMod,
+		Key: key1,
+		Value: val,
+		Address: addr,
+	}
+	trieModifications := []TrieModification{trieMod}
+
+	GenerateProof("LeafWithOneKeyByteLongVal", trieModifications, statedb)
+
+	oracle.PreventHashingInSecureTrie = false
+}
+
 func TestLeafWithTwoKeyBytes(t *testing.T) {
 	blockNum := 0
 	blockNumberParent := big.NewInt(int64(blockNum))
