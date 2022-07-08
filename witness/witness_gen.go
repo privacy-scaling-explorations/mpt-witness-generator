@@ -41,6 +41,11 @@ const isExtLongEvenC16Pos = 23
 const isExtLongEvenC1Pos = 24
 const isExtLongOddC16Pos = 25
 const isExtLongOddC1Pos = 26
+// short/long means having one or more than one nibbles
+const isSExtLongerThan55Pos = 27
+const isCExtLongerThan55Pos = 28
+const isSBranchInExtHashedPos = 29 // TODO: set
+const isCBranchInExtHashedPos = 30 // TODO: set
 
 /*
 Info about row type (given as the last element of the row):
@@ -398,6 +403,13 @@ func prepareExtensionRow(witnessRow, proofEl []byte, setKey bool) {
 
 	// List contains more than 55 bytes
 	// [248,58,159,16,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,217,128,196,130,32,0,1,128,196,130,32,0,1,128,128,128,128,128,128,128,128,128,128,128,128,128]
+
+	// Note that the extension node can be much shorter than the one above - in case when
+	// there are less nibbles, so we cannot say that 226 appears as the first byte only
+	// when there are hashed nodes in the branch and there is only one nibble.
+	// Branch with two non-hashed nodes (that's the shortest possible branch):
+	// [217,128,196,130,32,0,1,128,196,130,32,0,1,128,128,128,128,128,128,128,128,128,128,128,128,128]
+	// Note: branch contains at least 26 bytes. 192 + 26 = 218
 
 	/*
 	If proofEl[0] <= 247 (length at most 55, so proofEl[1] doesn't specify the length of the whole
@@ -927,6 +939,13 @@ func prepareWitness(proof1, proof2, extNibbles [][]byte, key []byte, neighbourNo
 				// Set isExtension to 1 in branch init.
 				bRows[0][isExtensionPos] = 1
 
+				if len(proof1[i-1]) > 56 { // 56 because there is 1 byte for length
+					bRows[0][isSExtLongerThan55Pos] = 1
+				}
+				if len(proof2[i-1]) > 56 {
+					bRows[0][isCExtLongerThan55Pos] = 1
+				}
+
 				keyLen := getExtensionNodeKeyLen(proof1[i-1])
 				// Set whether key extension nibbles are of even or odd length.
 				if keyLen == 1 {
@@ -1143,6 +1162,10 @@ func prepareWitness(proof1, proof2, extNibbles [][]byte, key []byte, neighbourNo
 
 			if isExtension {
 				rows[len(rows)-branchRows-offset][isExtensionPos] = 1
+				if len(proof1[len1-3]) > 56 { // 56 because there is 1 byte for length
+					// isCExtLongerThan55Pos doesn't need to be set here
+					rows[len(rows)-branchRows][isSExtLongerThan55Pos] = 1
+				}
 
 				if numberOfNibbles == 1 {
 					if branchC16 == 1 {
@@ -1308,6 +1331,11 @@ func prepareWitness(proof1, proof2, extNibbles [][]byte, key []byte, neighbourNo
 
 			if isExtension {
 				rows[len(rows)-branchRows][isExtensionPos] = 1
+
+				if len(proof2[len2-3]) > 56 { // 56 because there is 1 byte for length
+					// isSExtLongerThan55Pos doesn't need to be set here
+					rows[len(rows)-branchRows][isCExtLongerThan55Pos] = 1
+				}
 
 				if numberOfNibbles == 1 {
 					if branchC16 == 1 {
