@@ -475,10 +475,12 @@ func prepareStorageLeafRows(row []byte, typ byte, valueIsZero bool) ([][]byte, [
 	if len(row) < 32 { // the node doesn't get hashed in this case
 		// 192 + 32 = 224
 		if row[1] == 32 { // only one key byte
+			// [194,32,1]
 			leaf1[0] = row[0]
 			leaf1[1] = row[1]
 			copy(leaf2, row[2:])
 		} else {
+			// [196,130,32,0,1]
 			keyLen := row[1] - 128
 			copy(leaf1, row[:keyLen+2])
 			copy(leaf2, row[keyLen+2:])
@@ -491,6 +493,7 @@ func prepareStorageLeafRows(row []byte, typ byte, valueIsZero bool) ([][]byte, [
 		return [][]byte{leaf1, leaf2}, leafForHashing
 	}	
 	if row[0] == 248 {
+		// [248,67,160,59,138,106,70,105,186,37,13,38,205,122,69,158,202,157,33,95,131,7,227,58,235,229,3,121,188,90,54,23,236,52,68,161,160,...
 		keyLen := row[2] - 128
 		copy(leaf1, row[:keyLen+3])
 		leaf1 = append(leaf1, typ)
@@ -501,6 +504,7 @@ func prepareStorageLeafRows(row []byte, typ byte, valueIsZero bool) ([][]byte, [
 		}
 		leaf2 = append(leaf2, typ2)
 	} else {
+		// [226,160,59,138,106,70,105,186,37,13,38,205,122,69,158,202,157,33,95,131,7,227,58,235,229,3,121,188,90,54,23,236,52,68,1]
 		keyLen := row[1] - 128
 		copy(leaf1, row[:keyLen+2])
 		leaf1 = append(leaf1, typ)

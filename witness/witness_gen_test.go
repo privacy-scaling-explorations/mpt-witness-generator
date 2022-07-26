@@ -2436,6 +2436,32 @@ func TestExtensionThreeNibblesInOddLevel(t *testing.T) {
 }
 
 func TestLeafWithOneKeyByte(t *testing.T) {
+	/*
+	We have an extension node as a root. This extension node key in compact form
+	is an array of length 32 (160 - 128): 16, 0, 0, ..., 0.
+	That means 63 nibbles that are all zero: 0 (16 - 16), 0, ..., 0.
+	The last nibble of key1 (1) and key2 (3) presents the position in branch.
+	In this case, in a leaf, there is only one key byte: 32.
+
+	storageProof[0]
+		[]uint8 len: 56, cap: 56, [247,160,16,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,213,128,194,32,1,128,194,32,1,128,128,128,128,128,128,128,128,128,128,128,128,128]
+	storageProof[1]
+		[]uint8 len: 22, cap: 22, [213,128,194,32,1,128,194,32,1,128,128,128,128,128,128,128,128,128,128,128,128,128]
+	storageProof[2]
+		[]uint8 len: 3, cap: 3, [194,32,1]
+
+	TODO: remove:
+	[]uint8 len: 36, cap: 36, [227,32,161,160,187,239,170,18,88,1,56,188,38,60,149,117,120,38,223,78,36,235,129,201,170,170,170,170,170,170,170,170,170,170,170,170]
+
+	[]uint8 len: 5, cap: 5, [196,130,32,0,1]
+
+	Note: the "normal" leaf looks like:
+	short:
+	[226,160,59,138,106,70,105,186,37,13,38,205,122,69,158,202,157,33,95,131,7,227,58,235,229,3,121,188,90,54,23,236,52,68,1]
+
+	long:
+	[248,67,160,59,138,106,70,105,186,37,13,38,205,122,69,158,202,157,33,95,131,7,227,58,235,229,3,121,188,90,54,23,236,52,68,161,160,...
+	*/
 	blockNum := 0
 	blockNumberParent := big.NewInt(int64(blockNum))
 	blockHeaderParent := oracle.PrefetchBlock(blockNumberParent, true, nil)
@@ -2447,7 +2473,7 @@ func TestLeafWithOneKeyByte(t *testing.T) {
 	
 	statedb.CreateAccount(addr)
 
-	oracle.PreventHashingInSecureTrie = true
+	oracle.PreventHashingInSecureTrie = true // to store the unchanged key
 
 	key1 := common.HexToHash("0x1")
 	val1 := common.BigToHash(big.NewInt(int64(1)))
@@ -2457,6 +2483,11 @@ func TestLeafWithOneKeyByte(t *testing.T) {
 	key2 := common.HexToHash("0x3")
 	statedb.SetState(addr, key2, val1)
 	statedb.IntermediateRoot(false)
+	/*
+	The two keys are the same except in the last nibble:
+	key1 = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1]
+	key2 = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,3]
+	*/
 
 	storageProof, _, _, err := statedb.GetStorageProof(addr, key1)
 	check(err)
@@ -2478,6 +2509,21 @@ func TestLeafWithOneKeyByte(t *testing.T) {
 }
 
 func TestLeafWithOneKeyByteLongVal(t *testing.T) {
+	/*
+	storageProof[0]
+		[]uint8 len: 68, cap: 68, [248,66,160,16,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,160,172,62,32,109,202,28,158,228,207,196,4,119,200,12,209,177,23,17,228,25,192,126,235,26,91,197,92,194,...+4 more]
+	storageProof[1]
+		[]uint8 len: 83, cap: 83, [248,81,128,160,64,191,43,139,208,5,23,167,184,169,229,253,72,166,37,182,61,14,94,42,159,36,76,149,223,67,72,199,7,140,114,162,128,160,64,191,43,139,208,5,23,167,184,169,229,253,72,166,37,182,61,14,94,42,159,36,76,149,223,67,...+1...
+	storageProof[2]
+		[]uint8 len: 36, cap: 36, [227,32,161,160,187,239,170,18,88,1,56,188,38,60,149,117,120,38,223,78,36,235,129,201,170,170,170,170,170,170,170,170,170,170,170,170]
+
+	storageProof1[0]
+		[]uint8 len: 68, cap: 68, [248,66,160,16,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,160,104,147,154,48,225,9,124,91,65,60,63,202,4,255,242,29,212,241,132,56,213,231,51,133,235,124,255,172,...+4 more]
+	storageProof1[1]
+		[]uint8 len: 52, cap: 52, [243,128,194,32,17,128,160,64,191,43,139,208,5,23,167,184,169,229,253,72,166,37,182,61,14,94,42,159,36,76,149,223,67,72,199,7,140,114,162,128,128,128,128,128,128,128,128,128,128,128,128,128]
+	storageProof1[2]
+		[]uint8 len: 3, cap: 3, [194,32,17]
+	*/
 	// one leaf is hashed, one is not
 	blockNum := 0
 	blockNumberParent := big.NewInt(int64(blockNum))
@@ -2523,6 +2569,14 @@ func TestLeafWithOneKeyByteLongVal(t *testing.T) {
 }
 
 func TestLeafWithTwoKeyBytes(t *testing.T) {
+	/*
+	storageProof[0]
+		[]uint8 len: 60, cap: 60, [248,58,159,16,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,217,128,196,130,32,0,1,128,196,130,32,0,1,128,128,128,128,128,128,128,128,128,128,128,128,128]
+	storageProof[1]
+		[]uint8 len: 26, cap: 26, [217,128,196,130,32,0,1,128,196,130,32,0,1,128,128,128,128,128,128,128,128,128,128,128,128,128]
+	storageProof[2]
+		[]uint8 len: 5, cap: 5, [196,130,32,0,1]
+	*/
 	blockNum := 0
 	blockNumberParent := big.NewInt(int64(blockNum))
 	blockHeaderParent := oracle.PrefetchBlock(blockNumberParent, true, nil)
