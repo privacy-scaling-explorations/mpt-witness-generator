@@ -284,10 +284,12 @@ func prepareBranchWitness(rows [][]byte, branch []byte, branchStart int, branchR
 		} else if insideInd == -1 && b != 128 {
 			if b == 160 {
 				insideInd = 32
+				colInd = branchNodeRLPLen - 1
 			} else {
+				// non-hashed node
 				insideInd = int(b) - 192
+				colInd = branchNodeRLPLen
 			}
-			colInd = branchNodeRLPLen - 1
 			rows[rowInd][branchStart + colInd] = b
 		} else {
 			colInd++

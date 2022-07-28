@@ -2450,9 +2450,10 @@ func TestLeafWithOneKeyByte(t *testing.T) {
 	storageProof[2]
 		[]uint8 len: 3, cap: 3, [194,32,1]
 
-	TODO: remove:
+	Other examples:
+	last level, long value
 	[]uint8 len: 36, cap: 36, [227,32,161,160,187,239,170,18,88,1,56,188,38,60,149,117,120,38,223,78,36,235,129,201,170,170,170,170,170,170,170,170,170,170,170,170]
-
+	not last level, short value
 	[]uint8 len: 5, cap: 5, [196,130,32,0,1]
 
 	Note: the "normal" leaf looks like:
