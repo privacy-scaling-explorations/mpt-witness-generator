@@ -44,8 +44,6 @@ const isExtLongOddC1Pos = 26
 // short/long means having one or more than one nibbles
 const isSExtLongerThan55Pos = 27
 const isCExtLongerThan55Pos = 28
-const isSBranchInExtHashedPos = 29 // TODO: set
-const isCBranchInExtHashedPos = 30 // TODO: set
 
 /*
 Info about row type (given as the last element of the row):
@@ -75,7 +73,7 @@ const (
 	StorageMod ModType = iota
 	NonceMod
 	BalanceMod
-	CodeHashMod
+	CodeHashMod // this was remove from the circuit as it is not possible to directly change the code
 	CreateAccount
 	DeleteAccount
 	NonExistingAccount
@@ -508,14 +506,26 @@ func prepareStorageLeafRows(row []byte, typ byte, valueIsZero bool) ([][]byte, [
 		}
 		leaf2 = append(leaf2, typ2)
 	} else {
-		// [226,160,59,138,106,70,105,186,37,13,38,205,122,69,158,202,157,33,95,131,7,227,58,235,229,3,121,188,90,54,23,236,52,68,1]
-		keyLen := row[1] - 128
-		copy(leaf1, row[:keyLen+2])
-		leaf1 = append(leaf1, typ)
-		if !valueIsZero {
-			copy(leaf2, row[keyLen+2:]) // value starts in s_rlp1
+		/*
+		Examples:
+		[226,160,59,138,106,70,105,186,37,13,38[227,32,161,160,187,239,170,18,88,1,56,188,38,60,149,117,120,38,223,78,36,235,129,201,170,170,170,170,170,170,170,170,170,170,170,170]
+
+		Last level:
+		[227,32,161,160,187,239,170,18,88,1,56,188,38,60,149,117,120,38,223,78,36,235,129,201,170,170,170,170,170,170,170,170,170,170,170,170]
+		*/
+		if row[1] == 32 {
+			leaf1[0] = row[0]
+			leaf1[1] = row[1]
+			copy(leaf2, row[2:])
+		} else {
+			keyLen := row[1] - 128
+			copy(leaf1, row[:keyLen+2])
+			leaf1 = append(leaf1, typ)
+			if !valueIsZero {
+				copy(leaf2, row[keyLen+2:]) // value starts in s_rlp1
+			}
+			leaf2 = append(leaf2, typ2)
 		}
-		leaf2 = append(leaf2, typ2)
 	}
 
 	leafForHashing := make([]byte, len(row))
