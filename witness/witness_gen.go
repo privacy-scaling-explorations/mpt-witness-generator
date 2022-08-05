@@ -498,13 +498,11 @@ func prepareStorageLeafRows(row []byte, typ byte, valueIsZero bool) ([][]byte, [
 		// [248,67,160,59,138,106,70,105,186,37,13,38,205,122,69,158,202,157,33,95,131,7,227,58,235,229,3,121,188,90,54,23,236,52,68,161,160,...
 		keyLen := row[2] - 128
 		copy(leaf1, row[:keyLen+3])
-		leaf1 = append(leaf1, typ)
 		// there are two RLP meta data bytes which are put in s_rlp1 and s_rlp2,
 		// value starts in s_advices[0]
 		if !valueIsZero {
 			copy(leaf2, row[keyLen+3:]) // RLP data in s_rlp1 and s_rlp2, value starts in s_advices[0]
 		}
-		leaf2 = append(leaf2, typ2)
 	} else {
 		/*
 		Examples:
@@ -520,13 +518,13 @@ func prepareStorageLeafRows(row []byte, typ byte, valueIsZero bool) ([][]byte, [
 		} else {
 			keyLen := row[1] - 128
 			copy(leaf1, row[:keyLen+2])
-			leaf1 = append(leaf1, typ)
 			if !valueIsZero {
 				copy(leaf2, row[keyLen+2:]) // value starts in s_rlp1
 			}
-			leaf2 = append(leaf2, typ2)
 		}
 	}
+	leaf1 = append(leaf1, typ)
+	leaf2 = append(leaf2, typ2)
 
 	leafForHashing := make([]byte, len(row))
 	copy(leafForHashing, row)

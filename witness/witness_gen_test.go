@@ -2511,6 +2511,9 @@ func TestLeafWithOneKeyByte(t *testing.T) {
 
 func TestLeafWithOneKeyByteLongVal(t *testing.T) {
 	/*
+	Last level, but long value. This makes the list longer than 55 bytes, so the first byte
+	goes from 247 to 248.
+
 	storageProof[0]
 		[]uint8 len: 68, cap: 68, [248,66,160,16,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,160,172,62,32,109,202,28,158,228,207,196,4,119,200,12,209,177,23,17,228,25,192,126,235,26,91,197,92,194,...+4 more]
 	storageProof[1]
