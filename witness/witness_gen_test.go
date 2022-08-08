@@ -2509,10 +2509,8 @@ func TestLeafWithOneKeyByte(t *testing.T) {
 	oracle.PreventHashingInSecureTrie = false
 }
 
-func TestLeafWithOneKeyByteLongVal(t *testing.T) {
-	/*
-	Last level, but long value. This makes the list longer than 55 bytes, so the first byte
-	goes from 247 to 248.
+/*
+	This makes the extension node longer than 55 bytes, so the first byte goes from 247 to 248.
 
 	storageProof[0]
 		[]uint8 len: 68, cap: 68, [248,66,160,16,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,160,172,62,32,109,202,28,158,228,207,196,4,119,200,12,209,177,23,17,228,25,192,126,235,26,91,197,92,194,...+4 more]
@@ -2527,8 +2525,10 @@ func TestLeafWithOneKeyByteLongVal(t *testing.T) {
 		[]uint8 len: 52, cap: 52, [243,128,194,32,17,128,160,64,191,43,139,208,5,23,167,184,169,229,253,72,166,37,182,61,14,94,42,159,36,76,149,223,67,72,199,7,140,114,162,128,128,128,128,128,128,128,128,128,128,128,128,128]
 	storageProof1[2]
 		[]uint8 len: 3, cap: 3, [194,32,17]
-	*/
-	// one leaf is hashed, one is not
+*/
+/* TODO: extension nodes longer than 55 bytes yet to be implemented in the circuit (but the probability
+that they appear is very low).
+func TestLongExt(t *testing.T) {
 	blockNum := 0
 	blockNumberParent := big.NewInt(int64(blockNum))
 	blockHeaderParent := oracle.PrefetchBlock(blockNumberParent, true, nil)
@@ -2567,20 +2567,13 @@ func TestLeafWithOneKeyByteLongVal(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	GenerateProof("LeafWithOneKeyByteLongVal", trieModifications, statedb)
+	GenerateProof("LongExt", trieModifications, statedb)
 
 	oracle.PreventHashingInSecureTrie = false
 }
+*/
 
 func TestLeafWithTwoKeyBytes(t *testing.T) {
-	/*
-	storageProof[0]
-		[]uint8 len: 60, cap: 60, [248,58,159,16,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,217,128,196,130,32,0,1,128,196,130,32,0,1,128,128,128,128,128,128,128,128,128,128,128,128,128]
-	storageProof[1]
-		[]uint8 len: 26, cap: 26, [217,128,196,130,32,0,1,128,196,130,32,0,1,128,128,128,128,128,128,128,128,128,128,128,128,128]
-	storageProof[2]
-		[]uint8 len: 5, cap: 5, [196,130,32,0,1]
-	*/
 	blockNum := 0
 	blockNumberParent := big.NewInt(int64(blockNum))
 	blockHeaderParent := oracle.PrefetchBlock(blockNumberParent, true, nil)
@@ -2592,14 +2585,14 @@ func TestLeafWithTwoKeyBytes(t *testing.T) {
 	
 	statedb.CreateAccount(addr)
 
-	oracle.PreventHashingInSecureTrie = true
+	oracle.PreventHashingInSecureTrie = true // to store the unchanged key
 
-	key1 := common.HexToHash("0x100")
+	key1 := common.HexToHash("0x10")
 	val1 := common.BigToHash(big.NewInt(int64(1)))
 
 	statedb.SetState(addr, key1, val1)
 
-	key2 := common.HexToHash("0x300")
+	key2 := common.HexToHash("0x30")
 	statedb.SetState(addr, key2, val1)
 	statedb.IntermediateRoot(false)
 
@@ -2621,3 +2614,58 @@ func TestLeafWithTwoKeyBytes(t *testing.T) {
 
 	oracle.PreventHashingInSecureTrie = false
 }
+
+/*
+storageProof[0]
+[]uint8 len: 56, cap: 56, [247,149,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,160,131,32,100,192,26,10,249,123,103,55,126,227,156,51,43,248,141,13,184,86,199,239,167,52,34,242,212,138,29,106,251,72]
+storageProof[1]
+[]uint8 len: 46, cap: 46, [237,128,206,140,48,0,0,0,0,0,0,0,0,0,0,0,17,128,206,140,48,0,0,0,0,0,0,0,0,0,0,0,17,128,128,128,128,128,128,128,128,128,128,128,128,128]
+storageProof[2]
+[]uint8 len: 15, cap: 15, [206,140,48,0,0,0,0,0,0,0,0,0,0,0,17]
+*/
+func TestLeafWithMoreKeyBytes(t *testing.T) {
+	// non-hashed leaf, leaf not in last level
+	
+	blockNum := 0
+	blockNumberParent := big.NewInt(int64(blockNum))
+	blockHeaderParent := oracle.PrefetchBlock(blockNumberParent, true, nil)
+	database := state.NewDatabase(blockHeaderParent)
+	statedb, _ := state.New(blockHeaderParent.Root, database, nil)
+	addr := common.HexToAddress("0x50efbf12580138bc623c95757286df4e24eb81c9")
+
+	statedb.DisableLoadingRemoteAccounts()
+	
+	statedb.CreateAccount(addr)
+
+	oracle.PreventHashingInSecureTrie = true
+
+	// Let us make the extension node shorter than 55 (although this than causes branch to be hashed):
+	key1 := common.HexToHash("0x100000000000000000000000")
+	
+	val1 := common.BigToHash(big.NewInt(int64(17)))
+
+	statedb.SetState(addr, key1, val1)
+
+	key2 := common.HexToHash("0x300000000000000000000000")
+	statedb.SetState(addr, key2, val1)
+	statedb.IntermediateRoot(false)
+
+	storageProof, _, _, err := statedb.GetStorageProof(addr, key1)
+	check(err)
+
+	fmt.Println(storageProof[0])
+
+	val := common.BigToHash(big.NewInt(int64(17)))
+	trieMod := TrieModification{
+    	Type: StorageMod,
+		Key: key1,
+		Value: val,
+		Address: addr,
+	}
+	trieModifications := []TrieModification{trieMod}
+
+	GenerateProof("LeafWithMoreKeyBytes", trieModifications, statedb)
+
+	oracle.PreventHashingInSecureTrie = false
+}
+
