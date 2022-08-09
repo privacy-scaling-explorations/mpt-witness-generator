@@ -476,8 +476,11 @@ func prepareStorageLeafRows(row []byte, typ byte, valueIsZero bool) ([][]byte, [
 	}
 	if len(row) < 32 { // the node doesn't get hashed in this case
 		// 192 + 32 = 224
-		if row[1] == 32 { // only one key byte
-			// [194,32,1]
+		if row[1] < 128 {
+			// last level: [194,32,1]
+			// or
+			// only one nibble in a leaf (as soon as the leaf has two nibbles, row[1] will have 128 + length)
+			// [194,48,1] - this one contains nibble 0 = 48 - 48
 			leaf1[0] = row[0]
 			leaf1[1] = row[1]
 			copy(leaf2, row[2:])

@@ -2435,7 +2435,7 @@ func TestExtensionThreeNibblesInOddLevel(t *testing.T) {
 	oracle.NodeUrl = oracle.RemoteUrl
 }
 
-func TestLeafWithOneKeyByte(t *testing.T) {
+func TestLeafInLastLevel(t *testing.T) {
 	/*
 	We have an extension node as a root. This extension node key in compact form
 	is an array of length 32 (160 - 128): 16, 0, 0, ..., 0.
@@ -2504,7 +2504,7 @@ func TestLeafWithOneKeyByte(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	GenerateProof("LeafWithOneKeyByte", trieModifications, statedb)
+	GenerateProof("LeafInLastLevel", trieModifications, statedb)
 
 	oracle.PreventHashingInSecureTrie = false
 }
@@ -2573,7 +2573,7 @@ func TestLongExt(t *testing.T) {
 }
 */
 
-func TestLeafWithTwoKeyBytes(t *testing.T) {
+func TestLeafWithOneNibble(t *testing.T) {
 	blockNum := 0
 	blockNumberParent := big.NewInt(int64(blockNum))
 	blockHeaderParent := oracle.PrefetchBlock(blockNumberParent, true, nil)
@@ -2610,7 +2610,7 @@ func TestLeafWithTwoKeyBytes(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	GenerateProof("LeafWithTwoKeyBytes", trieModifications, statedb)
+	GenerateProof("LeafWithOneNibble", trieModifications, statedb)
 
 	oracle.PreventHashingInSecureTrie = false
 }
@@ -2623,7 +2623,7 @@ storageProof[1]
 storageProof[2]
 []uint8 len: 15, cap: 15, [206,140,48,0,0,0,0,0,0,0,0,0,0,0,17]
 */
-func TestLeafWithMoreKeyBytes(t *testing.T) {
+func TestLeafWithMoreNibbles(t *testing.T) {
 	// non-hashed leaf, leaf not in last level
 	
 	blockNum := 0
@@ -2664,7 +2664,7 @@ func TestLeafWithMoreKeyBytes(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	GenerateProof("LeafWithMoreKeyBytes", trieModifications, statedb)
+	GenerateProof("LeafWithMoreNibbles", trieModifications, statedb)
 
 	oracle.PreventHashingInSecureTrie = false
 }
