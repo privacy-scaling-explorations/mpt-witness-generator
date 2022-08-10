@@ -2669,3 +2669,91 @@ func TestLeafWithMoreNibbles(t *testing.T) {
 	oracle.PreventHashingInSecureTrie = false
 }
 
+func TestNonHashedBranchInBranch(t *testing.T) {
+	blockNum := 0
+	blockNumberParent := big.NewInt(int64(blockNum))
+	blockHeaderParent := oracle.PrefetchBlock(blockNumberParent, true, nil)
+	database := state.NewDatabase(blockHeaderParent)
+	statedb, _ := state.New(blockHeaderParent.Root, database, nil)
+	addr := common.HexToAddress("0x50efbf12580138bc623c95757286df4e24eb81c9")
+
+	statedb.DisableLoadingRemoteAccounts()
+	
+	statedb.CreateAccount(addr)
+
+	oracle.PreventHashingInSecureTrie = true // to store the unchanged key
+
+	val1 := common.BigToHash(big.NewInt(int64(1)))
+
+	/*
+	TODO: strange proof, check
+	key1Hex := "0x1" 
+	key2Hex := "0x2" 
+	key1 := common.HexToHash(key1Hex)
+	key2 := common.HexToHash(key2Hex)
+
+	iters := 3
+	for i := 0; i < iters; i++ {
+		fmt.Println("====")
+		fmt.Println(key1)
+		fmt.Println(key2)
+
+		statedb.SetState(addr, key1, val1)
+		statedb.SetState(addr, key2, val1)
+
+		if i == iters - 1 {
+			break
+		}
+
+		key2Hex = key1Hex + "2"
+		key1Hex += "1"
+		key1 = common.HexToHash(key1Hex)
+		key2 = common.HexToHash(key2Hex)
+	}
+	*/
+	
+	key1Hex := "0x1000000000000000000000000000000000000000000000000000000000000000" 
+	key2Hex := "0x2000000000000000000000000000000000000000000000000000000000000000" 
+	key1 := common.HexToHash(key1Hex)
+	key2 := common.HexToHash(key2Hex)
+
+	iters := 3
+	for i := 0; i < iters; i++ {
+		fmt.Println("====")
+		fmt.Println(key1)
+		fmt.Println(key2)
+
+		statedb.SetState(addr, key1, val1)
+		statedb.SetState(addr, key2, val1)
+
+		if i == iters - 1 {
+			break
+		}
+
+		key1Hex = replaceAtIndex(key1Hex, 49, i + 3) // 49 is 1, 50 is 2, ...
+		key2Hex = replaceAtIndex(key1Hex, 50, i + 3) // key1Hex is ok, we want to go down through the levels
+		key1 = common.HexToHash(key1Hex)
+		key2 = common.HexToHash(key2Hex)
+	}
+
+	statedb.IntermediateRoot(false)
+
+	val := common.BigToHash(big.NewInt(int64(17)))
+	trieMod := TrieModification{
+    	Type: StorageMod,
+		Key: key1,
+		Value: val,
+		Address: addr,
+	}
+	trieModifications := []TrieModification{trieMod}
+
+	GenerateProof("NonHashedBranchInBranch", trieModifications, statedb)
+
+	oracle.PreventHashingInSecureTrie = false
+}
+
+func replaceAtIndex(in string, r rune, i int) string {
+    out := []rune(in)
+    out[i] = r
+    return string(out)
+}
