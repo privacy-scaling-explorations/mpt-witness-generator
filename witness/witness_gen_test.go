@@ -2669,6 +2669,7 @@ func TestLeafWithMoreNibbles(t *testing.T) {
 	oracle.PreventHashingInSecureTrie = false
 }
 
+// Note: this requires MockProver with config param 11
 func TestNonHashedBranchInBranch(t *testing.T) {
 	blockNum := 0
 	blockNumberParent := big.NewInt(int64(blockNum))

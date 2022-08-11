@@ -44,8 +44,8 @@ const isExtLongOddC1Pos = 26
 // short/long means having one or more than one nibbles
 const isSExtLongerThan55Pos = 27
 const isCExtLongerThan55Pos = 28
-const isBranchSHashedPos = 29
-const isBranchCHashedPos = 30
+const isBranchSNonHashedPos = 29
+const isBranchCNonHashedPos = 30
 
 /*
 Info about row type (given as the last element of the row):
@@ -757,14 +757,14 @@ func prepareTwoBranchesWitness(branch1, branch2 []byte, key, branchC16, branchC1
 	// [249,1,81,128,16,...
 
 	if branch1[0] < 192 + 32 {
-		rows[0][isBranchSHashedPos] = 0
+		rows[0][isBranchSNonHashedPos] = 1
 	} else {
-		rows[0][isBranchSHashedPos] = 1
+		rows[0][isBranchSNonHashedPos] = 0
 	}
 	if branch2[0] < 192 + 32 {
-		rows[0][isBranchCHashedPos] = 0
+		rows[0][isBranchCNonHashedPos] = 1
 	} else {
-		rows[0][isBranchCHashedPos] = 1
+		rows[0][isBranchCNonHashedPos] = 0
 	}
 
 	// branch init:
