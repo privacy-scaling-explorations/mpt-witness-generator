@@ -2716,24 +2716,25 @@ func TestNonHashedBranchInBranch(t *testing.T) {
 	key2Hex := "0x2000000000000000000000000000000000000000000000000000000000000000" 
 	key1 := common.HexToHash(key1Hex)
 	key2 := common.HexToHash(key2Hex)
+	fmt.Println(key2)
 
-	iters := 3
+	statedb.SetState(addr, key2, val1)
+
+	iters := 57 // making the last branch shorter than 32 bytes
 	for i := 0; i < iters; i++ {
 		fmt.Println("====")
 		fmt.Println(key1)
-		fmt.Println(key2)
 
 		statedb.SetState(addr, key1, val1)
-		statedb.SetState(addr, key2, val1)
 
 		if i == iters - 1 {
 			break
 		}
 
 		key1Hex = replaceAtIndex(key1Hex, 49, i + 3) // 49 is 1, 50 is 2, ...
-		key2Hex = replaceAtIndex(key1Hex, 50, i + 3) // key1Hex is ok, we want to go down through the levels
+		// key2Hex = replaceAtIndex(key1Hex, 50, i + 3) // key1Hex is ok, we want to go down through the levels
 		key1 = common.HexToHash(key1Hex)
-		key2 = common.HexToHash(key2Hex)
+		// key2 = common.HexToHash(key2Hex)
 	}
 
 	statedb.IntermediateRoot(false)
