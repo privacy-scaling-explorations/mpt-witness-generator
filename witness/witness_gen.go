@@ -44,6 +44,8 @@ const isExtLongOddC1Pos = 26
 // short/long means having one or more than one nibbles
 const isSExtLongerThan55Pos = 27
 const isCExtLongerThan55Pos = 28
+const isBranchSHashedPos = 29
+const isBranchCHashedPos = 30
 
 /*
 Info about row type (given as the last element of the row):
@@ -753,6 +755,17 @@ func prepareTwoBranchesWitness(branch1, branch2 []byte, key, branchC16, branchC1
 
 	// Branch (length 340) with three bytes of RLP meta data
 	// [249,1,81,128,16,...
+
+	if branch1[0] < 192 + 32 {
+		rows[0][isBranchSHashedPos] = 0
+	} else {
+		rows[0][isBranchSHashedPos] = 1
+	}
+	if branch2[0] < 192 + 32 {
+		rows[0][isBranchCHashedPos] = 0
+	} else {
+		rows[0][isBranchCHashedPos] = 1
+	}
 
 	// branch init:
 	// bytes 0 and 1: whether branch S has 2 or 3 RLP meta data bytes
