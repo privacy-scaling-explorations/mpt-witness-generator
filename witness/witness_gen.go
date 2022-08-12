@@ -381,7 +381,7 @@ func prepareExtensionRows(extNibbles[][]byte, extensionNodeInd int, proofEl1, pr
 }
 
 func getExtensionNodeKeyLen(proofEl []byte) byte {
-	if proofEl[0] == 226 {
+	if proofEl[1] <= 32 {
 		return 1
 	} else if proofEl[0] <= 247 {
 		return proofEl[1] - 128
@@ -398,6 +398,8 @@ func prepareExtensionRow(witnessRow, proofEl []byte, setKey bool) {
 
 	// If only one byte in key:
 	// [226,16,160,172,105,12...
+	// Could also be non-hashed branch:
+	// [223,16,221,198,132,32,0,0,0,1,198,132,32,0,0,0,1,128,128,128,128,128,128,128,128,128,128,128,128,128,128,128]
 
 	// Extension node with non-hashed branch:
 	// List contains up to 55 bytes (192 + 55)
@@ -433,7 +435,9 @@ func prepareExtensionRow(witnessRow, proofEl []byte, setKey bool) {
 
 	lenKey := 0
 	startKey := 0
-	if proofEl[0] == 226 {
+	// proofEl[1] <= 32 means only one nibble: the stored value is `16 + nibble`, note that if there are
+	// at least two nibbles there will be `128 + number of bytes occupied by nibbles` in proofEl[1]
+	if proofEl[1] <= 32 {
 		lenKey = 1
 		startKey = 1
 	} else if proofEl[0] <= 247 {
