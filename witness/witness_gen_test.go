@@ -2798,12 +2798,10 @@ func TestNonHashedExtensionNodeInBranch(t *testing.T) {
 		if !makeExtension {
 			key1Hex = replaceAtIndex(key1Hex, 49, i + 3) 
 		} else {
-			key1Hex = replaceAtIndex(key1Hex, 49, i + 1 + 3) // TODO: prepare test with +2 to have two nibbles 
+			key1Hex = replaceAtIndex(key1Hex, 49, i + 1 + 3)
 		}
 	
-		// key2Hex = replaceAtIndex(key1Hex, 50, i + 3) // key1Hex is ok, we want to go down through the levels
 		key1 = common.HexToHash(key1Hex)
-		// key2 = common.HexToHash(key2Hex)
 	}
 
 	statedb.IntermediateRoot(false)
@@ -2818,6 +2816,68 @@ func TestNonHashedExtensionNodeInBranch(t *testing.T) {
 	trieModifications := []TrieModification{trieMod}
 
 	GenerateProof("NonHashedExtensionNodeInBranch", trieModifications, statedb)
+
+	oracle.PreventHashingInSecureTrie = false
+}
+
+func TestNonHashedExtensionNodeInBranchTwoNibbles(t *testing.T) {
+	blockNum := 0
+	blockNumberParent := big.NewInt(int64(blockNum))
+	blockHeaderParent := oracle.PrefetchBlock(blockNumberParent, true, nil)
+	database := state.NewDatabase(blockHeaderParent)
+	statedb, _ := state.New(blockHeaderParent.Root, database, nil)
+	addr := common.HexToAddress("0x50efbf12580138bc623c95757286df4e24eb81c9")
+
+	statedb.DisableLoadingRemoteAccounts()
+	
+	statedb.CreateAccount(addr)
+
+	oracle.PreventHashingInSecureTrie = true // to store the unchanged key
+
+	val1 := common.BigToHash(big.NewInt(int64(1)))
+
+	key1Hex := "0x1000000000000000000000000000000000000000000000000000000000000000" 
+	key2Hex := "0x2000000000000000000000000000000000000000000000000000000000000000" 
+	key1 := common.HexToHash(key1Hex)
+	key2 := common.HexToHash(key2Hex)
+	fmt.Println(key2)
+
+	statedb.SetState(addr, key2, val1)
+
+	iters := 58 // make the extension node shorter than 32
+	for i := 0; i < iters; i++ {
+		statedb.SetState(addr, key1, val1)
+
+		if i == iters - 1 {
+			break
+		}
+
+		makeExtension := false
+		if i == iters - 2 {
+			makeExtension = true
+		}
+
+		if !makeExtension {
+			key1Hex = replaceAtIndex(key1Hex, 49, i + 3) 
+		} else {
+			key1Hex = replaceAtIndex(key1Hex, 49, i + 2 + 3) // +2 to have two nibbles 
+		}
+	
+		key1 = common.HexToHash(key1Hex)
+	}
+
+	statedb.IntermediateRoot(false)
+
+	val := common.BigToHash(big.NewInt(int64(17)))
+	trieMod := TrieModification{
+    	Type: StorageMod,
+		Key: key1,
+		Value: val,
+		Address: addr,
+	}
+	trieModifications := []TrieModification{trieMod}
+
+	GenerateProof("NonHashedExtensionNodeInBranchTwoNibbles", trieModifications, statedb)
 
 	oracle.PreventHashingInSecureTrie = false
 }

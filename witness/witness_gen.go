@@ -46,6 +46,8 @@ const isSExtLongerThan55Pos = 27
 const isCExtLongerThan55Pos = 28
 const isBranchSNonHashedPos = 29
 const isBranchCNonHashedPos = 30
+const isExtNodeSNonHashedPos = 31
+const isExtNodeCNonHashedPos = 32
 
 /*
 Info about row type (given as the last element of the row):
@@ -982,6 +984,13 @@ func prepareWitness(proof1, proof2, extNibbles [][]byte, key []byte, neighbourNo
 					bRows[0][isCExtLongerThan55Pos] = 1
 				}
 
+				if len(proof1[i-1]) < 32 {
+					bRows[0][isExtNodeSNonHashedPos] = 1
+				}
+				if len(proof2[i-1]) < 32 {
+					bRows[0][isExtNodeCNonHashedPos] = 1
+				}
+
 				keyLen := getExtensionNodeKeyLen(proof1[i-1])
 				// Set whether key extension nibbles are of even or odd length.
 				if keyLen == 1 {
@@ -1199,8 +1208,13 @@ func prepareWitness(proof1, proof2, extNibbles [][]byte, key []byte, neighbourNo
 			if isExtension {
 				rows[len(rows)-branchRows-offset][isExtensionPos] = 1
 				if len(proof1[len1-3]) > 56 { // 56 because there is 1 byte for length
-					// isCExtLongerThan55Pos doesn't need to be set here
+					// isCExtLongerThan55 doesn't need to be set here
 					rows[len(rows)-branchRows][isSExtLongerThan55Pos] = 1
+				}
+
+				if len(proof1[len1-3]) < 32 {
+					// isExtNodeSNonHashed doesn't need to be set here
+					rows[len(rows)-branchRows][isExtNodeSNonHashedPos] = 1
 				}
 
 				if numberOfNibbles == 1 {
@@ -1369,8 +1383,13 @@ func prepareWitness(proof1, proof2, extNibbles [][]byte, key []byte, neighbourNo
 				rows[len(rows)-branchRows][isExtensionPos] = 1
 
 				if len(proof2[len2-3]) > 56 { // 56 because there is 1 byte for length
-					// isSExtLongerThan55Pos doesn't need to be set here
+					// isSExtLongerThan55 doesn't need to be set here
 					rows[len(rows)-branchRows][isCExtLongerThan55Pos] = 1
+				}
+
+				if len(proof2[len2-3]) < 32 {
+					// isExtNodeSNonHashed doesn't need to be set here
+					rows[len(rows)-branchRows][isExtNodeCNonHashedPos] = 1
 				}
 
 				if numberOfNibbles == 1 {
