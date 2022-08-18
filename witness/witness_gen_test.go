@@ -2864,7 +2864,7 @@ func TestExtNodeReplaceWithBranch(t *testing.T) {
 	blockHeaderParent := oracle.PrefetchBlock(blockNumberParent, true, nil)
 	database := state.NewDatabase(blockHeaderParent)
 	statedb, _ := state.New(blockHeaderParent.Root, database, nil)
-	addr := common.HexToAddress("0x50efbf12580138bc623c95757286df4e24eb81c9")
+	addr := common.HexToAddress("0x40efbf12580138bc623c95757286df4e24eb81c9")
 
 	statedb.DisableLoadingRemoteAccounts()
 	
@@ -2872,31 +2872,27 @@ func TestExtNodeReplaceWithBranch(t *testing.T) {
 
 	oracle.PreventHashingInSecureTrie = true // to store the unchanged key
 
-	val1 := common.BigToHash(big.NewInt(int64(1)))
-
 	key1Hex := "0x1" 
 	key2Hex := "0x2" 
 	key1 := common.HexToHash(key1Hex)
 	key2 := common.HexToHash(key2Hex)
 
-	iters := 3
-	for i := 0; i < iters; i++ {
-		fmt.Println("====")
-		fmt.Println(key1)
-		fmt.Println(key2)
+	val1 := common.BigToHash(big.NewInt(int64(111)))
+	val2 := common.BigToHash(big.NewInt(int64(222)))
 
-		statedb.SetState(addr, key1, val1)
-		statedb.SetState(addr, key2, val1)
+	statedb.SetState(addr, key1, val1)
+	fmt.Println(key1)
 
-		if i == iters - 1 {
-			break
-		}
+	statedb.SetState(addr, key2, val2)
+	fmt.Println(key2)
 
-		key2Hex = key1Hex + "2"
-		key1Hex += "1"
-		key1 = common.HexToHash(key1Hex)
-		key2 = common.HexToHash(key2Hex)
-	}
+	// Uncomment if you want to make sure key1 and key2 are stored in the trie before key3 is stored
+	// statedb.IntermediateRoot(false)
+
+	key1Hex += "1"
+	key3 := common.HexToHash(key1Hex)
+	statedb.SetState(addr, key3, val2)
+	fmt.Println(key3)
 	
 	statedb.IntermediateRoot(false)
 
