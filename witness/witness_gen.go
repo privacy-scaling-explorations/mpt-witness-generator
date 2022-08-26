@@ -398,7 +398,7 @@ func prepareExtensionRow(witnessRow, proofEl []byte, setKey bool) {
 	// Note that the first element (228 in this case) can go much higher - for example, if there
 	// are 40 nibbles, this would take 20 bytes which would make the first element 248.
 
-	// If only one byte in key:
+	// If only one nibble in key:
 	// [226,16,160,172,105,12...
 	// Could also be non-hashed branch:
 	// [223,16,221,198,132,32,0,0,0,1,198,132,32,0,0,0,1,128,128,128,128,128,128,128,128,128,128,128,128,128,128,128]
@@ -570,6 +570,7 @@ func prepareAccountLeafRows(leafS, leafC, addressNibbles []byte, nonExistingAcco
 	
 	offset := 0	
 	nibblesNum := (keyLenC - 1) * 2
+	nonExistingAccountRow[2] = leafS[2] // length
 	if keyRowC[3] != 32 { // odd number of nibbles
 		nibblesNum = nibblesNum + 1
 		nonExistingAccountRow[3] = addressNibbles[64 - nibblesNum] + 48 
@@ -1962,6 +1963,10 @@ func getParallelProofs(trieModifications []TrieModification, statedb *state.Stat
 			rowsStorage, toBeHashedStorage, _ :=
 				prepareWitness(storageProof, storageProof1, extNibbles, keyHashed, node, false, false)
 			rowsState = append(rowsState, rowsStorage...)
+
+			for i := 114; i < 114 + 19; i++ {
+				fmt.Println(rowsState[i])
+			}
 
 			proof := prepareProof(i, rowsState, addrh, sRoot, cRoot, startRoot, finalRoot, StorageMod)
 			allProofs = append(allProofs, proof...)
