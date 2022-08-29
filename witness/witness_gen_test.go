@@ -2601,7 +2601,9 @@ func TestLeafWithOneNibble(t *testing.T) {
 
 	fmt.Println(storageProof[0])
 
-	val := common.BigToHash(big.NewInt(int64(17)))
+	// make the value long to have different kind of RLP in C proof
+	v1 := common.FromHex("0xbbefaa12580138bc263c95757826df4e24eb81c9aaaaaaaaaaaaaaaaaaaaaaaa")
+	val := common.BytesToHash(v1)
 	trieMod := TrieModification{
     	Type: StorageMod,
 		Key: key1,

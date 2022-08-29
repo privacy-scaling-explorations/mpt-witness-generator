@@ -515,18 +515,16 @@ func prepareStorageLeafRows(row []byte, typ byte, valueIsZero bool) ([][]byte, [
 			copy(leaf2, row[keyLen+3:]) // RLP data in s_rlp1 and s_rlp2, value starts in s_advices[0]
 		}
 	} else {
-		/*
-		Examples:
-		[226,160,59,138,106,70,105,186,37,13,38[227,32,161,160,187,239,170,18,88,1,56,188,38,60,149,117,120,38,223,78,36,235,129,201,170,170,170,170,170,170,170,170,170,170,170,170]
-
-		Last level:
-		[227,32,161,160,187,239,170,18,88,1,56,188,38,60,149,117,120,38,223,78,36,235,129,201,170,170,170,170,170,170,170,170,170,170,170,170]
-		*/
-		if row[1] == 32 {
+		if row[1] < 128 {
+			// last level:
+			// [227,32,161,160,187,239,170,18,88,1,56,188,38,60,149,117,120,38,223,78,36,235,129,201,170,170,170,170,170,170,170,170,170,170,170,170]
+			// one nibble:
+			// [227,48,161,160,187,239,170,18,88,1,56,188,38,60,149,117,120,38,223,78,36,235,129,201,170,170,170,170,170,170,170,170,170,170,170,170]
 			leaf1[0] = row[0]
 			leaf1[1] = row[1]
 			copy(leaf2, row[2:])
 		} else {
+			// [226,160,59,138,106,70,105,186,37,13,38[227,32,161,160,187,239,170,18,88,1,56,188,38,60,149,117,120,38,223,78,36,235,129,201,170,170,170,170,170,170,170,170,170,170,170,170]
 			keyLen := row[1] - 128
 			copy(leaf1, row[:keyLen+2])
 			if !valueIsZero {
@@ -1963,10 +1961,6 @@ func getParallelProofs(trieModifications []TrieModification, statedb *state.Stat
 			rowsStorage, toBeHashedStorage, _ :=
 				prepareWitness(storageProof, storageProof1, extNibbles, keyHashed, node, false, false)
 			rowsState = append(rowsState, rowsStorage...)
-
-			for i := 114; i < 114 + 19; i++ {
-				fmt.Println(rowsState[i])
-			}
 
 			proof := prepareProof(i, rowsState, addrh, sRoot, cRoot, startRoot, finalRoot, StorageMod)
 			allProofs = append(allProofs, proof...)
