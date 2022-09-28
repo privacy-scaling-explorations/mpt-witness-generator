@@ -2234,7 +2234,7 @@ func TestAccountBranchPlaceholderInFirstLevel(t *testing.T) {
 	// Implicitly create account such that the account from the first level will be
 	// replaced by a branch.
 	trieMod := TrieModification{
-    	Type: NonceMod,
+    	Type: BalanceMod,
 		Balance: big.NewInt(23),
 		Address: addr,
 	}
@@ -2259,7 +2259,7 @@ func TestAccountBranchPlaceholderDeeper(t *testing.T) {
 	// Implicitly create account such that the account from the first level will be
 	// replaced by a branch.
 	trieMod := TrieModification{
-    	Type: NonceMod,
+    	Type: BalanceMod,
 		Balance: big.NewInt(23),
 		Address: addr,
 	}
@@ -2601,9 +2601,7 @@ func TestLeafWithOneNibble(t *testing.T) {
 
 	fmt.Println(storageProof[0])
 
-	// make the value long to have different kind of RLP in C proof
-	v1 := common.FromHex("0xbbefaa12580138bc263c95757826df4e24eb81c9aaaaaaaaaaaaaaaaaaaaaaaa")
-	val := common.BytesToHash(v1)
+	val := common.BigToHash(big.NewInt(int64(17)))
 	trieMod := TrieModification{
     	Type: StorageMod,
 		Key: key1,
@@ -2672,6 +2670,7 @@ func TestLeafWithMoreNibbles(t *testing.T) {
 }
 
 // Note: this requires MockProver with config param 11
+/*
 func TestNonHashedBranchInBranch(t *testing.T) {
 	blockNum := 0
 	blockNumberParent := big.NewInt(int64(blockNum))
@@ -2858,6 +2857,7 @@ func TestNonHashedExtensionNodeInBranchTwoNibbles(t *testing.T) {
 
 	oracle.PreventHashingInSecureTrie = false
 }
+*/
 
 func TestExtNodeReplaceWithBranch(t *testing.T) {
 	// Replace extension node with branch
@@ -2911,3 +2911,50 @@ func TestExtNodeReplaceWithBranch(t *testing.T) {
 
 	oracle.PreventHashingInSecureTrie = false
 }
+
+/*
+// Extension node going from [247,...] to [248,...].
+func TestExtNodeDiffLength(t *testing.T) {
+	blockNum := 0
+	blockNumberParent := big.NewInt(int64(blockNum))
+	blockHeaderParent := oracle.PrefetchBlock(blockNumberParent, true, nil)
+	database := state.NewDatabase(blockHeaderParent)
+	statedb, _ := state.New(blockHeaderParent.Root, database, nil)
+	addr := common.HexToAddress("0x50efbf12580138bc623c95757286df4e24eb81c9")
+
+	statedb.DisableLoadingRemoteAccounts()
+	
+	statedb.CreateAccount(addr)
+
+	oracle.PreventHashingInSecureTrie = true // to store the unchanged key
+
+	key1 := common.HexToHash("0x10")
+	val1 := common.BigToHash(big.NewInt(int64(1)))
+
+	statedb.SetState(addr, key1, val1)
+
+	key2 := common.HexToHash("0x30")
+	statedb.SetState(addr, key2, val1)
+	statedb.IntermediateRoot(false)
+
+	storageProof, _, _, err := statedb.GetStorageProof(addr, key1)
+	check(err)
+
+	fmt.Println(storageProof[0])
+
+	// make the value long to have different kind of RLP in C proof
+	v1 := common.FromHex("0xbbefaa12580138bc263c95757826df4e24eb81c9aaaaaaaaaaaaaaaaaaaaaaaa")
+	val := common.BytesToHash(v1)
+	trieMod := TrieModification{
+    	Type: StorageMod,
+		Key: key1,
+		Value: val,
+		Address: addr,
+	}
+	trieModifications := []TrieModification{trieMod}
+
+	GenerateProof("ExtNodeDiffLength", trieModifications, statedb)
+
+	oracle.PreventHashingInSecureTrie = false
+}
+*/

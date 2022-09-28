@@ -1854,6 +1854,7 @@ func prepareAccountProof(i int, tMod TrieModification, tModsLen int, statedb *st
 	
 	rowsState, toBeHashedAcc, _ :=
 		prepareWitness(accountProof, accountProof1, aExtNibbles, accountAddr, aNode, true, tMod.Type == NonExistingAccount)
+
 	proof := prepareProof(i, rowsState, addrh, sRoot, cRoot, startRoot, finalRoot, tMod.Type)
 
 	return proof, toBeHashedAcc
@@ -1961,7 +1962,7 @@ func getParallelProofs(trieModifications []TrieModification, statedb *state.Stat
 			rowsStorage, toBeHashedStorage, _ :=
 				prepareWitness(storageProof, storageProof1, extNibbles, keyHashed, node, false, false)
 			rowsState = append(rowsState, rowsStorage...)
-
+	
 			proof := prepareProof(i, rowsState, addrh, sRoot, cRoot, startRoot, finalRoot, StorageMod)
 			allProofs = append(allProofs, proof...)
 			
