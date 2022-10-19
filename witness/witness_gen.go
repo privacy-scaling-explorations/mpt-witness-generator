@@ -68,7 +68,8 @@ Info about row type (given as the last element of the row):
 15: neighbouring storage leaf (when leaf turned into branch)
 16: extension node S
 17: extension node C
-18: non existing proof
+18: non existing account
+19: non existing storage
 */
 
 type ModType int64
@@ -542,6 +543,21 @@ func prepareStorageLeafRows(row []byte, typ byte, valueIsZero bool) ([][]byte, [
 	return [][]byte{leaf1, leaf2}, leafForHashing
 }
 
+func prepareEmptyNonExistingStorageRow() []byte {	
+	// nonExistingStorageRow is used only for proof that nothing is stored at a particular storage key
+	nonExistingStorageRow := make([]byte, rowLen)
+	nonExistingStorageRow = append(nonExistingStorageRow, 19)
+
+	return nonExistingStorageRow
+}
+
+func prepareNonExistingStorageRow() []byte {	
+	// nonExistingStorageRow is used only for proof that nothing is stored at a particular storage key
+	nonExistingStorageRow := prepareEmptyNonExistingStorageRow()
+
+	return nonExistingStorageRow
+}
+
 func prepareAccountLeafRows(leafS, leafC, addressNibbles []byte, nonExistingAccountProof, noLeaf bool) ([]byte, []byte, []byte, []byte, []byte, []byte, []byte) {	
 	// wrongLeaf has a meaning only for non existing account proof. For this proof, there are two cases:
 	// 1. A leaf is returned that is not at the required address (wrong leaf).
@@ -940,7 +956,8 @@ func prepareWitness(proof1, proof2, extNibbles [][]byte, key []byte, neighbourNo
 				rows = append(rows, leafRows...)
 				toBeHashed = append(toBeHashed, leafForHashing)
 				leafRows, leafForHashing = prepareStorageLeafRows(proof2[i], 3, false) // leaf s
-				rows = append(rows, leafRows...)
+				rows = append(rows, leafRows...)	
+
 				toBeHashed = append(toBeHashed, leafForHashing)
 			}
 		case 17:
@@ -1188,7 +1205,7 @@ func prepareWitness(proof1, proof2, extNibbles [][]byte, key []byte, neighbourNo
 				rows = append(rows, leafRows...)
 				toBeHashed = append(toBeHashed, leafForHashingC)
 			}
-
+	
 			// We now get the first nibble of the leaf that was turned into branch.
 			// This first nibble presents the position of the leaf once it moved
 			// into the new branch.
@@ -1258,6 +1275,10 @@ func prepareWitness(proof1, proof2, extNibbles [][]byte, key []byte, neighbourNo
 			} else {
 				sLeafRows, _ := prepareStorageLeafRows(neighbourNode, 15, false)
 				rows = append(rows, sLeafRows[0])
+
+				// For non existing proof, S and C proofs are the same
+				nonExistingStorageRow := prepareEmptyNonExistingStorageRow()
+				rows = append(rows, nonExistingStorageRow)	
 			}
 		} else {
 			// We don't have a leaf in the shorter proof, but we will add it there
@@ -1297,6 +1318,10 @@ func prepareWitness(proof1, proof2, extNibbles [][]byte, key []byte, neighbourNo
 
 				pRows := prepareDriftedLeafPlaceholder(isAccountProof)
 				rows = append(rows, pRows...)
+
+				// For non existing proof, S and C proofs are the same
+				nonExistingStorageRow := prepareEmptyNonExistingStorageRow()
+				rows = append(rows, nonExistingStorageRow)	
 			}
 		}
 	} else if len2 > len1 {
@@ -1445,6 +1470,10 @@ func prepareWitness(proof1, proof2, extNibbles [][]byte, key []byte, neighbourNo
 			} else {
 				sLeafRows, _ := prepareStorageLeafRows(neighbourNode, 15, false)
 				rows = append(rows, sLeafRows[0])
+
+				// For non existing proof, S and C proofs are the same
+				nonExistingStorageRow := prepareEmptyNonExistingStorageRow()
+				rows = append(rows, nonExistingStorageRow)	
 			}
 		} else {
 			// No leaf means value is 0, set valueIsZero = true:
@@ -1484,6 +1513,10 @@ func prepareWitness(proof1, proof2, extNibbles [][]byte, key []byte, neighbourNo
 
 				pRows := prepareDriftedLeafPlaceholder(false)
 				rows = append(rows, pRows...)
+
+				// For non existing proof, S and C proofs are the same
+				nonExistingStorageRow := prepareEmptyNonExistingStorageRow()
+				rows = append(rows, nonExistingStorageRow)	
 			}
 		}
 	} else {
@@ -1529,6 +1562,11 @@ func prepareWitness(proof1, proof2, extNibbles [][]byte, key []byte, neighbourNo
 
 		pRows := prepareDriftedLeafPlaceholder(isAccountProof)
 		rows = append(rows, pRows...)
+
+		if !isAccountProof {
+			nonExistingStorageRow := prepareNonExistingStorageRow()
+			rows = append(rows, nonExistingStorageRow)	
+		}
 	}
 
 	return rows, toBeHashed, extensionNodeInd > 0
