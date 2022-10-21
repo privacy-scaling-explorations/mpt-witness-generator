@@ -2958,3 +2958,33 @@ func TestExtNodeDiffLength(t *testing.T) {
 	oracle.PreventHashingInSecureTrie = false
 }
 */
+
+func TestNonExistingStorage(t *testing.T) {
+	ks := [...]common.Hash{common.HexToHash("0x11"), common.HexToHash("0x12")}
+	// hexed keys:
+	// [3,1,14,12,12,...
+	// [11,11,8,10,6,...
+	// First we have a branch with children at position 3 and 11.
+	// ks := [...]common.Hash{common.HexToHash("0x12"), common.HexToHash("0x21")}
+
+	var values []common.Hash
+	for i := 0; i < len(ks); i++ {
+		values = append(values, common.BigToHash(big.NewInt(int64(i + 1)))) // don't put 0 value because otherwise nothing will be set (if 0 is prev value), see state_object.go line 279
+	}
+	addr := common.HexToAddress("0x75acef12a01883c2b3fc57957826df4e24e8baaa")
+	var addresses []common.Address
+	for i := 0; i < len(ks); i++ {
+		addresses = append(addresses, addr)
+	}
+
+	// This key is not in the trie yet, its nibbles:
+	// [3,10,6,3,5,7,...
+	trieMod := TrieModification{
+    	Type: NonExistingStorage,
+		Key: common.HexToHash("0x21"),
+		Address: addr,
+	}
+	trieModifications := []TrieModification{trieMod}
+
+	UpdateStateAndGenProof("NonExistingStorage", ks[:], values, addresses, trieModifications)
+}

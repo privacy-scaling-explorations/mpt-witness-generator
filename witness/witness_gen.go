@@ -82,6 +82,7 @@ const (
 	CreateAccount
 	DeleteAccount
 	NonExistingAccount
+	NonExistingStorage
 )
 
 type TrieModification struct {
@@ -129,12 +130,12 @@ func listToJson(row []byte) string {
 
 // Equip proof with intermediate state roots, first level info, counter, address RLC,
 // modification tag (whether it is storage / nonce / balance change).
-func insertMetaInfo(stream, sRoot, cRoot, address, counter []byte, notFirstLevel, isStorageMod, isNonceMod, isBalanceMod, isCodeHashMod, isAccountDeleteMod, isNonExistingAccount byte) []byte {
+func insertMetaInfo(stream, sRoot, cRoot, address, counter []byte, notFirstLevel, isStorageMod, isNonceMod, isBalanceMod, isCodeHashMod, isAccountDeleteMod, isNonExistingAccount, isNonExistingStorage byte) []byte {
 	// The last byte (-1) in a row determines the type of the row.
 	// Byte -2 determines whether it's the first level or not.
 	// Bytes before that store intermediate final and end roots.
 	l := len(stream)
-	extendLen := 64 + 32 + 32 + counterLen + 1 + 6
+	extendLen := 64 + 32 + 32 + counterLen + 1 + 7
 	extended := make([]byte, l + extendLen) // make space for 32 + 32 + 32 + 1 (s hash, c hash, public_root, notFirstLevel)
 	copy(extended, stream)
 	extended[l+extendLen-1] = extended[l-1] // put selector to the last place
@@ -159,6 +160,7 @@ func insertMetaInfo(stream, sRoot, cRoot, address, counter []byte, notFirstLevel
 	extended[l+extendLen-6] = isCodeHashMod
 	extended[l+extendLen-7] = isAccountDeleteMod
 	extended[l+extendLen-8] = isNonExistingAccount
+	extended[l+extendLen-9] = isNonExistingStorage
 
 	return extended
 }
@@ -551,9 +553,36 @@ func prepareEmptyNonExistingStorageRow() []byte {
 	return nonExistingStorageRow
 }
 
-func prepareNonExistingStorageRow() []byte {	
+func prepareNonExistingStorageRow(leafC, keyNibbles []byte, noLeaf bool) []byte {	
 	// nonExistingStorageRow is used only for proof that nothing is stored at a particular storage key
 	nonExistingStorageRow := prepareEmptyNonExistingStorageRow()
+	
+	start := 2 // TODO: depends on whether key short / long / one-nibble / last-level
+	keyLenC := int(leafC[start-1]) - 128
+	keyRowC := make([]byte, rowLen)
+	for i := 0; i < start+keyLenC; i++ {
+		keyRowC[i] = leafC[i]
+	}
+
+	offset := 0	
+	nibblesNum := (keyLenC - 1) * 2
+	nonExistingStorageRow[start-1] = leafC[start-1] // length
+	if keyRowC[start] != 32 { // odd number of nibbles
+		nibblesNum = nibblesNum + 1
+		nonExistingStorageRow[start] = keyNibbles[64 - nibblesNum] + 48 
+		offset = 1
+	} else {
+		nonExistingStorageRow[start] = 32
+	}
+	// Get the last nibblesNum of address:
+	remainingNibbles := keyNibbles[64 - nibblesNum:64] // exclude the last one as it is not a nibble
+	for i := 0; i < keyLenC-1; i++ {
+		nonExistingStorageRow[start+1+i] = remainingNibbles[2*i + offset] * 16 + remainingNibbles[2*i+1 + offset]
+	}
+
+	if !noLeaf {
+		nonExistingStorageRow[0] = 1 // whether it is wrong leaf
+	}
 
 	return nonExistingStorageRow
 }
@@ -584,7 +613,7 @@ func prepareAccountLeafRows(leafS, leafC, addressNibbles []byte, nonExistingAcco
 	
 	offset := 0	
 	nibblesNum := (keyLenC - 1) * 2
-	nonExistingAccountRow[2] = leafS[2] // length
+	nonExistingAccountRow[2] = leafC[2] // length
 	if keyRowC[3] != 32 { // odd number of nibbles
 		nibblesNum = nibblesNum + 1
 		nonExistingAccountRow[3] = addressNibbles[64 - nibblesNum] + 48 
@@ -871,7 +900,7 @@ func prepareTwoBranchesWitness(branch1, branch2 []byte, key, branchC16, branchC1
 }
 
 func prepareWitness(proof1, proof2, extNibbles [][]byte, key []byte, neighbourNode []byte,
-		isAccountProof, nonExistingAccountProof bool) ([][]byte, [][]byte, bool) {
+		isAccountProof, nonExistingAccountProof, nonExistingStorageProof bool) ([][]byte, [][]byte, bool) {
 	rows := make([][]byte, 0)
 	toBeHashed := make([][]byte, 0)
 
@@ -1520,7 +1549,8 @@ func prepareWitness(proof1, proof2, extNibbles [][]byte, key []byte, neighbourNo
 			}
 		}
 	} else {
-		lastRLP := proof1[len(proof1)-1];
+		// Let's always use C proof for non-existing proof.
+		lastRLP := proof2[len(proof2)-1];
 		elems, _, err := rlp.SplitList(lastRLP)
 		check(err)
 		c, _ := rlp.CountValues(elems)
@@ -1564,8 +1594,15 @@ func prepareWitness(proof1, proof2, extNibbles [][]byte, key []byte, neighbourNo
 		rows = append(rows, pRows...)
 
 		if !isAccountProof {
-			nonExistingStorageRow := prepareNonExistingStorageRow()
-			rows = append(rows, nonExistingStorageRow)	
+			if nonExistingStorageProof {
+				cKeyRow := rows[len(rows) - 3]
+				noLeaf := false // TODO
+				nonExistingStorageRow := prepareNonExistingStorageRow(cKeyRow, key, noLeaf)
+				rows = append(rows, nonExistingStorageRow)	
+			} else {
+				nonExistingStorageRow := prepareEmptyNonExistingStorageRow()
+				rows = append(rows, nonExistingStorageRow)	
+			}
 		}
 	}
 
@@ -1606,6 +1643,7 @@ func prepareProof(ind int, newProof [][]byte, addrh []byte, sRoot, cRoot, startR
 	isCodeHashMod := byte(0)
 	isAccountDeleteMod := byte(0)
 	isNonExistingAccount := byte(0)
+	isNonExistingStorage := byte(0)
 	if mType == StorageMod {
 		isStorageMod = 1
 	} else if mType == NonceMod {
@@ -1620,6 +1658,8 @@ func prepareProof(ind int, newProof [][]byte, addrh []byte, sRoot, cRoot, startR
 		isAccountDeleteMod = 1
 	} else if mType == NonExistingAccount {
 		isNonExistingAccount = 1
+	} else if mType == NonExistingStorage {
+		isNonExistingStorage = 1
 	}
 
 	counter := make([]byte, counterLen)
@@ -1632,7 +1672,8 @@ func prepareProof(ind int, newProof [][]byte, addrh []byte, sRoot, cRoot, startR
 			notFirstLevel = 0
 		}
 		r := insertMetaInfo(newProof[j], sRoot.Bytes(), cRoot.Bytes(), addrh, counter, notFirstLevel, 
-			isStorageMod, isNonceMod, isBalanceMod, isCodeHashMod, isAccountDeleteMod, isNonExistingAccount)
+			isStorageMod, isNonceMod, isBalanceMod, isCodeHashMod, isAccountDeleteMod, isNonExistingAccount,
+			isNonExistingStorage)
 		proof = append(proof, r)
 	}
 	insertPublicRoot(newProof, startRoot.Bytes(), finalRoot.Bytes())
@@ -1891,7 +1932,7 @@ func prepareAccountProof(i int, tMod TrieModification, tModsLen int, statedb *st
 	}
 	
 	rowsState, toBeHashedAcc, _ :=
-		prepareWitness(accountProof, accountProof1, aExtNibbles, accountAddr, aNode, true, tMod.Type == NonExistingAccount)
+		prepareWitness(accountProof, accountProof1, aExtNibbles, accountAddr, aNode, true, tMod.Type == NonExistingAccount, false)
 
 	proof := prepareProof(i, rowsState, addrh, sRoot, cRoot, startRoot, finalRoot, tMod.Type)
 
@@ -1907,7 +1948,7 @@ func getParallelProofs(trieModifications []TrieModification, statedb *state.Stat
 
 	for i := 0; i < len(trieModifications); i++ {
 		tMod := trieModifications[i]
-		if tMod.Type == StorageMod {
+		if tMod.Type == StorageMod || tMod.Type == NonExistingStorage {
 			kh := crypto.Keccak256(tMod.Key.Bytes())
 			if oracle.PreventHashingInSecureTrie {
 				kh = tMod.Key.Bytes()
@@ -1935,8 +1976,10 @@ func getParallelProofs(trieModifications []TrieModification, statedb *state.Stat
 				startRoot = sRoot
 			}
 
-			statedb.SetState(addr, tMod.Key, tMod.Value)
-			statedb.IntermediateRoot(false)
+			if tMod.Type == StorageMod {
+				statedb.SetState(addr, tMod.Key, tMod.Value)
+				statedb.IntermediateRoot(false)
+			}
 
 			cRoot := statedb.GetTrie().Hash()
 			if i == len(trieModifications)-1 {
@@ -1996,12 +2039,12 @@ func getParallelProofs(trieModifications []TrieModification, statedb *state.Stat
 			}
 			
 			rowsState, toBeHashedAcc, _ :=
-				prepareWitness(accountProof, accountProof1, aExtNibbles, accountAddr, aNode, true, false)
+				prepareWitness(accountProof, accountProof1, aExtNibbles, accountAddr, aNode, true, tMod.Type == NonExistingAccount, false)
 			rowsStorage, toBeHashedStorage, _ :=
-				prepareWitness(storageProof, storageProof1, extNibbles, keyHashed, node, false, false)
+				prepareWitness(storageProof, storageProof1, extNibbles, keyHashed, node, false, false, tMod.Type == NonExistingStorage)
 			rowsState = append(rowsState, rowsStorage...)
 	
-			proof := prepareProof(i, rowsState, addrh, sRoot, cRoot, startRoot, finalRoot, StorageMod)
+			proof := prepareProof(i, rowsState, addrh, sRoot, cRoot, startRoot, finalRoot, tMod.Type)
 			allProofs = append(allProofs, proof...)
 			
 			// Put rows that just need to be hashed at the end, because circuit assign function
