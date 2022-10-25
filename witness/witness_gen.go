@@ -557,7 +557,10 @@ func prepareNonExistingStorageRow(leafC, keyNibbles []byte, noLeaf bool) []byte 
 	// nonExistingStorageRow is used only for proof that nothing is stored at a particular storage key
 	nonExistingStorageRow := prepareEmptyNonExistingStorageRow()
 	
-	start := 2 // TODO: depends on whether key short / long / one-nibble / last-level
+	start := 2
+	if leafC[0] == 248 {
+		start = 3
+	}
 	keyLenC := int(leafC[start-1]) - 128
 	keyRowC := make([]byte, rowLen)
 	for i := 0; i < start+keyLenC; i++ {

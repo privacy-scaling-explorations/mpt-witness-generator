@@ -2988,3 +2988,87 @@ func TestNonExistingStorage(t *testing.T) {
 
 	UpdateStateAndGenProof("NonExistingStorage", ks[:], values, addresses, trieModifications)
 }
+
+func TestNonExistingStorageLong(t *testing.T) {
+	ks := [...]common.Hash{common.HexToHash("0x11"), common.HexToHash("0x12")}
+	
+	var values []common.Hash
+	v1 := common.FromHex("0xbbefaa12580138bc263c95757826df4e24eb81c9aaaaaaaaaaaaaaaaaaaaaaaa")
+	v2 := common.BytesToHash(v1)
+	for i := 0; i < len(ks); i++ {
+		values = append(values, v2)
+	}
+	addr := common.HexToAddress("0x75acef12a01883c2b3fc57957826df4e24e8b19c")
+	var addresses []common.Address
+	for i := 0; i < len(ks); i++ {
+		addresses = append(addresses, addr)
+	}
+
+	trieMod := TrieModification{
+    	Type: NonExistingStorage,
+		Key: common.HexToHash("0x21"),
+		Address: addr,
+	}
+	trieModifications := []TrieModification{trieMod}
+
+	UpdateStateAndGenProof("NonExistingStorageLong", ks[:], values, addresses, trieModifications)
+}
+
+func TestStorageInFirstLevelNonExisting(t *testing.T) {
+	// geth --dev --http --ipcpath ~/Library/Ethereum/geth.ipc
+	oracle.NodeUrl = oracle.LocalUrl
+	blockNum := 0
+	blockNumberParent := big.NewInt(int64(blockNum))
+	blockHeaderParent := oracle.PrefetchBlock(blockNumberParent, true, nil)
+	database := state.NewDatabase(blockHeaderParent)
+	statedb, _ := state.New(blockHeaderParent.Root, database, nil)
+
+	i := 21
+	h := fmt.Sprintf("0x%d", i)
+	addr := common.HexToAddress(h)
+
+	val1 := common.BigToHash(big.NewInt(int64(1)))
+	statedb.SetState(addr, common.HexToHash("0x11"), val1)
+	statedb.IntermediateRoot(false)
+
+	trieMod := TrieModification{
+    	Type: NonExistingStorage,
+		Key: common.HexToHash("0x12"),
+		Address: addr,
+	}
+	trieModifications := []TrieModification{trieMod}
+
+	GenerateProof("StorageInFirstLevelNonExisting", trieModifications, statedb)
+
+	oracle.NodeUrl = oracle.RemoteUrl
+}
+
+func TestStorageInFirstLevelNonExistingLong(t *testing.T) {
+	// geth --dev --http --ipcpath ~/Library/Ethereum/geth.ipc
+	oracle.NodeUrl = oracle.LocalUrl
+	blockNum := 0
+	blockNumberParent := big.NewInt(int64(blockNum))
+	blockHeaderParent := oracle.PrefetchBlock(blockNumberParent, true, nil)
+	database := state.NewDatabase(blockHeaderParent)
+	statedb, _ := state.New(blockHeaderParent.Root, database, nil)
+
+	i := 21
+	h := fmt.Sprintf("0x%d", i)
+	addr := common.HexToAddress(h)
+
+	v1 := common.FromHex("0xbbefaa12580138bc263c95757826df4e24eb81c9aaaaaaaaaaaaaaaaaaaaaaaa")
+	val1 := common.BytesToHash(v1)
+	statedb.SetState(addr, common.HexToHash("0x11"), val1)
+	statedb.IntermediateRoot(false)
+
+	trieMod := TrieModification{
+    	Type: NonExistingStorage,
+		Key: common.HexToHash("0x12"),
+		Address: addr,
+	}
+	trieModifications := []TrieModification{trieMod}
+
+	GenerateProof("StorageInFirstLevelNonExistingLong", trieModifications, statedb)
+
+	oracle.NodeUrl = oracle.RemoteUrl
+}
