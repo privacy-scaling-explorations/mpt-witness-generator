@@ -1557,54 +1557,94 @@ func prepareWitness(proof1, proof2, extNibbles [][]byte, key []byte, neighbourNo
 		elems, _, err := rlp.SplitList(lastRLP)
 		check(err)
 		c, _ := rlp.CountValues(elems)
+		// Account proof has drifted leaf as the last row, storage proof has non-existing-storage row
+		// as the last row.
 		if c == 17 {
-			// When non existing account proof and only the branches are returned, we add a placeholder leaf.
+			// When non existing proof and only the branches are returned, we add a placeholder leaf.
 			// This is to enable the lookup (in account leaf row), most constraints are disabled for these rows.
+			if !isAccountProof {
+				// We need to prepare placeholder storage leaf rows.
+				leaf := make([]byte, rowLen)
+				// Just some values to avoid assignement errors:
+				leaf[0] = 228
+				leaf[1] = 130
+				leaf[2] = 51
 
-			isEven := keyIndex % 2 == 0 
-			keyLen := int(math.Floor(float64(64-keyIndex) / float64(2))) + 1
-			remainingNibbles := key[keyIndex:]
-			offset := 0
-			leaf := make([]byte, rowLen)
-			leaf[0] = 248
-			leaf[2] = byte(keyLen) + 128
-			leaf[3 + keyLen] = 184
-			leaf[3 + keyLen + 1 + 1] = 248
-			leaf[3 + keyLen + 1 + 1 + 1] = leaf[3 + keyLen + 1] - 2
-			if isEven {
-				leaf[3] = 32
+				leafRows, _ := prepareStorageLeafRows(leaf, 2, false)
+				rows = append(rows, leafRows...)
+				leafRows, _ = prepareStorageLeafRows(leaf, 3, false)
+				rows = append(rows, leafRows...)
+
+				pRows := prepareDriftedLeafPlaceholder(isAccountProof)
+				rows = append(rows, pRows...)	
+
+				if nonExistingStorageProof {
+					leaf := prepareEmptyNonExistingStorageRow()
+
+					isEven := keyIndex % 2 == 0 
+					keyLen := int(math.Floor(float64(64-keyIndex) / float64(2))) + 1
+					remainingNibbles := key[keyIndex:]
+					leaf[1] = byte(keyLen) + 128
+					if isEven {
+						leaf[2] = 32
+					} else {
+						leaf[2] = remainingNibbles[0] + 48
+					}
+
+					rows = append(rows, leaf)	
+				} else {
+					nonExistingStorageRow := prepareEmptyNonExistingStorageRow()
+					rows = append(rows, nonExistingStorageRow)	
+				}
 			} else {
-				leaf[3] = remainingNibbles[0] + 48
-				offset = 1
-			}
-			for i := 0; i < keyLen - 1; i++ {
-				leaf[4+i] = remainingNibbles[2*i + offset] * 16 + remainingNibbles[2*i + 1 + offset]
-			}
-			
-			keyRowS, keyRowC, nonExistingAccountRow, nonceBalanceRowS, nonceBalanceRowC, storageCodeHashRowS, storageCodeHashRowC :=
-				prepareAccountLeafRows(leaf, leaf, key, nonExistingAccountProof, true)
-			
-			rows = append(rows, keyRowS)
-			rows = append(rows, keyRowC)
-			rows = append(rows, nonExistingAccountRow)
-			rows = append(rows, nonceBalanceRowS)
-			rows = append(rows, nonceBalanceRowC)
-			rows = append(rows, storageCodeHashRowS)
-			rows = append(rows, storageCodeHashRowC)
-		}
+				isEven := keyIndex % 2 == 0 
+				keyLen := int(math.Floor(float64(64-keyIndex) / float64(2))) + 1
+				remainingNibbles := key[keyIndex:]
+				offset := 0
+				leaf := make([]byte, rowLen)
+				leaf[0] = 248
+				leaf[2] = byte(keyLen) + 128
+				leaf[3 + keyLen] = 184
+				leaf[3 + keyLen + 1 + 1] = 248
+				leaf[3 + keyLen + 1 + 1 + 1] = leaf[3 + keyLen + 1] - 2
+				if isEven {
+					leaf[3] = 32
+				} else {
+					leaf[3] = remainingNibbles[0] + 48
+					offset = 1
+				}
+				for i := 0; i < keyLen - 1; i++ {
+					leaf[4+i] = remainingNibbles[2*i + offset] * 16 + remainingNibbles[2*i + 1 + offset]
+				}
+				
+				keyRowS, keyRowC, nonExistingAccountRow, nonceBalanceRowS, nonceBalanceRowC, storageCodeHashRowS, storageCodeHashRowC :=
+					prepareAccountLeafRows(leaf, leaf, key, nonExistingAccountProof, true)
+				
+				rows = append(rows, keyRowS)
+				rows = append(rows, keyRowC)
+				rows = append(rows, nonExistingAccountRow)
+				rows = append(rows, nonceBalanceRowS)
+				rows = append(rows, nonceBalanceRowC)
+				rows = append(rows, storageCodeHashRowS)
+				rows = append(rows, storageCodeHashRowC)
 
-		pRows := prepareDriftedLeafPlaceholder(isAccountProof)
-		rows = append(rows, pRows...)
+				pRows := prepareDriftedLeafPlaceholder(isAccountProof)
+				rows = append(rows, pRows...)	
+			}
+		} else {
+			pRows := prepareDriftedLeafPlaceholder(isAccountProof)
+			rows = append(rows, pRows...)	
 
-		if !isAccountProof {
-			if nonExistingStorageProof {
-				cKeyRow := rows[len(rows) - 3]
-				noLeaf := false // TODO
-				nonExistingStorageRow := prepareNonExistingStorageRow(cKeyRow, key, noLeaf)
-				rows = append(rows, nonExistingStorageRow)	
-			} else {
-				nonExistingStorageRow := prepareEmptyNonExistingStorageRow()
-				rows = append(rows, nonExistingStorageRow)	
+			if !isAccountProof {
+				if nonExistingStorageProof {
+					cKeyRow := rows[len(rows) - 3]
+					noLeaf := false
+					nonExistingStorageRow := prepareNonExistingStorageRow(cKeyRow, key, noLeaf)
+					rows = append(rows, nonExistingStorageRow)	
+				} else {
+					nonExistingStorageRow := prepareEmptyNonExistingStorageRow()
+					rows = append(rows, nonExistingStorageRow)	
+				}
 			}
 		}
 	}

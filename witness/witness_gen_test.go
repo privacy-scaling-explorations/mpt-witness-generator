@@ -3072,3 +3072,64 @@ func TestStorageInFirstLevelNonExistingLong(t *testing.T) {
 
 	oracle.NodeUrl = oracle.RemoteUrl
 }
+
+func TestNonExistingStorageNil(t *testing.T) {
+	// Nil in branch.
+	ks := [...]common.Hash{common.HexToHash("0x11"), common.HexToHash("0x12")}
+	// hexed keys:
+	// [3,1,14,12,12,...
+	// [11,11,8,10,6,...
+	// First we have a branch with children at position 3 and 11.
+	// ks := [...]common.Hash{common.HexToHash("0x12"), common.HexToHash("0x21")}
+
+	var values []common.Hash
+	for i := 0; i < len(ks); i++ {
+		values = append(values, common.BigToHash(big.NewInt(int64(i + 1)))) // don't put 0 value because otherwise nothing will be set (if 0 is prev value), see state_object.go line 279
+	}
+	addr := common.HexToAddress("0x75acef12a01883c2b3fc57957826df4e24e8baaa")
+	var addresses []common.Address
+	for i := 0; i < len(ks); i++ {
+		addresses = append(addresses, addr)
+	}
+
+	// This key is not in the trie yet, its nibbles:
+	// [3,10,6,3,5,7,...
+	trieMod := TrieModification{
+    	Type: NonExistingStorage,
+		Key: common.HexToHash("0x22"),
+		Address: addr,
+	}
+	trieModifications := []TrieModification{trieMod}
+
+	UpdateStateAndGenProof("NonExistingStorageNil", ks[:], values, addresses, trieModifications)
+}
+
+func TestStorageInFirstLevelNonExistingNil(t *testing.T) {
+	// geth --dev --http --ipcpath ~/Library/Ethereum/geth.ipc
+	oracle.NodeUrl = oracle.LocalUrl
+	blockNum := 0
+	blockNumberParent := big.NewInt(int64(blockNum))
+	blockHeaderParent := oracle.PrefetchBlock(blockNumberParent, true, nil)
+	database := state.NewDatabase(blockHeaderParent)
+	statedb, _ := state.New(blockHeaderParent.Root, database, nil)
+
+	i := 21
+	h := fmt.Sprintf("0x%d", i)
+	addr := common.HexToAddress(h)
+
+	v1 := common.FromHex("0xbbefaa12580138bc263c95757826df4e24eb81c9aaaaaaaaaaaaaaaaaaaaaaaa")
+	val1 := common.BytesToHash(v1)
+	statedb.SetState(addr, common.HexToHash("0x11"), val1)
+	statedb.IntermediateRoot(false)
+
+	trieMod := TrieModification{
+    	Type: NonExistingStorage,
+		Key: common.HexToHash("0x13"),
+		Address: addr,
+	}
+	trieModifications := []TrieModification{trieMod}
+
+	GenerateProof("StorageInFirstLevelNonExistingNil", trieModifications, statedb)
+
+	oracle.NodeUrl = oracle.RemoteUrl
+}
