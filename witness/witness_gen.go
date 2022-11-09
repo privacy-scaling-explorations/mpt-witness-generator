@@ -1159,12 +1159,12 @@ func prepareWitness(proof1, proof2, extNibbles [][]byte, key []byte, neighbourNo
 		return nibbles[numberOfNibbles]
 	}	
 
-	if len1 > len2 {
+	
+	addPlaceholder := func() {
 		if additionalBranch {
-			// C branch is just a placeholder here.
 			numberOfNibbles := 0
 			var extRows [][]byte
-			isExtension := len1 == len2 + 2
+			isExtension := (len1 == len2 + 2) || (len2 == len1 + 2)
 			if !isExtension {
 				extRows = prepareEmptyExtensionRows()
 				if branchC16 == 1 {
@@ -1175,14 +1175,26 @@ func prepareWitness(proof1, proof2, extNibbles [][]byte, key []byte, neighbourNo
 					branchC1 = 0
 				}
 			} else {
-				numNibbles, extensionRowS, extensionRowC :=
-					prepareExtensionRows(extNibbles, extensionNodeInd, proof1[len1 - 3], proof1[len1 - 3])
+				var numNibbles byte
+				var extensionRowS []byte
+				var extensionRowC []byte
+				if len1 > len2 {
+					numNibbles, extensionRowS, extensionRowC =
+						prepareExtensionRows(extNibbles, extensionNodeInd, proof1[len1 - 3], proof1[len1 - 3])
+				} else {
+					numNibbles, extensionRowS, extensionRowC =
+						prepareExtensionRows(extNibbles, extensionNodeInd, proof2[len2 - 3], proof2[len2 - 3])
+				}
 				numberOfNibbles = int(numNibbles)
 				extRows = append(extRows, extensionRowS)
 				extRows = append(extRows, extensionRowC)
 
 				// adding extension node for hashing:
-				addForHashing(proof1[len1-3], &toBeHashed)
+				if len1 > len2 {
+					addForHashing(proof1[len1-3], &toBeHashed)
+				} else {
+					addForHashing(proof2[len2-3], &toBeHashed)
+				}
 
 				if numberOfNibbles % 2 == 0 {
 					if branchC16 == 1 {
@@ -1195,7 +1207,11 @@ func prepareWitness(proof1, proof2, extNibbles [][]byte, key []byte, neighbourNo
 				}
 			}
 
-			addBranch(proof1[len1-2], proof1[len1-2], key[keyIndex + numberOfNibbles], true, branchC16, branchC1)
+			if len1 > len2 {
+				addBranch(proof1[len1-2], proof1[len1-2], key[keyIndex + numberOfNibbles], true, branchC16, branchC1)
+			} else {
+				addBranch(proof2[len2-2], proof2[len2-2], key[keyIndex + numberOfNibbles], false, branchC16, branchC1)
+			}
 			rows = append(rows, extRows...)
 
 			var leafRows [][]byte
@@ -1226,65 +1242,120 @@ func prepareWitness(proof1, proof2, extNibbles [][]byte, key []byte, neighbourNo
 				leafForHashing = append(leafForHashing, leafForHashingS)
 			}
 
-			toBeHashed = append(toBeHashed, leafForHashing...)
-			// All account leaf rows already generated above, for storage leaf only S is generated above.
-			if isAccountProof {
-				rows = append(rows, leafRows...)
-			} else {
-				rows = append(rows, leafRows...)
-				var leafForHashingC []byte
-				leafRows, leafForHashingC = prepareStorageLeafRows(proof2[len2-1], 3, false)
-				rows = append(rows, leafRows...)
-				toBeHashed = append(toBeHashed, leafForHashingC)
-			}
-	
-			// We now get the first nibble of the leaf that was turned into branch.
-			// This first nibble presents the position of the leaf once it moved
-			// into the new branch.
-
-			// Note: leafRows[0] in this case (len1 > len2) is leafRowS[0],
-			// leafRows[0] in case below (len2 > len1) is leafRowC[0],
-			offset := 4
-			leafRow := leafRows[0]
-			if isAccountProof {
-				offset = 7
-				leafRow = leafRows[1]
-			}
-			rows[len(rows)-branchRows-offset][driftedPos] =
-				getDriftedPosition(leafRow, numberOfNibbles) // -branchRows-offset lands into branch init
-
-			if isExtension {
-				rows[len(rows)-branchRows-offset][isExtensionPos] = 1
-				if len(proof1[len1-3]) > 56 { // 56 because there is 1 byte for length
-					// isCExtLongerThan55 doesn't need to be set here
-					rows[len(rows)-branchRows][isSExtLongerThan55Pos] = 1
-				}
-
-				if len(proof1[len1-3]) < 32 {
-					// isExtNodeSNonHashed doesn't need to be set here
-					rows[len(rows)-branchRows][isExtNodeSNonHashedPos] = 1
-				}
-
-				if numberOfNibbles == 1 {
-					if branchC16 == 1 {
-						rows[len(rows)-branchRows-offset][isExtShortC16Pos] = 1
-					} else {
-						rows[len(rows)-branchRows-offset][isExtShortC1Pos] = 1
-					}
+			if len1 > len2 {
+				toBeHashed = append(toBeHashed, leafForHashing...)
+				// All account leaf rows already generated above, for storage leaf only S is generated above.
+				if isAccountProof {
+					rows = append(rows, leafRows...)
 				} else {
-					if numberOfNibbles % 2 == 0 {
+					rows = append(rows, leafRows...)
+					var leafForHashingC []byte
+					leafRows, leafForHashingC = prepareStorageLeafRows(proof2[len2-1], 3, false)
+					rows = append(rows, leafRows...)
+					toBeHashed = append(toBeHashed, leafForHashingC)
+				}
+		
+				// We now get the first nibble of the leaf that was turned into branch.
+				// This first nibble presents the position of the leaf once it moved
+				// into the new branch.
+
+				// Note: leafRows[0] in this case (len1 > len2) is leafRowS[0],
+				// leafRows[0] in case below (len2 > len1) is leafRowC[0],
+				offset := 4
+				leafRow := leafRows[0]
+				if isAccountProof {
+					offset = 7
+					leafRow = leafRows[1]
+				}
+				rows[len(rows)-branchRows-offset][driftedPos] =
+					getDriftedPosition(leafRow, numberOfNibbles) // -branchRows-offset lands into branch init
+
+				if isExtension {
+					rows[len(rows)-branchRows-offset][isExtensionPos] = 1
+					if len(proof1[len1-3]) > 56 { // 56 because there is 1 byte for length
+						// isCExtLongerThan55 doesn't need to be set here
+						rows[len(rows)-branchRows][isSExtLongerThan55Pos] = 1
+					}
+
+					if len(proof1[len1-3]) < 32 {
+						// isExtNodeSNonHashed doesn't need to be set here
+						rows[len(rows)-branchRows][isExtNodeSNonHashedPos] = 1
+					}
+
+					if numberOfNibbles == 1 {
 						if branchC16 == 1 {
-							rows[len(rows)-branchRows-offset][isExtLongEvenC16Pos] = 1
+							rows[len(rows)-branchRows-offset][isExtShortC16Pos] = 1
 						} else {
-							rows[len(rows)-branchRows-offset][isExtLongEvenC1Pos] = 1
+							rows[len(rows)-branchRows-offset][isExtShortC1Pos] = 1
 						}
 					} else {
-						if branchC16 == 1 {
-							rows[len(rows)-branchRows-offset][isExtLongOddC16Pos] = 1
+						if numberOfNibbles % 2 == 0 {
+							if branchC16 == 1 {
+								rows[len(rows)-branchRows-offset][isExtLongEvenC16Pos] = 1
+							} else {
+								rows[len(rows)-branchRows-offset][isExtLongEvenC1Pos] = 1
+							}
 						} else {
-							rows[len(rows)-branchRows-offset][isExtLongOddC1Pos] = 1
+							if branchC16 == 1 {
+								rows[len(rows)-branchRows-offset][isExtLongOddC16Pos] = 1
+							} else {
+								rows[len(rows)-branchRows-offset][isExtLongOddC1Pos] = 1
+							}
 						}
 					}
+				}
+			} else {
+				// We now get the first nibble of the leaf that was turned into branch.
+				// This first nibble presents the position of the leaf once it moved
+				// into the new branch.
+				rows[len(rows)-branchRows][driftedPos] = getDriftedPosition(leafRows[0], numberOfNibbles) // -branchRows lands into branch init
+
+				if isExtension {
+					rows[len(rows)-branchRows][isExtensionPos] = 1
+
+					if len(proof2[len2-3]) > 56 { // 56 because there is 1 byte for length
+						// isSExtLongerThan55 doesn't need to be set here
+						rows[len(rows)-branchRows][isCExtLongerThan55Pos] = 1
+					}
+
+					if len(proof2[len2-3]) < 32 {
+						// isExtNodeSNonHashed doesn't need to be set here
+						rows[len(rows)-branchRows][isExtNodeCNonHashedPos] = 1
+					}
+
+					if numberOfNibbles == 1 {
+						if branchC16 == 1 {
+							rows[len(rows)-branchRows][isExtShortC16Pos] = 1
+						} else {
+							rows[len(rows)-branchRows][isExtShortC1Pos] = 1
+						}
+					} else {
+						if numberOfNibbles % 2 == 0 {
+							if branchC16 == 1 {
+								rows[len(rows)-branchRows][isExtLongEvenC16Pos] = 1
+							} else {
+								rows[len(rows)-branchRows][isExtLongEvenC1Pos] = 1
+							}
+						} else {
+							if branchC16 == 1 {
+								rows[len(rows)-branchRows][isExtLongOddC16Pos] = 1
+							} else {
+								rows[len(rows)-branchRows][isExtLongOddC1Pos] = 1
+							}
+						}
+					}
+				}
+
+				toBeHashed = append(toBeHashed, leafForHashing...)
+				// All account leaf rows already generated above, for storage leaf only S is generated above.
+				if isAccountProof {
+					rows = append(rows, leafRows...)
+				} else {
+					rows = append(rows, leafRows...)
+					var leafForHashingC []byte
+					leafRows, leafForHashingC = prepareStorageLeafRows(proof2[len2-1], 3, false)
+					rows = append(rows, leafRows...)
+					toBeHashed = append(toBeHashed, leafForHashingC)
 				}
 			}
 
@@ -1316,8 +1387,15 @@ func prepareWitness(proof1, proof2, extNibbles [][]byte, key []byte, neighbourNo
 			// We don't have a leaf in the shorter proof, but we will add it there
 			// as a placeholder.
 			if isAccountProof {
-				leafS := proof1[len1-1]
-				leafC := proof1[len1-1] // placeholder
+				var leafS []byte
+				var leafC []byte
+				if len1 > len2 {
+					leafS = proof1[len1-1]
+					leafC = proof1[len1-1] // placeholder
+				} else {
+					leafC = proof2[len2-1]
+					leafS = proof2[len2-1] // placeholder
+				}
 
 				// When generating a proof that account doesn't exist, the length of both proofs is the same (doesn't reach
 				// this code).
@@ -1340,12 +1418,23 @@ func prepareWitness(proof1, proof2, extNibbles [][]byte, key []byte, neighbourNo
 				toBeHashed = append(toBeHashed, leafS)
 				toBeHashed = append(toBeHashed, leafC)
 			} else {
-				leafRows, leafForHashing := prepareStorageLeafRows(proof1[len1-1], 2, false)
+				var leafRows [][]byte
+				var leafForHashing []byte
+				if len1 > len2 {
+					leafRows, leafForHashing = prepareStorageLeafRows(proof1[len1-1], 2, false)
+				} else {
+					leafRows, leafForHashing = prepareStorageLeafRows(proof2[len2-1], 2, true)
+				}
+				
 				rows = append(rows, leafRows...)
 				toBeHashed = append(toBeHashed, leafForHashing)
 
 				// No leaf means value is 0, set valueIsZero = true:
-				leafRows, _ = prepareStorageLeafRows(proof1[len1-1], 3, true)
+				if len1 > len2 {
+					leafRows, _ = prepareStorageLeafRows(proof1[len1-1], 3, true)
+				} else {
+					leafRows, _ = prepareStorageLeafRows(proof2[len2-1], 3, false)
+				}
 				rows = append(rows, leafRows...)
 
 				pRows := prepareDriftedLeafPlaceholder(isAccountProof)
@@ -1356,201 +1445,12 @@ func prepareWitness(proof1, proof2, extNibbles [][]byte, key []byte, neighbourNo
 				rows = append(rows, nonExistingStorageRow)	
 			}
 		}
-	} else if len2 > len1 {
-		if additionalBranch {
-			// S branch is just a placeholder here.
-			numberOfNibbles := 0
-			var extRows [][]byte
-			isExtension := len2 == len1 + 2
-			if !isExtension {
-				extRows = prepareEmptyExtensionRows()
-				if branchC16 == 1 {
-					branchC16 = 0
-					branchC1 = 1
-				} else {
-					branchC16 = 1
-					branchC1 = 0
-				}
-			} else { // diff is 2 when extension node is added
-				numNibbles, extensionRowS, extensionRowC :=
-					prepareExtensionRows(extNibbles, extensionNodeInd, proof2[len2 - 3], proof2[len2 - 3])
-				numberOfNibbles = int(numNibbles)
-				extRows = append(extRows, extensionRowS)
-				extRows = append(extRows, extensionRowC)
+	}
 
-				// adding extension node for hashing:
-				addForHashing(proof2[len2-3], &toBeHashed)
-
-				if numberOfNibbles % 2 == 0 {
-					if branchC16 == 1 {
-						branchC16 = 0
-						branchC1 = 1
-					} else {
-						branchC16 = 1
-						branchC1 = 0
-					}
-				}
-			}
-
-			addBranch(proof2[len2-2], proof2[len2-2], key[keyIndex + numberOfNibbles], false, branchC16, branchC1)
-			rows = append(rows, extRows...)
-
-			// Note that this is not just reversed order compared to
-			// len1 > len2 case - the first leaf is always from proof S
-			// (the order of leaves at the end is always: first S, then C).
-			// The difference is in the leaf that is used by getting the drifted position.
-
-			// TODO: write some functions to avoid having almost the same code twice nevertheless
-
-			var leafRows [][]byte
-			var leafForHashing [][]byte
-			if isAccountProof {
-				leafS := proof1[len1-1]
-				leafC := proof2[len2-1]
-
-				// When generating a proof that account doesn't exist, the length of both proofs is the same (doesn't reach
-				// this code).
-				keyRowS, keyRowC, nonExistingAccountRow, nonceBalanceRowS, nonceBalanceRowC, storageCodeHashRowS, storageCodeHashRowC :=
-					prepareAccountLeafRows(leafS, leafC, key, nonExistingAccountProof, false)
-				leafRows = append(leafRows, keyRowS)
-				leafRows = append(leafRows, keyRowC)
-				leafRows = append(leafRows, nonExistingAccountRow)
-				leafRows = append(leafRows, nonceBalanceRowS)
-				leafRows = append(leafRows, nonceBalanceRowC)
-				leafRows = append(leafRows, storageCodeHashRowS)
-				leafRows = append(leafRows, storageCodeHashRowC)
-
-				leafS = append(leafS, 5)
-				leafC = append(leafC, 5)
-				leafForHashing = append(leafForHashing, leafS)
-				leafForHashing = append(leafForHashing, leafC)
-			} else {
-				var leafForHashingS []byte
-				leafRows, leafForHashingS = prepareStorageLeafRows(proof1[len1-1], 2, false)
-				leafForHashing = append(leafForHashing, leafForHashingS)
-			}
-
-			// We now get the first nibble of the leaf that was turned into branch.
-			// This first nibble presents the position of the leaf once it moved
-			// into the new branch.
-			rows[len(rows)-branchRows][driftedPos] = getDriftedPosition(leafRows[0], numberOfNibbles) // -branchRows lands into branch init
-
-			if isExtension {
-				rows[len(rows)-branchRows][isExtensionPos] = 1
-
-				if len(proof2[len2-3]) > 56 { // 56 because there is 1 byte for length
-					// isSExtLongerThan55 doesn't need to be set here
-					rows[len(rows)-branchRows][isCExtLongerThan55Pos] = 1
-				}
-
-				if len(proof2[len2-3]) < 32 {
-					// isExtNodeSNonHashed doesn't need to be set here
-					rows[len(rows)-branchRows][isExtNodeCNonHashedPos] = 1
-				}
-
-				if numberOfNibbles == 1 {
-					if branchC16 == 1 {
-						rows[len(rows)-branchRows][isExtShortC16Pos] = 1
-					} else {
-						rows[len(rows)-branchRows][isExtShortC1Pos] = 1
-					}
-				} else {
-					if numberOfNibbles % 2 == 0 {
-						if branchC16 == 1 {
-							rows[len(rows)-branchRows][isExtLongEvenC16Pos] = 1
-						} else {
-							rows[len(rows)-branchRows][isExtLongEvenC1Pos] = 1
-						}
-					} else {
-						if branchC16 == 1 {
-							rows[len(rows)-branchRows][isExtLongOddC16Pos] = 1
-						} else {
-							rows[len(rows)-branchRows][isExtLongOddC1Pos] = 1
-						}
-					}
-				}
-			}
-
-			toBeHashed = append(toBeHashed, leafForHashing...)
-			// All account leaf rows already generated above, for storage leaf only S is generated above.
-			if isAccountProof {
-				rows = append(rows, leafRows...)
-			} else {
-				rows = append(rows, leafRows...)
-				var leafForHashingC []byte
-				leafRows, leafForHashingC = prepareStorageLeafRows(proof2[len2-1], 3, false)
-				rows = append(rows, leafRows...)
-				toBeHashed = append(toBeHashed, leafForHashingC)
-			}
-
-			// The branch contains hash of the neighbouring leaf, to be able
-			// to check it, we add node RLP to toBeHashed
-			addForHashing(neighbourNode, &toBeHashed)
-			
-			// Neighbouring leaf - the leaf that used to be one level above,
-			// but it was "drifted down" when additional branch was added.
-			// Only key is needed because we already have the value (it doesn't change)
-			// in the parallel proof.
-			if isAccountProof {
-				h := append(neighbourNode, 5)
-				toBeHashed = append(toBeHashed, h)
-
-				keyRowS, _, _, _, _, _, _ :=
-					prepareAccountLeafRows(neighbourNode, neighbourNode, key, nonExistingAccountProof, false)
-				keyRowS = append(keyRowS, 10)
-				rows = append(rows, keyRowS)
-			} else {
-				sLeafRows, _ := prepareStorageLeafRows(neighbourNode, 15, false)
-				rows = append(rows, sLeafRows[0])
-
-				// For non existing proof, S and C proofs are the same
-				nonExistingStorageRow := prepareEmptyNonExistingStorageRow()
-				rows = append(rows, nonExistingStorageRow)	
-			}
-		} else {
-			// No leaf means value is 0, set valueIsZero = true:
-			// We don't have a leaf in the shorter proof, but we will add it there
-			// as a placeholder.
-			if isAccountProof {
-				leafC := proof2[len2-1]
-				leafS := proof2[len2-1] // placeholder
-
-				// When generating a proof that account doesn't exist, the length of both proofs is the same (doesn't reach
-				// this code).
-				keyRowS, keyRowC, nonExistingAccountRow, nonceBalanceRowS, nonceBalanceRowC, storageCodeHashRowS, storageCodeHashRowC :=
-					prepareAccountLeafRows(leafS, leafC, key, nonExistingAccountProof, false)
-				
-				rows = append(rows, keyRowS)
-				rows = append(rows, keyRowC)
-				rows = append(rows, nonExistingAccountRow)
-				rows = append(rows, nonceBalanceRowS)
-				rows = append(rows, nonceBalanceRowC)
-				rows = append(rows, storageCodeHashRowS)
-				rows = append(rows, storageCodeHashRowC)
-
-				pRows := prepareDriftedLeafPlaceholder(true)
-				rows = append(rows, pRows...)
-
-				leafS = append(leafS, 5)
-				leafC = append(leafC, 5)
-				toBeHashed = append(toBeHashed, leafS)
-				toBeHashed = append(toBeHashed, leafC)
-			} else {
-				leafRows, leafForHashing := prepareStorageLeafRows(proof2[len2-1], 2, true)
-				rows = append(rows, leafRows...)
-				toBeHashed = append(toBeHashed, leafForHashing)
-
-				leafRows, _ = prepareStorageLeafRows(proof2[len2-1], 3, false)
-				rows = append(rows, leafRows...)
-
-				pRows := prepareDriftedLeafPlaceholder(false)
-				rows = append(rows, pRows...)
-
-				// For non existing proof, S and C proofs are the same
-				nonExistingStorageRow := prepareEmptyNonExistingStorageRow()
-				rows = append(rows, nonExistingStorageRow)	
-			}
-		}
+	if len1 != len2 {
+		// len1 > len2: C branch is just a placeholder here.
+		// len2 > len1: S branch is just a placeholder here.
+		addPlaceholder()
 	} else {
 		// Let's always use C proof for non-existing proof.
 		lastRLP := proof2[len(proof2)-1];
