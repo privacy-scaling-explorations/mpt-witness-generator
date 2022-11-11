@@ -351,15 +351,8 @@ func prepareExtensionRows(extNibbles[][]byte, extensionNodeInd int, proofEl1, pr
 	prepareExtensionRow(extensionRowC, proofEl2, false)
 
 	evenNumberOfNibbles := proofEl1[2] == 0
-	numberOfNibbles := byte(0)
 	keyLen := getExtensionNodeKeyLen(proofEl1)
-	if keyLen == 1 {
-		numberOfNibbles = 1
-	} else if keyLen > 1 && evenNumberOfNibbles {
-		numberOfNibbles = (keyLen - 1) * 2
-	} else if keyLen > 1 && !evenNumberOfNibbles {
-		numberOfNibbles = (keyLen - 1) * 2 + 1
-	}
+	numberOfNibbles := getExtensionNumberOfNibbles(proofEl1)
 
 	// We need nibbles as witness to compute key RLC, so we set them
 	// into extensionRowC s_advices (we can do this because both extension
@@ -385,6 +378,25 @@ func prepareExtensionRows(extNibbles[][]byte, extensionNodeInd int, proofEl1, pr
 	return numberOfNibbles, extensionRowS, extensionRowC
 }
 
+func getExtensionLenStartKey(proofEl []byte) (int, int) {
+	lenKey := 0
+	startKey := 0
+	// proofEl[1] <= 32 means only one nibble: the stored value is `16 + nibble`, note that if there are
+	// at least two nibbles there will be `128 + number of bytes occupied by nibbles` in proofEl[1]
+	if proofEl[1] <= 32 {
+		lenKey = 1
+		startKey = 1
+	} else if proofEl[0] <= 247 {
+		lenKey = int(proofEl[1] - 128)
+		startKey = 2
+	} else {
+		lenKey = int(proofEl[2] - 128)
+		startKey = 3
+	}
+
+	return lenKey, startKey
+}
+
 func getExtensionNodeKeyLen(proofEl []byte) byte {
 	if proofEl[1] <= 32 {
 		return 1
@@ -393,6 +405,39 @@ func getExtensionNodeKeyLen(proofEl []byte) byte {
 	} else {
 		return proofEl[2] - 128
 	}
+}
+
+func getExtensionNumberOfNibbles(proofEl []byte) byte {
+	evenNumberOfNibbles := proofEl[2] == 0
+	numberOfNibbles := byte(0)
+	keyLen := getExtensionNodeKeyLen(proofEl)
+	if keyLen == 1 {
+		numberOfNibbles = 1
+	} else if keyLen > 1 && evenNumberOfNibbles {
+		numberOfNibbles = (keyLen - 1) * 2
+	} else if keyLen > 1 && !evenNumberOfNibbles {
+		numberOfNibbles = (keyLen - 1) * 2 + 1
+	}
+
+	return numberOfNibbles
+}
+
+func getExtensionNodeNibble(proofEl []byte, index byte) byte {
+	lenKey, startKey := getExtensionLenStartKey(proofEl)
+
+	var nibbles []byte
+	if proofEl[startKey] != 32 {
+		nibbles = append(nibbles, proofEl[startKey] - 48)
+	}
+	for i := 0; i < lenKey - 1; i++ { // -1 because the first byte doesn't have any nibbles
+		b := proofEl[startKey + 1 + i]
+		n1 := b / 16
+		n2 := b - n1 * 16
+		nibbles = append(nibbles, n1)
+		nibbles = append(nibbles, n2)
+	}
+
+	return nibbles[index]
 }
 
 func prepareExtensionRow(witnessRow, proofEl []byte, setKey bool) {
@@ -438,19 +483,8 @@ func prepareExtensionRow(witnessRow, proofEl []byte, setKey bool) {
 		witnessRow[1] = proofEl[1]
 	}
 
-	lenKey := 0
-	startKey := 0
-	// proofEl[1] <= 32 means only one nibble: the stored value is `16 + nibble`, note that if there are
-	// at least two nibbles there will be `128 + number of bytes occupied by nibbles` in proofEl[1]
-	if proofEl[1] <= 32 {
-		lenKey = 1
-		startKey = 1
-	} else if proofEl[0] <= 247 {
-		lenKey = int(proofEl[1] - 128)
-		startKey = 2
-	} else {
-		lenKey = int(proofEl[2] - 128)
-		startKey = 3
+	lenKey, startKey := getExtensionLenStartKey(proofEl)
+	if startKey == 3 {
 		witnessRow[2] = proofEl[2]
 	}
 
@@ -902,7 +936,7 @@ func prepareTwoBranchesWitness(branch1, branch2 []byte, key, branchC16, branchC1
 	return rows
 }
 
-func prepareWitness(proof1, proof2, extNibbles [][]byte, key []byte, neighbourNode []byte,
+func prepareWitness(statedb *state.StateDB, addr common.Address, proof1, proof2, extNibbles [][]byte, key []byte, neighbourNode []byte,
 		isAccountProof, nonExistingAccountProof, nonExistingStorageProof bool) ([][]byte, [][]byte, bool) {
 	rows := make([][]byte, 0)
 	toBeHashed := make([][]byte, 0)
@@ -1116,50 +1150,33 @@ func prepareWitness(proof1, proof2, extNibbles [][]byte, key []byte, neighbourNo
 		var nibbles []byte
 		if leafKeyRow[0] != 248 {
 			keyLen := int(leafKeyRow[1] - 128)
-			if leafKeyRow[2] == 32 {
-				for i := 0; i < keyLen - 1; i++ { // -1 because the first byte doesn't have any nibbles
-					b := leafKeyRow[3 + i]
-					n1 := b / 16
-					n2 := b - n1 * 16
-					nibbles = append(nibbles, n1)
-					nibbles = append(nibbles, n2)
-				}
-			} else {
+			if leafKeyRow[2] != 32 {
 				nibbles = append(nibbles,leafKeyRow[2] - 48)
-				for i := 0; i < keyLen - 1; i++ { // -1 because the first byte has already been taken into account
-					b := leafKeyRow[3 + i]
-					n1 := b / 16
-					n2 := b - n1 * 16
-					nibbles = append(nibbles, n1)
-					nibbles = append(nibbles, n2)
-				}
+			}
+			for i := 0; i < keyLen - 1; i++ { // -1 because the first byte doesn't have any nibbles
+				b := leafKeyRow[3 + i]
+				n1 := b / 16
+				n2 := b - n1 * 16
+				nibbles = append(nibbles, n1)
+				nibbles = append(nibbles, n2)
 			}
 		} else {
 			keyLen := int(leafKeyRow[2] - 128)
-			if leafKeyRow[3] == 32 {
-				for i := 0; i < keyLen - 1; i++ { // -1 because the first byte doesn't have any nibbles
-					b := leafKeyRow[4 + i]
-					n1 := b / 16
-					n2 := b - n1 * 16
-					nibbles = append(nibbles, n1)
-					nibbles = append(nibbles, n2)
-				}
-			} else {
+			if leafKeyRow[3] != 32 {
 				nibbles = append(nibbles,leafKeyRow[3] - 48)
-				for i := 0; i < keyLen - 1; i++ { // -1 because the first byte has already been taken into account
-					b := leafKeyRow[4 + i]
-					n1 := b / 16
-					n2 := b - n1 * 16
-					nibbles = append(nibbles, n1)
-					nibbles = append(nibbles, n2)
-				}
+			}
+			for i := 0; i < keyLen - 1; i++ { // -1 because the first byte doesn't have any nibbles
+				b := leafKeyRow[4 + i]
+				n1 := b / 16
+				n2 := b - n1 * 16
+				nibbles = append(nibbles, n1)
+				nibbles = append(nibbles, n2)
 			}
 		}
 
 		return nibbles[numberOfNibbles]
 	}	
 
-	
 	addPlaceholder := func() {
 		if additionalBranch {
 			numberOfNibbles := 0
@@ -1213,6 +1230,91 @@ func prepareWitness(proof1, proof2, extNibbles [][]byte, key []byte, neighbourNo
 				addBranch(proof2[len2-2], proof2[len2-2], key[keyIndex + numberOfNibbles], false, branchC16, branchC1)
 			}
 			rows = append(rows, extRows...)
+
+			/*
+			For special cases when a new extension node is inserted.
+
+			Imagine you have an extension node at n1 n2 n3 n4 (where each of these is a nibble).
+			Let's say this extension node has the following nibbles as the extension: n5 n6 n7.
+			So at position n1 n2 n3 n4 n5 n6 n7 there is some branch.
+			Now we want to add a leaf at position n1 n2 n3 n4 n5 m1 where m1 != n6.
+			The adding algorithm walks through the trie, but it bumps into an extension node where
+			it should put this leaf. So a new extension node is added at position n1 n2 n3 n4 which only
+			has one nibble: n5. So at n1 n2 n3 n4 n5 we have a branch now. In this brach, at position m we
+			have a leaf, while at position n6 we have another extension node with one extension nibble: n7.
+			At this position (n7) we have the branch from the original extension node.
+
+			When an extension node is inserted because of the added key, C proof will contain this new
+			extension node and the underlying branch. However, S proof will stop at the old extension node. 
+			This old extension node is not part of the C proof, but we need to ensure that it is in the C trie.
+			We need to take into accout that in the C trie the old extension node has a shortened extension.
+
+			The problem is where to store the old extension node. Note that in the above code the new
+			extension node and the underlying branch rows are prepared. For example, when len2 > len1 we
+			take extension node from proof2[len2 - 3] and branch from proof2[len2 - 2]. In this case,
+			the old extension node in proof1[len1 - 1] has been ignored. For this reason we store it
+			in the rows before we add a leaf.
+			*/
+			var oldExtNode []byte
+			if len1 > len2 {
+				oldExtNode = proof2[len2 - 1]
+			} else {
+				oldExtNode = proof1[len1 - 1]
+			}
+			rlp_elems, _, err := rlp.SplitList(oldExtNode)
+			check(err)
+			c, _ := rlp.CountValues(rlp_elems)
+			if c == 2 { // is extension node
+				// var extensionRowS []byte
+				// var extensionRowC []byte
+				numNibbles, extensionRowS, extensionRowC :=
+					prepareExtensionRows(extNibbles, extensionNodeInd, oldExtNode, oldExtNode)
+				fmt.Println(numNibbles)
+
+				var extRows [][]byte
+				// We need to prove the old extension node is in S proof (when ext. node inserted).
+				extRows = append(extRows, extensionRowS)
+				extRows = append(extRows, extensionRowC)
+				addForHashing(oldExtNode, &toBeHashed)
+
+				// In C proof (when ext. node inserted) we need to prove
+				/*
+				var ind byte
+				if len1 > len2 {
+					ind = byte(numberOfNibbles) - numNibbles
+				} else {
+					ind = numNibbles - byte(numberOfNibbles)
+				}
+				*/
+				ind := byte(numberOfNibbles) - 1 // TODO
+				diffNibble := getExtensionNodeNibble(oldExtNode, ind)
+				fmt.Println(diffNibble)
+				oldExtNodeKey := &key
+				(*oldExtNodeKey)[ind] = diffNibble
+
+				// TODO: if account proof
+				k := common.Bytes2Hex(*oldExtNodeKey)
+				key := common.HexToHash(k)
+				storageProof, _, _, err := statedb.GetStorageProof(addr, key)
+				check(err)
+				l := len(storageProof)
+				oldExtNodeInNewTrie := storageProof[l - 3]
+				fmt.Println(oldExtNodeInNewTrie)
+
+				// TODO: add row with oldExtNodeInNewTrie and add for hashing
+
+				// Just add some branch placeholder
+				/*
+				if len1 > len2 {
+					addBranch(proof1[len1-2], proof1[len1-2], key[keyIndex + numberOfNibbles], true, branchC16, branchC1)
+				} else {
+					addBranch(proof2[len2-2], proof2[len2-2], key[keyIndex + numberOfNibbles], true, branchC16, branchC1)
+				}
+				*/
+
+				rows = append(rows, extRows...)
+			}
+
 
 			var leafRows [][]byte
 			var leafForHashing [][]byte
@@ -1446,10 +1548,8 @@ func prepareWitness(proof1, proof2, extNibbles [][]byte, key []byte, neighbourNo
 			}
 		}
 	}
-
+	
 	if len1 != len2 {
-		// len1 > len2: C branch is just a placeholder here.
-		// len2 > len1: S branch is just a placeholder here.
 		addPlaceholder()
 	} else {
 		// Let's always use C proof for non-existing proof.
@@ -1875,7 +1975,7 @@ func prepareAccountProof(i int, tMod TrieModification, tModsLen int, statedb *st
 	}
 	
 	rowsState, toBeHashedAcc, _ :=
-		prepareWitness(accountProof, accountProof1, aExtNibbles, accountAddr, aNode, true, tMod.Type == NonExistingAccount, false)
+		prepareWitness(statedb, addr, accountProof, accountProof1, aExtNibbles, accountAddr, aNode, true, tMod.Type == NonExistingAccount, false)
 
 	proof := prepareProof(i, rowsState, addrh, sRoot, cRoot, startRoot, finalRoot, tMod.Type)
 
@@ -1982,9 +2082,9 @@ func getParallelProofs(trieModifications []TrieModification, statedb *state.Stat
 			}
 			
 			rowsState, toBeHashedAcc, _ :=
-				prepareWitness(accountProof, accountProof1, aExtNibbles, accountAddr, aNode, true, tMod.Type == NonExistingAccount, false)
+				prepareWitness(statedb, addr, accountProof, accountProof1, aExtNibbles, accountAddr, aNode, true, tMod.Type == NonExistingAccount, false)
 			rowsStorage, toBeHashedStorage, _ :=
-				prepareWitness(storageProof, storageProof1, extNibbles, keyHashed, node, false, false, tMod.Type == NonExistingStorage)
+				prepareWitness(statedb, addr, storageProof, storageProof1, extNibbles, keyHashed, node, false, false, tMod.Type == NonExistingStorage)
 			rowsState = append(rowsState, rowsStorage...)
 	
 			proof := prepareProof(i, rowsState, addrh, sRoot, cRoot, startRoot, finalRoot, tMod.Type)

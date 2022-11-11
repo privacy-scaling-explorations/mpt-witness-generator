@@ -3105,6 +3105,9 @@ func TestNonExistingStorageNil(t *testing.T) {
 }
 
 func TestExtNodeInserted(t *testing.T) {
+	// until infura is back up:
+	oracle.NodeUrl = oracle.LocalUrl
+
 	blockNum := 0
 	blockNumberParent := big.NewInt(int64(blockNum))
 	blockHeaderParent := oracle.PrefetchBlock(blockNumberParent, true, nil)
@@ -3128,7 +3131,6 @@ func TestExtNodeInserted(t *testing.T) {
 
 	key2 := common.HexToHash("0x3000000000")
 	statedb.SetState(addr, key2, val1)
-
 	statedb.IntermediateRoot(false)
 
 	storageProof, _, _, err := statedb.GetStorageProof(addr, key1)
@@ -3136,6 +3138,17 @@ func TestExtNodeInserted(t *testing.T) {
 	fmt.Println(storageProof[0])
 
 	key3 := common.HexToHash("0x400000000000000000")
+
+	// debugging
+	/*
+	statedb.SetState(addr, key3, val1)
+	statedb.IntermediateRoot(false)
+	storageProof1, _, _, err := statedb.GetStorageProof(addr, key3)
+	check(err)
+	fmt.Println(storageProof1[0])
+	*/
+	// end debugging
+
 
 	v1 = common.FromHex("0xbb")
 	val := common.BytesToHash(v1)
