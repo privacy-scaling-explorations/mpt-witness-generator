@@ -422,12 +422,12 @@ func getExtensionNumberOfNibbles(proofEl []byte) byte {
 	return numberOfNibbles
 }
 
-func getExtensionNodeNibble(proofEl []byte, index byte) byte {
+func getExtensionNodeNibbles(proofEl []byte) []byte {
 	lenKey, startKey := getExtensionLenStartKey(proofEl)
 
 	var nibbles []byte
-	if proofEl[startKey] != 32 {
-		nibbles = append(nibbles, proofEl[startKey] - 48)
+	if proofEl[startKey] != 0 {
+		nibbles = append(nibbles, proofEl[startKey] - 16)
 	}
 	for i := 0; i < lenKey - 1; i++ { // -1 because the first byte doesn't have any nibbles
 		b := proofEl[startKey + 1 + i]
@@ -437,7 +437,7 @@ func getExtensionNodeNibble(proofEl []byte, index byte) byte {
 		nibbles = append(nibbles, n2)
 	}
 
-	return nibbles[index]
+	return nibbles
 }
 
 func prepareExtensionRow(witnessRow, proofEl []byte, setKey bool) {
@@ -1275,46 +1275,52 @@ func prepareWitness(statedb *state.StateDB, addr common.Address, proof1, proof2,
 				// We need to prove the old extension node is in S proof (when ext. node inserted).
 				extRows = append(extRows, extensionRowS)
 				extRows = append(extRows, extensionRowC)
-				addForHashing(oldExtNode, &toBeHashed)
-
-				// In C proof (when ext. node inserted) we need to prove
-				/*
-				var ind byte
-				if len1 > len2 {
-					ind = byte(numberOfNibbles) - numNibbles
-				} else {
-					ind = numNibbles - byte(numberOfNibbles)
-				}
-				*/
-				ind := byte(numberOfNibbles) - 1 // TODO
-				diffNibble := getExtensionNodeNibble(oldExtNode, ind)
-				fmt.Println(diffNibble)
-				oldExtNodeKey := &key
-				(*oldExtNodeKey)[ind] = diffNibble
-
-				// TODO: if account proof
-				k := common.Bytes2Hex(*oldExtNodeKey)
-				key := common.HexToHash(k)
-				storageProof, _, _, err := statedb.GetStorageProof(addr, key)
-				check(err)
-				l := len(storageProof)
-				oldExtNodeInNewTrie := storageProof[l - 3]
-				fmt.Println(oldExtNodeInNewTrie)
-
-				// TODO: add row with oldExtNodeInNewTrie and add for hashing
-
-				// Just add some branch placeholder
-				/*
-				if len1 > len2 {
-					addBranch(proof1[len1-2], proof1[len1-2], key[keyIndex + numberOfNibbles], true, branchC16, branchC1)
-				} else {
-					addBranch(proof2[len2-2], proof2[len2-2], key[keyIndex + numberOfNibbles], true, branchC16, branchC1)
-				}
-				*/
 
 				rows = append(rows, extRows...)
-			}
+				addForHashing(oldExtNode, &toBeHashed)
 
+				// Get nibbles of the extension node that gets shortened because of the newly insertd
+				// extension node:
+				oldNibbles := getExtensionNodeNibbles(oldExtNode)
+
+				ind := byte(keyIndex) + byte(numberOfNibbles)
+				diffNibble := oldNibbles[ind]
+				oldExtNodeKey := make([]byte, len(key))
+				copy(oldExtNodeKey, key)
+				// We would like to retrieve the shortened extension node from the trie via GetProof or
+				// GetStorageProof (depending whether account proof or not),
+				// the key where we find it is `oldExtNodeKey` - this is the same key as the one of the
+				// newly inserted extension node, but we change the nibble that represents the position
+				// in a branch:
+				oldExtNodeKey[ind] = diffNibble
+
+				k := common.Bytes2Hex(oldExtNodeKey)
+				key := common.HexToHash(k)
+				var proof [][]byte
+				if isAccountProof {
+					proof, _, _, err = statedb.GetProof(addr)
+
+				} else {
+					proof, _, _, err = statedb.GetStorageProof(addr, key)
+				}
+				check(err)
+				oldExtNodeInNewTrie := proof[len(proof) - 2]
+
+				// Get the nibbles of the shortened extension node:
+				nibbles := getExtensionNodeNibbles(oldExtNodeInNewTrie)
+
+				// Enable `prepareExtensionRows` call:
+				extNibbles = append(extNibbles, nibbles)
+
+				_, extensionRowS1, extensionRowC1 :=
+					prepareExtensionRows(extNibbles, extensionNodeInd + 1, oldExtNodeInNewTrie, oldExtNodeInNewTrie)
+				// The shortened extension node is needed as a witness to be able to check in a circuit
+				// that the shortened extension node and newly added leaf (that causes newly inserted
+				// extension node) are the only nodes in the newly inserted extension node.
+				rows = append(rows, extensionRowS1)
+				rows = append(rows, extensionRowC1)
+				addForHashing(oldExtNodeInNewTrie, &toBeHashed)
+			}
 
 			var leafRows [][]byte
 			var leafForHashing [][]byte

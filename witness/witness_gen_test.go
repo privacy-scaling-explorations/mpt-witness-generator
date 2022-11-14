@@ -3121,7 +3121,10 @@ func TestExtNodeInserted(t *testing.T) {
 
 	oracle.PreventHashingInSecureTrie = true // to store the unchanged key
 
-	key1 := common.HexToHash("0x1000000000")
+	key1 := common.HexToHash("0x1000000000000000000000000000000000000000000000000000000000")
+	// 58 nibbles specified above, that means
+	// key1 nibbles:"0x0000001000000000000000000000000000000000000000000000000000000000"
+	// key1 bytes: [0, 0, 0, 16, 0, ..., 0]
 
 	// make the value long to have a hashed branch
 	v1 := common.FromHex("0xbbefaa12580138bc263c95757826df4e24eb81c9aaaaaaaaaaaaaaaaaaaaaaaa")
@@ -3129,7 +3132,11 @@ func TestExtNodeInserted(t *testing.T) {
 	// val1 := common.BigToHash(big.NewInt(int64(1)))
 	statedb.SetState(addr, key1, val1)
 
-	key2 := common.HexToHash("0x3000000000")
+	key2 := common.HexToHash("0x3000000000000000000000000000000000000000000000000000000000")
+	// 58 nibbles specified above, that means
+	// key2 nibbles:"0x0000003000000000000000000000000000000000000000000000000000000000"
+	// key2 bytes: [0, 0, 0, 48, 0, ..., 0]
+
 	statedb.SetState(addr, key2, val1)
 	statedb.IntermediateRoot(false)
 
@@ -3137,7 +3144,15 @@ func TestExtNodeInserted(t *testing.T) {
 	check(err)
 	fmt.Println(storageProof[0])
 
-	key3 := common.HexToHash("0x400000000000000000")
+	key3 := common.HexToHash("0x400000000000000000000000000000000000000000000000000000000000")
+	// 60 nibbles specified above, that means
+	// key3 nibbles: "0x000040000000000000000000000000000000000000000000000000000000000"
+	// key3 bytes: [0, 0, 64, 0, ..., 0]
+
+	// When key3 is added, the old extension node (with nibbles 0 0 0 0 0 0) is changed, because
+	// the new extension node is added (with nibbles 0 0 0 0). Now, there is a branch at 0 0 0 0,
+	// which contains the old extension node at 0 and the newly added leaf at 4.
+	// However, the old extension node now only has one nibble: 0.
 
 	// debugging
 	/*
@@ -3148,7 +3163,6 @@ func TestExtNodeInserted(t *testing.T) {
 	fmt.Println(storageProof1[0])
 	*/
 	// end debugging
-
 
 	v1 = common.FromHex("0xbb")
 	val := common.BytesToHash(v1)
