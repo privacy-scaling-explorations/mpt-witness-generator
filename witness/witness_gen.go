@@ -1138,13 +1138,15 @@ func prepareWitness(statedb *state.StateDB, addr common.Address, proof1, proof2,
 		}
 	}
 
-	addBranch := func(branch1, branch2 []byte, modifiedIndex byte, isCPlaceholder bool, branchC16, branchC1 byte) {
+	addBranch := func(branch1, branch2 []byte, modifiedIndex byte, isCPlaceholder bool, branchC16, branchC1 byte, insertedExtension bool) {
 		isBranchSPlaceholder := false
 		isBranchCPlaceholder := false
-		if isCPlaceholder {
-			isBranchCPlaceholder = true
-		} else {
-			isBranchSPlaceholder = true
+		if !insertedExtension {
+			if isCPlaceholder {
+				isBranchCPlaceholder = true
+			} else {
+				isBranchSPlaceholder = true
+			}
 		}
 		bRows := prepareTwoBranchesWitness(branch1, branch2, modifiedIndex, branchC16, branchC1, isBranchSPlaceholder, isBranchCPlaceholder)
 		rows = append(rows, bRows...)
@@ -1235,13 +1237,6 @@ func prepareWitness(statedb *state.StateDB, addr common.Address, proof1, proof2,
 				}
 			}
 
-			if len1 > len2 {
-				addBranch(proof1[len1-2], proof1[len1-2], key[keyIndex + numberOfNibbles], true, branchC16, branchC1)
-			} else {
-				addBranch(proof2[len2-2], proof2[len2-2], key[keyIndex + numberOfNibbles], false, branchC16, branchC1)
-			}
-			rows = append(rows, extRows...)
-
 			/*
 			For special cases when a new extension node is inserted.
 
@@ -1276,6 +1271,13 @@ func prepareWitness(statedb *state.StateDB, addr common.Address, proof1, proof2,
 			check(err)
 			c, _ := rlp.CountValues(rlp_elems)
 			isInsertedExtNode := c == 2
+
+			if len1 > len2 {
+				addBranch(proof1[len1-2], proof1[len1-2], key[keyIndex + numberOfNibbles], true, branchC16, branchC1, isInsertedExtNode)
+			} else {
+				addBranch(proof2[len2-2], proof2[len2-2], key[keyIndex + numberOfNibbles], false, branchC16, branchC1, isInsertedExtNode)
+			}
+			rows = append(rows, extRows...)
 
 			var leafRows [][]byte
 			var leafForHashing [][]byte
@@ -1492,14 +1494,14 @@ func prepareWitness(statedb *state.StateDB, addr common.Address, proof1, proof2,
 				if !isInsertedExtNode {
 					sLeafRows, _ := prepareStorageLeafRows(neighbourNode, 15, false)
 					rows = append(rows, sLeafRows[0])
-
-					// For non existing proof, S and C proofs are the same
-					nonExistingStorageRow := prepareEmptyNonExistingStorageRow()
-					rows = append(rows, nonExistingStorageRow)	
 				} else {
 					pRows := prepareDriftedLeafPlaceholder(isAccountProof)
 					rows = append(rows, pRows...)	
 				}
+				
+				// For non existing proof, S and C proofs are the same
+				nonExistingStorageRow := prepareEmptyNonExistingStorageRow()
+				rows = append(rows, nonExistingStorageRow)
 			}
 
 			if isInsertedExtNode {
