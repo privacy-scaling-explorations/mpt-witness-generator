@@ -49,6 +49,11 @@ const isBranchCNonHashedPos = 30
 const isExtNodeSNonHashedPos = 31
 const isExtNodeCNonHashedPos = 32
 
+// nibbles_counter_pos = 33, set in the assign function.
+
+const isInsertedExtNodeS = 34
+const isInsertedExtNodeC = 35
+
 /*
 Info about row type (given as the last element of the row):
 0: init branch (such a row contains RLP info about the branch node; key)
@@ -1356,6 +1361,10 @@ func prepareWitness(statedb *state.StateDB, addr common.Address, proof1, proof2,
 				rows[len(rows)-branchRows-offset][driftedPos] =
 					getDriftedPosition(leafRow, numberOfNibbles) // -branchRows-offset lands into branch init
 
+				if isInsertedExtNode {
+					rows[len(rows)-branchRows-offset][isInsertedExtNodeS] = 1
+				}
+
 				if isExtension {
 					rows[len(rows)-branchRows-offset][isExtensionPos] = 1
 					if len(proof1[len1-3]) > 56 { // 56 because there is 1 byte for length
@@ -1395,6 +1404,10 @@ func prepareWitness(statedb *state.StateDB, addr common.Address, proof1, proof2,
 				// This first nibble presents the position of the leaf once it moved
 				// into the new branch.
 				rows[len(rows)-branchRows][driftedPos] = getDriftedPosition(leafRows[0], numberOfNibbles) // -branchRows lands into branch init
+
+				if isInsertedExtNode {
+					rows[len(rows)-branchRows][isInsertedExtNodeC] = 1
+				}
 
 				if isExtension {
 					rows[len(rows)-branchRows][isExtensionPos] = 1
