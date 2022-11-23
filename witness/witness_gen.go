@@ -79,6 +79,8 @@ Info about row type (given as the last element of the row):
 21: modified extension node C before modification
 22: modified extension node S after modification
 23: modified extension node C after modification
+24: modified extension node before modification selectors
+25: modified extension node after modification selectors
 */
 
 type ModType int64
@@ -1195,6 +1197,41 @@ func prepareWitness(statedb *state.StateDB, addr common.Address, proof1, proof2,
 		return nibbles[numberOfNibbles]
 	}	
 
+	setExtNodeSelectors := func(row, proofEl []byte, numberOfNibbles int, branchC16 byte) {
+		row[isExtensionPos] = 1
+		if len(proofEl) > 56 { // 56 because there is 1 byte for length
+			// isCExtLongerThan55 doesn't need to be set here
+			row[isSExtLongerThan55Pos] = 1
+		}
+
+		if len(proofEl) < 32 {
+			// isExtNodeSNonHashed doesn't need to be set here
+			row[isExtNodeSNonHashedPos] = 1
+		}
+
+		if numberOfNibbles == 1 {
+			if branchC16 == 1 {
+				row[isExtShortC16Pos] = 1
+			} else {
+				row[isExtShortC1Pos] = 1
+			}
+		} else {
+			if numberOfNibbles % 2 == 0 {
+				if branchC16 == 1 {
+					row[isExtLongEvenC16Pos] = 1
+				} else {
+					row[isExtLongEvenC1Pos] = 1
+				}
+			} else {
+				if branchC16 == 1 {
+					row[isExtLongOddC16Pos] = 1
+				} else {
+					row[isExtLongOddC1Pos] = 1
+				}
+			}
+		}
+	}
+
 	addPlaceholder := func() {
 		if additionalBranch {
 			numberOfNibbles := 0
@@ -1366,38 +1403,7 @@ func prepareWitness(statedb *state.StateDB, addr common.Address, proof1, proof2,
 				}
 
 				if isExtension {
-					rows[len(rows)-branchRows-offset][isExtensionPos] = 1
-					if len(proof1[len1-3]) > 56 { // 56 because there is 1 byte for length
-						// isCExtLongerThan55 doesn't need to be set here
-						rows[len(rows)-branchRows][isSExtLongerThan55Pos] = 1
-					}
-
-					if len(proof1[len1-3]) < 32 {
-						// isExtNodeSNonHashed doesn't need to be set here
-						rows[len(rows)-branchRows][isExtNodeSNonHashedPos] = 1
-					}
-
-					if numberOfNibbles == 1 {
-						if branchC16 == 1 {
-							rows[len(rows)-branchRows-offset][isExtShortC16Pos] = 1
-						} else {
-							rows[len(rows)-branchRows-offset][isExtShortC1Pos] = 1
-						}
-					} else {
-						if numberOfNibbles % 2 == 0 {
-							if branchC16 == 1 {
-								rows[len(rows)-branchRows-offset][isExtLongEvenC16Pos] = 1
-							} else {
-								rows[len(rows)-branchRows-offset][isExtLongEvenC1Pos] = 1
-							}
-						} else {
-							if branchC16 == 1 {
-								rows[len(rows)-branchRows-offset][isExtLongOddC16Pos] = 1
-							} else {
-								rows[len(rows)-branchRows-offset][isExtLongOddC1Pos] = 1
-							}
-						}
-					}
+					setExtNodeSelectors(rows[len(rows)-branchRows-offset], proof1[len1-3], numberOfNibbles, branchC16)
 				}
 			} else {
 				// We now get the first nibble of the leaf that was turned into branch.
@@ -1410,39 +1416,7 @@ func prepareWitness(statedb *state.StateDB, addr common.Address, proof1, proof2,
 				}
 
 				if isExtension {
-					rows[len(rows)-branchRows][isExtensionPos] = 1
-
-					if len(proof2[len2-3]) > 56 { // 56 because there is 1 byte for length
-						// isSExtLongerThan55 doesn't need to be set here
-						rows[len(rows)-branchRows][isCExtLongerThan55Pos] = 1
-					}
-
-					if len(proof2[len2-3]) < 32 {
-						// isExtNodeSNonHashed doesn't need to be set here
-						rows[len(rows)-branchRows][isExtNodeCNonHashedPos] = 1
-					}
-
-					if numberOfNibbles == 1 {
-						if branchC16 == 1 {
-							rows[len(rows)-branchRows][isExtShortC16Pos] = 1
-						} else {
-							rows[len(rows)-branchRows][isExtShortC1Pos] = 1
-						}
-					} else {
-						if numberOfNibbles % 2 == 0 {
-							if branchC16 == 1 {
-								rows[len(rows)-branchRows][isExtLongEvenC16Pos] = 1
-							} else {
-								rows[len(rows)-branchRows][isExtLongEvenC1Pos] = 1
-							}
-						} else {
-							if branchC16 == 1 {
-								rows[len(rows)-branchRows][isExtLongOddC16Pos] = 1
-							} else {
-								rows[len(rows)-branchRows][isExtLongOddC1Pos] = 1
-							}
-						}
-					}
+					setExtNodeSelectors(rows[len(rows)-branchRows], proof2[len2-3], numberOfNibbles, branchC16)	
 				}
 
 				toBeHashed = append(toBeHashed, leafForHashing...)
@@ -1518,11 +1492,16 @@ func prepareWitness(statedb *state.StateDB, addr common.Address, proof1, proof2,
 			}
 
 			if isInsertedExtNode {
-				_, extensionRowS, extensionRowC :=
+				numberOfNibbles0, extensionRowS, extensionRowC :=
 					prepareExtensionRows(extNibbles, extensionNodeInd, oldExtNode, oldExtNode, true, false)
+
+				extNodeSelectors := make([]byte, rowLen)
+				setExtNodeSelectors(extNodeSelectors, oldExtNode, int(numberOfNibbles0), branchC16)
+				extNodeSelectors = append(extNodeSelectors, 24)
 
 				var extRows [][]byte
 				// We need to prove the old extension node is in S proof (when ext. node inserted).
+				extRows = append(extRows, extNodeSelectors)
 				extRows = append(extRows, extensionRowS)
 				extRows = append(extRows, extensionRowC)
 
@@ -1562,11 +1541,17 @@ func prepareWitness(statedb *state.StateDB, addr common.Address, proof1, proof2,
 				// Enable `prepareExtensionRows` call:
 				extNibbles = append(extNibbles, nibbles)
 
-				_, extensionRowS1, extensionRowC1 :=
+				numberOfNibbles1, extensionRowS1, extensionRowC1 :=
 					prepareExtensionRows(extNibbles, extensionNodeInd + 1, oldExtNodeInNewTrie, oldExtNodeInNewTrie, false, true)
+
+				extNodeSelectors1 := make([]byte, rowLen)
+				setExtNodeSelectors(extNodeSelectors1, oldExtNodeInNewTrie, int(numberOfNibbles1), branchC16)
+				extNodeSelectors1 = append(extNodeSelectors1, 25)
+
 				// The shortened extension node is needed as a witness to be able to check in a circuit
 				// that the shortened extension node and newly added leaf (that causes newly inserted
 				// extension node) are the only nodes in the newly inserted extension node.
+				rows = append(rows, extNodeSelectors1)
 				rows = append(rows, extensionRowS1)
 				rows = append(rows, extensionRowC1)
 				addForHashing(oldExtNodeInNewTrie, &toBeHashed)
