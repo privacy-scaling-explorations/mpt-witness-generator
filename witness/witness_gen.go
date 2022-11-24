@@ -1512,19 +1512,20 @@ func prepareWitness(statedb *state.StateDB, addr common.Address, proof1, proof2,
 				// extension node:
 				oldNibbles := getExtensionNodeNibbles(oldExtNode)
 
-				ind := byte(keyIndex) + byte(numberOfNibbles)
-				diffNibble := oldNibbles[ind]
+				ind := byte(keyIndex) + byte(numberOfNibbles) // where the old and new extension nodes start to be different
+				// diffNibble := oldNibbles[ind]
 				oldExtNodeKey := make([]byte, len(key))
 				copy(oldExtNodeKey, key)
 				// We would like to retrieve the shortened extension node from the trie via GetProof or
-				// GetStorageProof (depending whether account proof or not),
-				// the key where we find it is `oldExtNodeKey` - this is the same key as the one of the
-				// newly inserted extension node, but we change the nibble that represents the position
-				// in a branch:
-				oldExtNodeKey[ind] = diffNibble
-
-				k := common.Bytes2Hex(oldExtNodeKey)
-				key := common.HexToHash(k)
+				// GetStorageProof (depending whether it is an account proof or storage proof),
+				// the key where we find its underlying branch is `oldExtNodeKey`.
+				for j := ind; int(j) < keyIndex + len(oldNibbles); j++ {
+					// keyIndex is where the nibbles of the old and new extension node start
+					oldExtNodeKey[j] = oldNibbles[j]	
+				}
+	
+				k := trie.HexToKeybytes(oldExtNodeKey)
+				key := common.BytesToHash(k)
 				var proof [][]byte
 				if isAccountProof {
 					proof, _, _, err = statedb.GetProof(addr)
@@ -1533,7 +1534,22 @@ func prepareWitness(statedb *state.StateDB, addr common.Address, proof1, proof2,
 					proof, _, _, err = statedb.GetStorageProof(addr, key)
 				}
 				check(err)
-				oldExtNodeInNewTrie := proof[len(proof) - 2]
+				var oldExtNodeInNewTrie []byte
+				elems, _, err := rlp.SplitList(proof[len(proof) - 1])
+				check(err)
+				c, _ := rlp.CountValues(elems)
+
+				// Note that `oldExtNodeKey` has nibbles properly set only up to the end of nibbles,
+				// this is enough to get the old extension node by `GetProof` or `GetStorageProof` -
+				// we will get its underlying branch, but sometimes also the leaf in a branch if
+				// the nibble will correspond to the leaf (we left the nibbles from
+				// `keyIndex + len(oldNibbles)` the same as the nibbles in the new extension node).
+
+				if c == 17 { // last element in a proof is a branch
+					oldExtNodeInNewTrie = proof[len(proof) - 2]
+				} else { // last element in a proof is a leaf
+					oldExtNodeInNewTrie = proof[len(proof) - 3]
+				}
 
 				// Get the nibbles of the shortened extension node:
 				nibbles := getExtensionNodeNibbles(oldExtNodeInNewTrie)

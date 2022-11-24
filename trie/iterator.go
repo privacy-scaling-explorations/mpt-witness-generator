@@ -184,7 +184,7 @@ func (it *nodeIterator) Leaf() bool {
 func (it *nodeIterator) LeafKey() []byte {
 	if len(it.stack) > 0 {
 		if _, ok := it.stack[len(it.stack)-1].node.(ValueNode); ok {
-			return hexToKeybytes(it.path)
+			return HexToKeybytes(it.path)
 		}
 	}
 	panic("not at leaf")
