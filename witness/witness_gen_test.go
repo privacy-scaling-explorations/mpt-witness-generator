@@ -3104,7 +3104,7 @@ func TestNonExistingStorageNil(t *testing.T) {
 	UpdateStateAndGenProof("NonExistingStorageNil", ks[:], values, addresses, trieModifications)
 }
 
-func TestExtNodeInserted(t *testing.T) {
+func TestExtNodeInsertedFirstLevel(t *testing.T) {
 	// until infura is back up:
 	oracle.NodeUrl = oracle.LocalUrl
 
@@ -3120,6 +3120,82 @@ func TestExtNodeInserted(t *testing.T) {
 	statedb.CreateAccount(addr)
 
 	oracle.PreventHashingInSecureTrie = true // to store the unchanged key
+
+	key1 := common.HexToHash("0x1234561000000000000000000000000000000000000000000000000000000000")
+	// key1 bytes: [1 * 16 + 2, 3 * 16 + 4, 5 * 16 + 6, 1 * 16, 0, ..., 0]
+
+	// make the value long to have a hashed branch
+	v1 := common.FromHex("0xbbefaa12580138bc263c95757826df4e24eb81c9aaaaaaaaaaaaaaaaaaaaaaaa")
+	val1 := common.BytesToHash(v1)
+	// val1 := common.BigToHash(big.NewInt(int64(1)))
+	statedb.SetState(addr, key1, val1)
+
+	key2 := common.HexToHash("0x1234563000000000000000000000000000000000000000000000000000000000")
+	// key2 bytes: [1 * 16 + 2, 3 * 16 + 4, 5 * 16 + 6, 3 * 16, 0, ..., 0]
+
+	// We now have an extension node with nibbles: [1, 2, 3, 4, 5, 6].
+
+	statedb.SetState(addr, key2, val1)
+	statedb.IntermediateRoot(false)
+
+	storageProof, _, _, err := statedb.GetStorageProof(addr, key1)
+	check(err)
+	fmt.Println(storageProof[0])
+
+	key3 := common.HexToHash("0x1234400000000000000000000000000000000000000000000000000000000000")
+	// key3 bytes: [1 * 16 + 2, 3 * 16 + 4, 4 * 16 + 0, 0, ..., 0]
+
+	// A new extension node is added with nibbles: [1, 2, 3, 4].
+	// The old extension node is in the branch of the newly added extension node at position 5.
+	// The old extension node now only has one nibble: 6.
+
+	// debugging
+	/*
+	statedb.SetState(addr, key3, val1)
+	statedb.IntermediateRoot(false)
+	storageProof1, _, _, err := statedb.GetStorageProof(addr, key3)
+	check(err)
+	fmt.Println(storageProof1[0])
+	*/
+	// end debugging
+
+	v1 = common.FromHex("0xbb")
+	val := common.BytesToHash(v1)
+	trieMod := TrieModification{
+    	Type: StorageMod,
+		Key: key3,
+		Value: val,
+		Address: addr,
+	}
+	trieModifications := []TrieModification{trieMod}
+
+	GenerateProof("ExtNodeInsertedFirstLevel", trieModifications, statedb)
+
+	oracle.PreventHashingInSecureTrie = false
+}
+
+func TestExtNodeInserted(t *testing.T) {
+	oracle.NodeUrl = oracle.LocalUrl
+
+	blockNum := 0
+	blockNumberParent := big.NewInt(int64(blockNum))
+	blockHeaderParent := oracle.PrefetchBlock(blockNumberParent, true, nil)
+	database := state.NewDatabase(blockHeaderParent)
+	statedb, _ := state.New(blockHeaderParent.Root, database, nil)
+	addr := common.HexToAddress("0x50efbf12580138bc623c95757286df4e24eb81c9")
+
+	statedb.DisableLoadingRemoteAccounts()
+	
+	statedb.CreateAccount(addr)
+
+	oracle.PreventHashingInSecureTrie = true // to store the unchanged key
+
+	val0 := common.BigToHash(big.NewInt(int64(1)))
+	key0 := common.HexToHash("0x1000000000000000000000000000000000000000000000000000000000000000")
+	statedb.SetState(addr, key0, val0)
+
+	key00 := common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000000")
+	statedb.SetState(addr, key00, val0)
 
 	key1 := common.HexToHash("0x1234561000000000000000000000000000000000000000000000000000000000")
 	// key1 bytes: [1 * 16 + 2, 3 * 16 + 4, 5 * 16 + 6, 1 * 16, 0, ..., 0]

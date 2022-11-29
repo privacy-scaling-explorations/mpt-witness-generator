@@ -1521,7 +1521,7 @@ func prepareWitness(statedb *state.StateDB, addr common.Address, proof1, proof2,
 				// the key where we find its underlying branch is `oldExtNodeKey`.
 				for j := ind; int(j) < keyIndex + len(oldNibbles); j++ {
 					// keyIndex is where the nibbles of the old and new extension node start
-					oldExtNodeKey[j] = oldNibbles[j]	
+					oldExtNodeKey[j] = oldNibbles[j - byte(keyIndex)]	
 				}
 	
 				k := trie.HexToKeybytes(oldExtNodeKey)
