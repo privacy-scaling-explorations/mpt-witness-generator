@@ -1148,13 +1148,12 @@ func prepareWitness(statedb *state.StateDB, addr common.Address, proof1, proof2,
 	addBranch := func(branch1, branch2 []byte, modifiedIndex byte, isCPlaceholder bool, branchC16, branchC1 byte, insertedExtension bool) {
 		isBranchSPlaceholder := false
 		isBranchCPlaceholder := false
-		if !insertedExtension {
-			if isCPlaceholder {
-				isBranchCPlaceholder = true
-			} else {
-				isBranchSPlaceholder = true
-			}
+		if isCPlaceholder {
+			isBranchCPlaceholder = true
+		} else {
+			isBranchSPlaceholder = true
 		}
+
 		bRows := prepareTwoBranchesWitness(branch1, branch2, modifiedIndex, branchC16, branchC1, isBranchSPlaceholder, isBranchCPlaceholder)
 		rows = append(rows, bRows...)
 
