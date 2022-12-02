@@ -1169,8 +1169,8 @@ func prepareWitness(statedb *state.StateDB, addr common.Address, proof1, proof2,
 		var nibbles []byte
 		if leafKeyRow[0] != 248 {
 			keyLen := int(leafKeyRow[1] - 128)
-			if leafKeyRow[2] != 32 {
-				nibbles = append(nibbles,leafKeyRow[2] - 48)
+			if (leafKeyRow[2] != 32) && (leafKeyRow[2] != 0) { // second term is for extension node
+				nibbles = append(nibbles, leafKeyRow[2] - 48)
 			}
 			for i := 0; i < keyLen - 1; i++ { // -1 because the first byte doesn't have any nibbles
 				b := leafKeyRow[3 + i]
@@ -1181,8 +1181,8 @@ func prepareWitness(statedb *state.StateDB, addr common.Address, proof1, proof2,
 			}
 		} else {
 			keyLen := int(leafKeyRow[2] - 128)
-			if leafKeyRow[3] != 32 {
-				nibbles = append(nibbles,leafKeyRow[3] - 48)
+			if (leafKeyRow[3] != 32) && (leafKeyRow[3] != 0) { // second term is for extension node
+				nibbles = append(nibbles, leafKeyRow[3] - 48)
 			}
 			for i := 0; i < keyLen - 1; i++ { // -1 because the first byte doesn't have any nibbles
 				b := leafKeyRow[4 + i]
@@ -1408,6 +1408,7 @@ func prepareWitness(statedb *state.StateDB, addr common.Address, proof1, proof2,
 				// We now get the first nibble of the leaf that was turned into branch.
 				// This first nibble presents the position of the leaf once it moved
 				// into the new branch.
+
 				rows[len(rows)-branchRows][driftedPos] = getDriftedPosition(leafRows[0], numberOfNibbles) // -branchRows lands into branch init
 
 				if isInsertedExtNode {
@@ -1549,6 +1550,15 @@ func prepareWitness(statedb *state.StateDB, addr common.Address, proof1, proof2,
 				} else { // last element in a proof is a leaf
 					oldExtNodeInNewTrie = proof[len(proof) - 3]
 				}
+
+				// debugging
+				hasher := trie.NewHasher(false)
+				h := hasher.HashData(oldExtNodeInNewTrie)
+				hh := common.BytesToHash(h)
+				fmt.Println(hh.Bytes())
+				fmt.Println("========")
+
+				// end debugging
 
 				// Get the nibbles of the shortened extension node:
 				nibbles := getExtensionNodeNibbles(oldExtNodeInNewTrie)
