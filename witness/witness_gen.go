@@ -954,7 +954,7 @@ func prepareTwoBranchesWitness(branch1, branch2 []byte, key, branchC16, branchC1
 	return rows
 }
 
-func prepareWitness(statedb *state.StateDB, addr common.Address, proof1, proof2, extNibbles [][]byte, key []byte, neighbourNode []byte,
+func prepareWitness(statedb *state.StateDB, addr common.Address, proof1, proof2, extNibblesS, extNibblesC [][]byte, key []byte, neighbourNode []byte,
 		isAccountProof, nonExistingAccountProof, nonExistingStorageProof bool) ([][]byte, [][]byte, bool) {
 	rows := make([][]byte, 0)
 	toBeHashed := make([][]byte, 0)
@@ -1009,7 +1009,7 @@ func prepareWitness(statedb *state.StateDB, addr common.Address, proof1, proof2,
 		case 2:
 			if i != len1 - 1 { // extension node
 				var numberOfNibbles byte
-				numberOfNibbles, extensionRowS, extensionRowC = prepareExtensionRows(extNibbles, extensionNodeInd, proof1[i], proof2[i], false, false)
+				numberOfNibbles, extensionRowS, extensionRowC = prepareExtensionRows(extNibblesS, extensionNodeInd, proof1[i], proof2[i], false, false)
 				keyIndex += int(numberOfNibbles)
 				extensionNodeInd++
 				continue
@@ -1251,10 +1251,10 @@ func prepareWitness(statedb *state.StateDB, addr common.Address, proof1, proof2,
 				var extensionRowC []byte
 				if len1 > len2 {
 					numNibbles, extensionRowS, extensionRowC =
-						prepareExtensionRows(extNibbles, extensionNodeInd, proof1[len1 - 3], proof1[len1 - 3], false, false)
+						prepareExtensionRows(extNibblesS, extensionNodeInd, proof1[len1 - 3], proof1[len1 - 3], false, false)
 				} else {
 					numNibbles, extensionRowS, extensionRowC =
-						prepareExtensionRows(extNibbles, extensionNodeInd, proof2[len2 - 3], proof2[len2 - 3], false, false)
+						prepareExtensionRows(extNibblesC, extensionNodeInd, proof2[len2 - 3], proof2[len2 - 3], false, false)
 				}
 				numberOfNibbles = int(numNibbles)
 				extRows = append(extRows, extensionRowS)
@@ -1493,7 +1493,7 @@ func prepareWitness(statedb *state.StateDB, addr common.Address, proof1, proof2,
 
 			if isInsertedExtNode {
 				numberOfNibbles0, extensionRowS, extensionRowC :=
-					prepareExtensionRows(extNibbles, extensionNodeInd, oldExtNode, oldExtNode, true, false)
+					prepareExtensionRows(extNibblesS, extensionNodeInd, oldExtNode, oldExtNode, true, false)
 
 				extNodeSelectors := make([]byte, rowLen)
 				setExtNodeSelectors(extNodeSelectors, oldExtNode, int(numberOfNibbles0), branchC16)
@@ -1564,10 +1564,10 @@ func prepareWitness(statedb *state.StateDB, addr common.Address, proof1, proof2,
 				nibbles := getExtensionNodeNibbles(oldExtNodeInNewTrie)
 
 				// Enable `prepareExtensionRows` call:
-				extNibbles = append(extNibbles, nibbles)
+				extNibblesS = append(extNibblesS, nibbles)
 
 				numberOfNibbles1, extensionRowS1, extensionRowC1 :=
-					prepareExtensionRows(extNibbles, extensionNodeInd + 1, oldExtNodeInNewTrie, oldExtNodeInNewTrie, false, true)
+					prepareExtensionRows(extNibblesS, extensionNodeInd + 1, oldExtNodeInNewTrie, oldExtNodeInNewTrie, false, true)
 
 				extNodeSelectors1 := make([]byte, rowLen)
 				setExtNodeSelectors(extNodeSelectors1, oldExtNodeInNewTrie, int(numberOfNibbles1), branchC16)
@@ -2063,15 +2063,13 @@ func prepareAccountProof(i int, tMod TrieModification, tModsLen int, statedb *st
 	}
 
 	aNode := aNeighbourNode2
-	aExtNibbles := aExtNibbles2
 	if len(accountProof) > len(accountProof1) {
 		// delete operation
 		aNode = aNeighbourNode1
-		aExtNibbles = aExtNibbles1
 	}
 	
 	rowsState, toBeHashedAcc, _ :=
-		prepareWitness(statedb, addr, accountProof, accountProof1, aExtNibbles, accountAddr, aNode, true, tMod.Type == NonExistingAccount, false)
+		prepareWitness(statedb, addr, accountProof, accountProof1, aExtNibbles1, aExtNibbles2, accountAddr, aNode, true, tMod.Type == NonExistingAccount, false)
 
 	proof := prepareProof(i, rowsState, addrh, sRoot, cRoot, startRoot, finalRoot, tMod.Type)
 
@@ -2132,19 +2130,15 @@ func getParallelProofs(trieModifications []TrieModification, statedb *state.Stat
 			check(err)
 
 			aNode := aNeighbourNode2
-			aExtNibbles := aExtNibbles2
 			if len(accountProof) > len(accountProof1) {
 				// delete operation
 				aNode = aNeighbourNode1
-				aExtNibbles = aExtNibbles1
 			}
 
 			node := neighbourNode2
-			extNibbles := extNibbles2
 			if len(storageProof) > len(storageProof1) {
 				// delete operation
 				node = neighbourNode1
-				extNibbles = extNibbles1
 			}
 
 			if (specialTest == 1) {
@@ -2178,9 +2172,9 @@ func getParallelProofs(trieModifications []TrieModification, statedb *state.Stat
 			}
 			
 			rowsState, toBeHashedAcc, _ :=
-				prepareWitness(statedb, addr, accountProof, accountProof1, aExtNibbles, accountAddr, aNode, true, tMod.Type == NonExistingAccount, false)
+				prepareWitness(statedb, addr, accountProof, accountProof1, aExtNibbles1, aExtNibbles2, accountAddr, aNode, true, tMod.Type == NonExistingAccount, false)
 			rowsStorage, toBeHashedStorage, _ :=
-				prepareWitness(statedb, addr, storageProof, storageProof1, extNibbles, keyHashed, node, false, false, tMod.Type == NonExistingStorage)
+				prepareWitness(statedb, addr, storageProof, storageProof1, extNibbles1, extNibbles2, keyHashed, node, false, false, tMod.Type == NonExistingStorage)
 			rowsState = append(rowsState, rowsStorage...)
 	
 			proof := prepareProof(i, rowsState, addrh, sRoot, cRoot, startRoot, finalRoot, tMod.Type)
