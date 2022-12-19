@@ -3104,11 +3104,9 @@ func TestNonExistingStorageNil(t *testing.T) {
 	UpdateStateAndGenProof("NonExistingStorageNil", ks[:], values, addresses, trieModifications)
 }
 
-func ExtNodeInserted(key1, key2, key3 common.Hash) {
+func ExtNodeInserted(key1, key2, key3 common.Hash, testName string) {
 	// until infura is back up:
 	oracle.NodeUrl = oracle.LocalUrl
-
-	// Before modification the extension node has 6 nibbles, after the modification it has 1 nibble.
 
 	blockNum := 0
 	blockNumberParent := big.NewInt(int64(blockNum))
@@ -3139,7 +3137,45 @@ func ExtNodeInserted(key1, key2, key3 common.Hash) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	GenerateProof("ExtNodeInsertedBefore6After1FirstLevel", trieModifications, statedb)
+	GenerateProof(testName, trieModifications, statedb)
+
+	oracle.PreventHashingInSecureTrie = false
+}
+
+func ExtNodeDeleted(key1, key2, key3 common.Hash, testName string) {
+	// until infura is back up:
+	oracle.NodeUrl = oracle.LocalUrl
+
+	blockNum := 0
+	blockNumberParent := big.NewInt(int64(blockNum))
+	blockHeaderParent := oracle.PrefetchBlock(blockNumberParent, true, nil)
+	database := state.NewDatabase(blockHeaderParent)
+	statedb, _ := state.New(blockHeaderParent.Root, database, nil)
+	addr := common.HexToAddress("0x50efbf12580138bc623c95757286df4e24eb81c9")
+
+	statedb.DisableLoadingRemoteAccounts()
+	statedb.CreateAccount(addr)
+	oracle.PreventHashingInSecureTrie = true // to store the unchanged key
+
+	// make the value long to have a hashed branch
+	v1 := common.FromHex("0xbbefaa12580138bc263c95757826df4e24eb81c9aaaaaaaaaaaaaaaaaaaaaaaa")
+	val1 := common.BytesToHash(v1)
+	statedb.SetState(addr, key1, val1)
+	statedb.SetState(addr, key2, val1)
+	statedb.SetState(addr, key3, val1)
+
+	statedb.IntermediateRoot(false)
+
+	val := common.Hash{} // empty value deletes the key
+	trieMod := TrieModification{
+    	Type: StorageMod,
+		Key: key1,
+		Value: val,
+		Address: addr,
+	}
+	trieModifications := []TrieModification{trieMod}
+
+	GenerateProof(testName, trieModifications, statedb)
 
 	oracle.PreventHashingInSecureTrie = false
 }
@@ -3154,7 +3190,20 @@ func TestExtNodeInsertedBefore6After1FirstLevel(t *testing.T) {
 
 	key3 := common.HexToHash("0x1234400000000000000000000000000000000000000000000000000000000000")
 	
-	ExtNodeInserted(key1, key2, key3)	
+	ExtNodeInserted(key1, key2, key3, "ExtNodeInsertedBefore6After1FirstLevel")	
+}
+
+func TestExtNodeDeletedBefore6After1FirstLevel(t *testing.T) {
+	key1 := common.HexToHash("0x1234561000000000000000000000000000000000000000000000000000000000")
+	// key1 bytes: [1 * 16 + 2, 3 * 16 + 4, 5 * 16 + 6, 1 * 16, 0, ..., 0]
+
+	key2 := common.HexToHash("0x1234563000000000000000000000000000000000000000000000000000000000")
+	// key2 bytes: [1 * 16 + 2, 3 * 16 + 4, 5 * 16 + 6, 3 * 16, 0, ..., 0]
+	// We now have an extension node with nibbles: [1, 2, 3, 4, 5, 6].
+
+	key3 := common.HexToHash("0x1234400000000000000000000000000000000000000000000000000000000000")
+	
+	ExtNodeDeleted(key1, key2, key3, "ExtNodeDeletedBefore6After1FirstLevel")	
 }
 
 func TestExtNodeInsertedBefore6After2FirstLevel(t *testing.T) {
@@ -3167,7 +3216,7 @@ func TestExtNodeInsertedBefore6After2FirstLevel(t *testing.T) {
 	key3 := common.HexToHash("0x1235400000000000000000000000000000000000000000000000000000000000")
 	// key3 bytes: [1 * 16 + 2, 3 * 16 + 5, 4 * 16 + 0, 0, ..., 0]
 
-	ExtNodeInserted(key1, key2, key3)	
+	ExtNodeInserted(key1, key2, key3, "ExtNodeInsertedBefore6After2FirstLevel")	
 }
 
 func TestExtNodeInsertedBefore6After4FirstLevel(t *testing.T) {
@@ -3179,7 +3228,7 @@ func TestExtNodeInsertedBefore6After4FirstLevel(t *testing.T) {
 
 	key3 := common.HexToHash("0x1635400000000000000000000000000000000000000000000000000000000000")
 
-	ExtNodeInserted(key1, key2, key3)	
+	ExtNodeInserted(key1, key2, key3, "ExtNodeInsertedBefore6After4FirstLevel")	
 }
 
 func TestExtNodeInsertedBefore5After3FirstLevel(t *testing.T) {
@@ -3187,7 +3236,7 @@ func TestExtNodeInsertedBefore5After3FirstLevel(t *testing.T) {
 	key2 := common.HexToHash("0x2345630000000000000000000000000000000000000000000000000000000000")
 	key3 := common.HexToHash("0x2635400000000000000000000000000000000000000000000000000000000000")
 	
-	ExtNodeInserted(key1, key2, key3)	
+	ExtNodeInserted(key1, key2, key3, "ExtNodeInsertedBefore5After3FirstLevel")	
 }
 
 func TestExtNodeInsertedBefore5After2FirstLevel(t *testing.T) {
@@ -3195,7 +3244,7 @@ func TestExtNodeInsertedBefore5After2FirstLevel(t *testing.T) {
 	key2 := common.HexToHash("0x2345630000000000000000000000000000000000000000000000000000000000")
 	key3 := common.HexToHash("0x2335400000000000000000000000000000000000000000000000000000000000")
 
-	ExtNodeInserted(key1, key2, key3)	
+	ExtNodeInserted(key1, key2, key3, "ExtNodeInsertedBefore5After2FirstLevel")	
 }
 
 func TestExtNodeInsertedBefore5After1FirstLevel(t *testing.T) {
@@ -3203,7 +3252,7 @@ func TestExtNodeInsertedBefore5After1FirstLevel(t *testing.T) {
 	key2 := common.HexToHash("0x2345630000000000000000000000000000000000000000000000000000000000")
 	key3 := common.HexToHash("0x2343540000000000000000000000000000000000000000000000000000000000")
 
-	ExtNodeInserted(key1, key2, key3)	
+	ExtNodeInserted(key1, key2, key3, "ExtNodeInsertedBefore5After1FirstLevel")	
 }
 
 /*
@@ -3213,6 +3262,7 @@ func TestExtNodeInNewBranchFirstLevel(t *testing.T) {
 	key3 := common.HexToHash("0x6354000000000000000000000000000000000000000000000000000000000000")
 
 	ExtNodeInserted(key1, key2, key3)	
+	ExtNodeInserted(key1, key2, key3, "ExtNodeInsertedInNewBranchFirstLevel")	
 }
 */
 
