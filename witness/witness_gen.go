@@ -1311,7 +1311,7 @@ func prepareWitness(statedb *state.StateDB, addr common.Address, proof1, proof2,
 			rlp_elems, _, err := rlp.SplitList(oldExtNode)
 			check(err)
 			c, _ := rlp.CountValues(rlp_elems)
-			isInsertedExtNode := c == 2
+			isInsertedExtNode := (c == 2) && isExtension
 
 			if len1 > len2 {
 				addBranch(proof1[len1-2], proof1[len1-2], key[keyIndex + numberOfNibbles], true, branchC16, branchC1, isInsertedExtNode)
