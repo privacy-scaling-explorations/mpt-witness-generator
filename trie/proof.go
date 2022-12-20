@@ -90,9 +90,11 @@ func (t *Trie) Prove(key []byte, fromLevel uint, proofDb ethdb.KeyValueWriter) (
 	// From getProof response it is not possible to see (in some cases it is though) whether
 	// the short node is a leaf or an extension node.
 	isLastLeaf := false
-	n := nodes[len(nodes)-1]
-	if short, ok := n.(*ShortNode); ok {
-		isLastLeaf = hasTerm(short.Key)
+	if len(nodes) > 0 {
+		n := nodes[len(nodes)-1]
+		if short, ok := n.(*ShortNode); ok {
+			isLastLeaf = hasTerm(short.Key)
+		}
 	}
 
 	for _, n := range nodes {
