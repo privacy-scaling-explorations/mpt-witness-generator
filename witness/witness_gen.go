@@ -955,7 +955,7 @@ func prepareTwoBranchesWitness(branch1, branch2 []byte, key, branchC16, branchC1
 }
 
 func prepareWitness(statedb *state.StateDB, addr common.Address, proof1, proof2, extNibblesS, extNibblesC [][]byte, key []byte, neighbourNode []byte,
-		isAccountProof, nonExistingAccountProof, nonExistingStorageProof bool) ([][]byte, [][]byte, bool) {
+		isAccountProof, nonExistingAccountProof, nonExistingStorageProof, isShorterProofLastLeaf bool) ([][]byte, [][]byte, bool) {
 	rows := make([][]byte, 0)
 	toBeHashed := make([][]byte, 0)
 
@@ -1308,10 +1308,17 @@ func prepareWitness(statedb *state.StateDB, addr common.Address, proof1, proof2,
 			} else {
 				oldExtNode = proof1[len1 - 1]
 			}
+
+			/*
+			foo, err := statedb.GetTrie().TryGet(key)
+			check(err)
+			fmt.Println(foo)
+			*/
+
 			rlp_elems, _, err := rlp.SplitList(oldExtNode)
 			check(err)
 			c, _ := rlp.CountValues(rlp_elems)
-			isInsertedExtNode := (c == 2) && isExtension
+			isInsertedExtNode := (c == 2) && isExtension && !isShorterProofLastLeaf
 
 			if len1 > len2 {
 				addBranch(proof1[len1-2], proof1[len1-2], key[keyIndex + numberOfNibbles], true, branchC16, branchC1, isInsertedExtNode)
@@ -1528,10 +1535,10 @@ func prepareWitness(statedb *state.StateDB, addr common.Address, proof1, proof2,
 				key := common.BytesToHash(k)
 				var proof [][]byte
 				if isAccountProof {
-					proof, _, _, err = statedb.GetProof(addr)
+					proof, _, _, _, err = statedb.GetProof(addr)
 
 				} else {
-					proof, _, _, err = statedb.GetStorageProof(addr, key)
+					proof, _, _, _, err = statedb.GetStorageProof(addr, key)
 				}
 				check(err)
 				var oldExtNodeInNewTrie []byte
@@ -1869,7 +1876,7 @@ func prepareAccountProof(i int, tMod TrieModification, tModsLen int, statedb *st
 	statedb.SetStateObjectIfExists(tMod.Address)
 
 	oracle.PrefetchAccount(statedb.Db.BlockNumber, tMod.Address, nil)
-	accountProof, aNeighbourNode1, aExtNibbles1, err := statedb.GetProof(addr)
+	accountProof, aNeighbourNode1, aExtNibbles1, isLastLeaf1, err := statedb.GetProof(addr)
 	check(err)
 
 	var startRoot common.Hash
@@ -1900,7 +1907,7 @@ func prepareAccountProof(i int, tMod TrieModification, tModsLen int, statedb *st
 		finalRoot = cRoot
 	}
 
-	accountProof1, aNeighbourNode2, aExtNibbles2, err := statedb.GetProof(addr)
+	accountProof1, aNeighbourNode2, aExtNibbles2, isLastLeaf2, err := statedb.GetProof(addr)
 	check(err)
 
 	if tMod.Type == NonExistingAccount && len(accountProof) == 0 {
@@ -2063,13 +2070,15 @@ func prepareAccountProof(i int, tMod TrieModification, tModsLen int, statedb *st
 	}
 
 	aNode := aNeighbourNode2
+	isShorterProofLastLeaf := isLastLeaf1
 	if len(accountProof) > len(accountProof1) {
 		// delete operation
 		aNode = aNeighbourNode1
+		isShorterProofLastLeaf = isLastLeaf2
 	}
 	
 	rowsState, toBeHashedAcc, _ :=
-		prepareWitness(statedb, addr, accountProof, accountProof1, aExtNibbles1, aExtNibbles2, accountAddr, aNode, true, tMod.Type == NonExistingAccount, false)
+		prepareWitness(statedb, addr, accountProof, accountProof1, aExtNibbles1, aExtNibbles2, accountAddr, aNode, true, tMod.Type == NonExistingAccount, false, isShorterProofLastLeaf)
 
 	proof := prepareProof(i, rowsState, addrh, sRoot, cRoot, startRoot, finalRoot, tMod.Type)
 
@@ -2102,10 +2111,10 @@ func getParallelProofs(trieModifications []TrieModification, statedb *state.Stat
 			if specialTest == 1 {
 				statedb.CreateAccount(addr)
 			}
-
-			accountProof, aNeighbourNode1, aExtNibbles1, err := statedb.GetProof(addr)
+	
+			accountProof, aNeighbourNode1, aExtNibbles1, aIsLastLeaf1, err := statedb.GetProof(addr)
 			check(err)
-			storageProof, neighbourNode1, extNibbles1, err := statedb.GetStorageProof(addr, tMod.Key)
+			storageProof, neighbourNode1, extNibbles1, isLastLeaf1, err := statedb.GetStorageProof(addr, tMod.Key)
 			check(err)
 
 			sRoot := statedb.GetTrie().Hash()
@@ -2123,22 +2132,26 @@ func getParallelProofs(trieModifications []TrieModification, statedb *state.Stat
 				finalRoot = cRoot
 			}
 
-			accountProof1, aNeighbourNode2, aExtNibbles2, err := statedb.GetProof(addr)
+			accountProof1, aNeighbourNode2, aExtNibbles2, aIsLastLeaf2, err := statedb.GetProof(addr)
 			check(err)
 
-			storageProof1, neighbourNode2, extNibbles2, err := statedb.GetStorageProof(addr, tMod.Key)
+			storageProof1, neighbourNode2, extNibbles2, isLastLeaf2, err := statedb.GetStorageProof(addr, tMod.Key)
 			check(err)
 
 			aNode := aNeighbourNode2
+			aIsLastLeaf := aIsLastLeaf1
 			if len(accountProof) > len(accountProof1) {
 				// delete operation
 				aNode = aNeighbourNode1
+				aIsLastLeaf = aIsLastLeaf2
 			}
 
 			node := neighbourNode2
+			isLastLeaf := isLastLeaf1
 			if len(storageProof) > len(storageProof1) {
 				// delete operation
 				node = neighbourNode1
+				isLastLeaf = isLastLeaf2
 			}
 
 			if (specialTest == 1) {
@@ -2172,9 +2185,9 @@ func getParallelProofs(trieModifications []TrieModification, statedb *state.Stat
 			}
 			
 			rowsState, toBeHashedAcc, _ :=
-				prepareWitness(statedb, addr, accountProof, accountProof1, aExtNibbles1, aExtNibbles2, accountAddr, aNode, true, tMod.Type == NonExistingAccount, false)
+				prepareWitness(statedb, addr, accountProof, accountProof1, aExtNibbles1, aExtNibbles2, accountAddr, aNode, true, tMod.Type == NonExistingAccount, false, aIsLastLeaf)
 			rowsStorage, toBeHashedStorage, _ :=
-				prepareWitness(statedb, addr, storageProof, storageProof1, extNibbles1, extNibbles2, keyHashed, node, false, false, tMod.Type == NonExistingStorage)
+				prepareWitness(statedb, addr, storageProof, storageProof1, extNibbles1, extNibbles2, keyHashed, node, false, false, tMod.Type == NonExistingStorage, isLastLeaf)
 			rowsState = append(rowsState, rowsStorage...)
 	
 			proof := prepareProof(i, rowsState, addrh, sRoot, cRoot, startRoot, finalRoot, tMod.Type)

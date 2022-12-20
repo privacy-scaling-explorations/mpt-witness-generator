@@ -34,7 +34,7 @@ import (
 // If the trie does not contain a value for key, the returned proof contains all
 // nodes of the longest existing prefix of the key (at least the root node), ending
 // with the node that proves the absence of the key.
-func (t *Trie) Prove(key []byte, fromLevel uint, proofDb ethdb.KeyValueWriter) ([]byte, [][]byte, error) {
+func (t *Trie) Prove(key []byte, fromLevel uint, proofDb ethdb.KeyValueWriter) ([]byte, [][]byte, bool, error) {
 	// Collect all nodes on the path to key.
 	key = KeybytesToHex(key)
 	var nodes []Node
@@ -76,7 +76,7 @@ func (t *Trie) Prove(key []byte, fromLevel uint, proofDb ethdb.KeyValueWriter) (
 			tn, err = t.resolveHash(n, nil)
 			if err != nil {
 				log.Error(fmt.Sprintf("Unhandled trie error: %v", err))
-				return nil, nil, err
+				return nil, nil, false, err
 			}
 		default:
 			panic(fmt.Sprintf("%T: invalid node: %v", tn, tn))
@@ -86,6 +86,14 @@ func (t *Trie) Prove(key []byte, fromLevel uint, proofDb ethdb.KeyValueWriter) (
 	defer returnHasherToPool(hasher)
 
 	var extNibbles [][]byte
+
+	// From getProof response it is not possible to see (in some cases it is though) whether
+	// the short node is a leaf or an extension node.
+	isLastLeaf := false
+	n := nodes[len(nodes)-1]
+	if short, ok := n.(*ShortNode); ok {
+		isLastLeaf = hasTerm(short.Key)
+	}
 
 	for _, n := range nodes {
 		if fromLevel > 0 {
@@ -127,7 +135,7 @@ func (t *Trie) Prove(key []byte, fromLevel uint, proofDb ethdb.KeyValueWriter) (
 		neighbourNodeRLP, _ = rlp.EncodeToBytes(neighbourHash)
 	}
 
-	return neighbourNodeRLP, extNibbles, nil
+	return neighbourNodeRLP, extNibbles, isLastLeaf, nil
 }
 
 func (t *Trie) GetNodeByNibbles(key []byte) ([]byte, error) {
@@ -175,7 +183,7 @@ func (t *Trie) GetNodeByNibbles(key []byte) ([]byte, error) {
 // If the trie does not contain a value for key, the returned proof contains all
 // nodes of the longest existing prefix of the key (at least the root node), ending
 // with the node that proves the absence of the key.
-func (t *SecureTrie) Prove(key []byte, fromLevel uint, proofDb ethdb.KeyValueWriter) ([]byte, [][]byte, error) {
+func (t *SecureTrie) Prove(key []byte, fromLevel uint, proofDb ethdb.KeyValueWriter) ([]byte, [][]byte, bool, error) {
 	return t.trie.Prove(key, fromLevel, proofDb)
 }
 

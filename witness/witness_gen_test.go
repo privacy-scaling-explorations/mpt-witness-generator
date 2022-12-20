@@ -1399,7 +1399,7 @@ func TestOnlyLeafInStorageProof(t *testing.T) {
 	// statedb.IntermediateRoot(false)
 	statedb.CreateAccount(addr)
 
-	accountProof, _, _, err := statedb.GetProof(addr)
+	accountProof, _, _, _, err := statedb.GetProof(addr)
 	fmt.Println(len(accountProof))
 	check(err)	
 
@@ -1409,7 +1409,7 @@ func TestOnlyLeafInStorageProof(t *testing.T) {
 	statedb.SetState(addr, key2, val1)
 	statedb.IntermediateRoot(false)
 
-	// storageProof, _, _, err := statedb.GetStorageProof(addr, key2)
+	// storageProof, _, _, _, err := statedb.GetStorageProof(addr, key2)
 	// check(err)
 
 	val := common.BigToHash(big.NewInt(int64(17)))
@@ -1438,7 +1438,7 @@ func TestStorageLeafInFirstLevelAfterPlaceholder(t *testing.T) {
 	// statedb.IntermediateRoot(false)
 	statedb.CreateAccount(addr)
 
-	accountProof, _, _, err := statedb.GetProof(addr)
+	accountProof, _, _, _, err := statedb.GetProof(addr)
 	fmt.Println(len(accountProof))
 	check(err)	
 
@@ -1448,7 +1448,7 @@ func TestStorageLeafInFirstLevelAfterPlaceholder(t *testing.T) {
 	statedb.SetState(addr, key1, val1)
 	statedb.IntermediateRoot(false)
 
-	// storageProof, _, _, err := statedb.GetStorageProof(addr, key2)
+	// storageProof, _, _, _, err := statedb.GetStorageProof(addr, key2)
 	// check(err)
 
 	h2 := fmt.Sprintf("0x2111%d", 0)
@@ -1480,7 +1480,7 @@ func TestLeafAddedToEmptyTrie(t *testing.T) {
 	// statedb.IntermediateRoot(false)
 	statedb.CreateAccount(addr)
 
-	accountProof, _, _, err := statedb.GetProof(addr)
+	accountProof, _, _, _, err := statedb.GetProof(addr)
 	fmt.Println(len(accountProof))
 	check(err)
 
@@ -1493,7 +1493,7 @@ func TestLeafAddedToEmptyTrie(t *testing.T) {
 	// statedb.SetState(addr, key2, val1)
 	statedb.IntermediateRoot(false)
 
-	// storageProof, _, _, err := statedb.GetStorageProof(addr, key2)
+	// storageProof, _, _, _, err := statedb.GetStorageProof(addr, key2)
 	// check(err)
 
 	val := common.BigToHash(big.NewInt(int64(17)))
@@ -1522,7 +1522,7 @@ func TestDeleteToEmptyTrie(t *testing.T) {
 	// statedb.IntermediateRoot(false)
 	statedb.CreateAccount(addr)
 
-	accountProof, _, _, err := statedb.GetProof(addr)
+	accountProof, _, _, _, err := statedb.GetProof(addr)
 	fmt.Println(len(accountProof))
 	check(err)
 
@@ -1532,7 +1532,7 @@ func TestDeleteToEmptyTrie(t *testing.T) {
 	statedb.SetState(addr, key2, val1)
 	statedb.IntermediateRoot(false)
 
-	// storageProof, _, _, err := statedb.GetStorageProof(addr, key2)
+	// storageProof, _, _, _, err := statedb.GetStorageProof(addr, key2)
 	// check(err)
 
 	val := common.Hash{} // empty value deletes the key
@@ -1584,7 +1584,7 @@ func TestFindAccount(t *testing.T) {
 		if statedb.GetCode(addr) == nil {
 			continue
 		}
-		accountProof, _, _, err := statedb.GetProof(addr)
+		accountProof, _, _, _, err := statedb.GetProof(addr)
 		fmt.Println(len(accountProof))
 		check(err)
 		fmt.Println(len(accountProof))
@@ -1600,7 +1600,7 @@ func TestFindAccount(t *testing.T) {
 			statedb.SetState(addr, key2, val1)
 			statedb.IntermediateRoot(false)
 
-			storageProof, _, _, err := statedb.GetStorageProof(addr, key2)
+			storageProof, _, _, _, err := statedb.GetStorageProof(addr, key2)
 			check(err)
 			fmt.Println(len(storageProof))
 
@@ -1690,10 +1690,10 @@ func TestFindAccountWithPlaceholderBranch(t *testing.T) {
 		addr := common.HexToAddress(h)
 		oracle.PrefetchAccount(statedb.Db.BlockNumber, addr, nil)
 
-		accountProof, _, _, _ := statedb.GetProof(addr)
+		accountProof, _, _, _, _ := statedb.GetProof(addr)
 		statedb.CreateAccount(addr)
 		statedb.IntermediateRoot(false)
-		accountProof1, _, _, _ := statedb.GetProof(addr)
+		accountProof1, _, _, _, _ := statedb.GetProof(addr)
 
 		if len(accountProof1) == len(accountProof) + 1 {
 			fmt.Println("a;lskdfja;slkdfj")
@@ -2130,7 +2130,7 @@ func TestAccountExtensionInFirstLevel(t *testing.T) {
 		statedb.IntermediateRoot(false)
 
 		oracle.PrefetchAccount(statedb.Db.BlockNumber, addr, nil)
-		proof1, _, _, err := statedb.GetProof(addr)
+		proof1, _, _, _, err := statedb.GetProof(addr)
 		check(err)
 
 		for j := 0; j < len(proof1) - 1; j++ {
@@ -2196,7 +2196,7 @@ func TestAccountBranchPlaceholderInFirstLevel(t *testing.T) {
 		addr := common.HexToAddress(h)
 
 		oracle.PrefetchAccount(statedb.Db.BlockNumber, addr, nil)
-		proof1, _, _, err := statedb.GetProof(addr)
+		proof1, _, _, _, err := statedb.GetProof(addr)
 		check(err)
 
 		statedb.CreateAccount(addr)
@@ -2211,7 +2211,7 @@ func TestAccountBranchPlaceholderInFirstLevel(t *testing.T) {
 		statedb.CreateAccount(addr)
 		statedb.IntermediateRoot(false)
 
-		proof2, _, _, err := statedb.GetProof(addr)
+		proof2, _, _, _, err := statedb.GetProof(addr)
 		check(err)
 		if len(proof1) + 1 == len(proof2) && len(proof1) == 1 {
 			elems, _, err := rlp.SplitList(proof1[len(proof1)-1])
@@ -2314,7 +2314,7 @@ func TestExtensionTwoNibblesInEvenLevel(t *testing.T) {
 		statedb.IntermediateRoot(false)
 
 		oracle.PrefetchAccount(statedb.Db.BlockNumber, addr, nil)
-		proof1, _, _, err := statedb.GetProof(addr)
+		proof1, _, _, _, err := statedb.GetProof(addr)
 		check(err)
 
 		for j := 0; j < len(proof1) - 1; j++ {
@@ -2361,7 +2361,7 @@ func TestExtensionThreeNibblesInEvenLevel(t *testing.T) {
 		statedb.IntermediateRoot(false)
 
 		oracle.PrefetchAccount(statedb.Db.BlockNumber, addr, nil)
-		proof1, _, _, err := statedb.GetProof(addr)
+		proof1, _, _, _, err := statedb.GetProof(addr)
 		check(err)
 
 		for j := 0; j < len(proof1) - 1; j++ {
@@ -2408,7 +2408,7 @@ func TestExtensionThreeNibblesInOddLevel(t *testing.T) {
 		statedb.IntermediateRoot(false)
 
 		oracle.PrefetchAccount(statedb.Db.BlockNumber, addr, nil)
-		proof1, _, _, err := statedb.GetProof(addr)
+		proof1, _, _, _, err := statedb.GetProof(addr)
 		check(err)
 
 		for j := 0; j < len(proof1) - 1; j++ {
@@ -2490,7 +2490,7 @@ func TestLeafInLastLevel(t *testing.T) {
 	key2 = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,3]
 	*/
 
-	storageProof, _, _, err := statedb.GetStorageProof(addr, key1)
+	storageProof, _, _, _, err := statedb.GetStorageProof(addr, key1)
 	check(err)
 
 	fmt.Println(storageProof[0])
@@ -2553,7 +2553,7 @@ func TestLongExt(t *testing.T) {
 	statedb.SetState(addr, key2, val1)
 	statedb.IntermediateRoot(false)
 
-	storageProof, _, _, err := statedb.GetStorageProof(addr, key1)
+	storageProof, _, _, _, err := statedb.GetStorageProof(addr, key1)
 	check(err)
 
 	fmt.Println(storageProof[0])
@@ -2596,7 +2596,7 @@ func TestLeafWithOneNibble(t *testing.T) {
 	statedb.SetState(addr, key2, val1)
 	statedb.IntermediateRoot(false)
 
-	storageProof, _, _, err := statedb.GetStorageProof(addr, key1)
+	storageProof, _, _, _, err := statedb.GetStorageProof(addr, key1)
 	check(err)
 
 	fmt.Println(storageProof[0])
@@ -2650,7 +2650,7 @@ func TestLeafWithMoreNibbles(t *testing.T) {
 	statedb.SetState(addr, key2, val1)
 	statedb.IntermediateRoot(false)
 
-	storageProof, _, _, err := statedb.GetStorageProof(addr, key1)
+	storageProof, _, _, _, err := statedb.GetStorageProof(addr, key1)
 	check(err)
 
 	fmt.Println(storageProof[0])
@@ -2937,7 +2937,7 @@ func TestExtNodeDiffLength(t *testing.T) {
 	statedb.SetState(addr, key2, val1)
 	statedb.IntermediateRoot(false)
 
-	storageProof, _, _, err := statedb.GetStorageProof(addr, key1)
+	storageProof, _, _, _, err := statedb.GetStorageProof(addr, key1)
 	check(err)
 
 	fmt.Println(storageProof[0])
