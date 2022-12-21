@@ -3169,7 +3169,7 @@ func ExtNodeDeleted(key1, key2, key3 common.Hash, testName string) {
 	val := common.Hash{} // empty value deletes the key
 	trieMod := TrieModification{
     	Type: StorageMod,
-		Key: key1,
+		Key: key3,
 		Value: val,
 		Address: addr,
 	}
@@ -3190,7 +3190,7 @@ func TestExtNodeInsertedBefore6After1FirstLevel(t *testing.T) {
 
 	key3 := common.HexToHash("0x1234400000000000000000000000000000000000000000000000000000000000")
 	
-	ExtNodeInserted(key1, key2, key3, "ExtNodeInsertedBefore6After1FirstLevel")	
+	ExtNodeInserted(key1, key2, key3, "ExtNodeInsertedBefore6After1FirstLevel")
 }
 
 func TestExtNodeDeletedBefore6After1FirstLevel(t *testing.T) {
@@ -3203,7 +3203,7 @@ func TestExtNodeDeletedBefore6After1FirstLevel(t *testing.T) {
 
 	key3 := common.HexToHash("0x1234400000000000000000000000000000000000000000000000000000000000")
 	
-	ExtNodeDeleted(key1, key2, key3, "ExtNodeDeletedBefore6After1FirstLevel")	
+	ExtNodeDeleted(key1, key2, key3, "ExtNodeDeletedBefore6After1FirstLevel")
 }
 
 func TestExtNodeInsertedBefore6After2FirstLevel(t *testing.T) {

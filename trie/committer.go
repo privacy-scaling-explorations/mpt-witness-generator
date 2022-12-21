@@ -107,7 +107,7 @@ func (c *committer) commit(n Node, db *Database) (Node, error) {
 			collapsed.Val = childV
 		}
 		// The key needs to be copied, since we're delivering it to database
-		collapsed.Key = hexToCompact(cn.Key)
+		collapsed.Key = HexToCompact(cn.Key)
 		hashedNode := c.store(collapsed, db)
 		if hn, ok := hashedNode.(HashNode); ok {
 			return hn, nil

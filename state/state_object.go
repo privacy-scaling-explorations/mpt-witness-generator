@@ -28,7 +28,6 @@ import (
 	"github.com/ethereum/go-ethereum/metrics"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/miha-stopar/mpt/oracle"
-	"github.com/miha-stopar/mpt/trie"
 )
 
 var emptyCodeHash = crypto.Keccak256(nil)
@@ -358,7 +357,9 @@ func (s *stateObject) updateTrie(db Database) Trie {
 		if (value == common.Hash{}) {
 			//fmt.Println("delete", s.address, key)
 			// Get absense proof of key in case the deletion needs the sister node.
-			oracle.PrefetchStorage(big.NewInt(db.BlockNumber.Int64()+1), s.address, key, trie.GenPossibleShortNodePreimage)
+
+			// Note: commented for now because of `ExtNodeDeleted`
+			// oracle.PrefetchStorage(big.NewInt(db.BlockNumber.Int64()+1), s.address, key, trie.GenPossibleShortNodePreimage)
 			s.setError(tr.TryDelete(key[:]))
 		} else {
 			//fmt.Println("update", s.address, key, value)

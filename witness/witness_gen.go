@@ -1302,11 +1302,11 @@ func prepareWitness(statedb *state.StateDB, addr common.Address, proof1, proof2,
 			the old extension node in proof1[len1 - 1] has been ignored. For this reason we store it
 			in the rows before we add a leaf.
 			*/
-			var oldExtNode []byte
+			var longExtNode []byte
 			if len1 > len2 {
-				oldExtNode = proof2[len2 - 1]
+				longExtNode = proof2[len2 - 1]
 			} else {
-				oldExtNode = proof1[len1 - 1]
+				longExtNode = proof1[len1 - 1]
 			}
 
 			/*
@@ -1315,7 +1315,7 @@ func prepareWitness(statedb *state.StateDB, addr common.Address, proof1, proof2,
 			fmt.Println(foo)
 			*/
 
-			rlp_elems, _, err := rlp.SplitList(oldExtNode)
+			rlp_elems, _, err := rlp.SplitList(longExtNode)
 			check(err)
 			c, _ := rlp.CountValues(rlp_elems)
 			isInsertedExtNode := (c == 2) && isExtension && !isShorterProofLastLeaf
@@ -1500,10 +1500,10 @@ func prepareWitness(statedb *state.StateDB, addr common.Address, proof1, proof2,
 
 			if isInsertedExtNode {
 				numberOfNibbles0, extensionRowS, extensionRowC :=
-					prepareExtensionRows(extNibblesS, extensionNodeInd, oldExtNode, oldExtNode, true, false)
+					prepareExtensionRows(extNibblesS, extensionNodeInd, longExtNode, longExtNode, true, false)
 
 				extNodeSelectors := make([]byte, rowLen)
-				setExtNodeSelectors(extNodeSelectors, oldExtNode, int(numberOfNibbles0), branchC16)
+				setExtNodeSelectors(extNodeSelectors, longExtNode, int(numberOfNibbles0), branchC16)
 				extNodeSelectors = append(extNodeSelectors, 24)
 
 				var extRows [][]byte
@@ -1513,25 +1513,25 @@ func prepareWitness(statedb *state.StateDB, addr common.Address, proof1, proof2,
 				extRows = append(extRows, extensionRowC)
 
 				rows = append(rows, extRows...)
-				addForHashing(oldExtNode, &toBeHashed)
+				addForHashing(longExtNode, &toBeHashed)
 
 				// Get nibbles of the extension node that gets shortened because of the newly insertd
 				// extension node:
-				oldNibbles := getExtensionNodeNibbles(oldExtNode)
+				longNibbles := getExtensionNodeNibbles(longExtNode)
 
 				ind := byte(keyIndex) + byte(numberOfNibbles) // where the old and new extension nodes start to be different
 				// diffNibble := oldNibbles[ind]
-				oldExtNodeKey := make([]byte, len(key))
-				copy(oldExtNodeKey, key)
+				longExtNodeKey := make([]byte, len(key))
+				copy(longExtNodeKey, key)
 				// We would like to retrieve the shortened extension node from the trie via GetProof or
 				// GetStorageProof (depending whether it is an account proof or storage proof),
 				// the key where we find its underlying branch is `oldExtNodeKey`.
-				for j := ind; int(j) < keyIndex + len(oldNibbles); j++ {
+				for j := ind; int(j) < keyIndex + len(longNibbles); j++ {
 					// keyIndex is where the nibbles of the old and new extension node start
-					oldExtNodeKey[j] = oldNibbles[j - byte(keyIndex)]	
+					longExtNodeKey[j] = longNibbles[j - byte(keyIndex)]	
 				}
 	
-				k := trie.HexToKeybytes(oldExtNodeKey)
+				k := trie.HexToKeybytes(longExtNodeKey)
 				key := common.BytesToHash(k)
 				var proof [][]byte
 				if isAccountProof {
@@ -1541,26 +1541,47 @@ func prepareWitness(statedb *state.StateDB, addr common.Address, proof1, proof2,
 					proof, _, _, _, err = statedb.GetStorageProof(addr, key)
 				}
 				check(err)
-				var oldExtNodeInNewTrie []byte
-				elems, _, err := rlp.SplitList(proof[len(proof) - 1])
-				check(err)
-				c, _ := rlp.CountValues(elems)
 
-				// Note that `oldExtNodeKey` has nibbles properly set only up to the end of nibbles,
-				// this is enough to get the old extension node by `GetProof` or `GetStorageProof` -
-				// we will get its underlying branch, but sometimes also the leaf in a branch if
-				// the nibble will correspond to the leaf (we left the nibbles from
-				// `keyIndex + len(oldNibbles)` the same as the nibbles in the new extension node).
+				var shortExtNode []byte
+				if len2 > len1 {
+					elems, _, err := rlp.SplitList(proof[len(proof) - 1])
+					check(err)
+					c, _ := rlp.CountValues(elems)
 
-				if c == 17 { // last element in a proof is a branch
-					oldExtNodeInNewTrie = proof[len(proof) - 2]
-				} else { // last element in a proof is a leaf
-					oldExtNodeInNewTrie = proof[len(proof) - 3]
+					// Note that `oldExtNodeKey` has nibbles properly set only up to the end of nibbles,
+					// this is enough to get the old extension node by `GetProof` or `GetStorageProof` -
+					// we will get its underlying branch, but sometimes also the leaf in a branch if
+					// the nibble will correspond to the leaf (we left the nibbles from
+					// `keyIndex + len(oldNibbles)` the same as the nibbles in the new extension node).
+
+					if c == 17 { // last element in a proof is a branch
+						shortExtNode = proof[len(proof) - 2]
+					} else { // last element in a proof is a leaf
+						shortExtNode = proof[len(proof) - 3]
+					}
+				} else {
+					shortNibbles := longNibbles[ind:]
+					fmt.Println(shortNibbles)
+					compact := trie.HexToCompact(shortNibbles)
+					// add RLP2:
+					compact = append([]byte{128 + byte(len(compact))}, compact...)
+					fmt.Println(compact)
+
+					longStartBranch := 2 + (longExtNode[1] - 128) // cannot be "short" in terms of having the length at position 0; TODO: extension with length at position 2 not supported (the probability very small)
+					shortExtNode = append(compact, longExtNode[longStartBranch:]...)
+
+					// add RLP1:
+					shortExtNode = append([]byte{192 + byte(len(shortExtNode))}, shortExtNode...)
+
+					// TODO: shortExtNode only one nibble
+
+					fmt.Println(shortExtNode)
+					fmt.Println("==========")
 				}
 
 				// debugging
 				hasher := trie.NewHasher(false)
-				h := hasher.HashData(oldExtNodeInNewTrie)
+				h := hasher.HashData(shortExtNode)
 				hh := common.BytesToHash(h)
 				fmt.Println(hh.Bytes())
 				fmt.Println("========")
@@ -1568,16 +1589,16 @@ func prepareWitness(statedb *state.StateDB, addr common.Address, proof1, proof2,
 				// end debugging
 
 				// Get the nibbles of the shortened extension node:
-				nibbles := getExtensionNodeNibbles(oldExtNodeInNewTrie)
+				nibbles := getExtensionNodeNibbles(shortExtNode)
 
 				// Enable `prepareExtensionRows` call:
 				extNibblesS = append(extNibblesS, nibbles)
 
 				numberOfNibbles1, extensionRowS1, extensionRowC1 :=
-					prepareExtensionRows(extNibblesS, extensionNodeInd + 1, oldExtNodeInNewTrie, oldExtNodeInNewTrie, false, true)
+					prepareExtensionRows(extNibblesS, extensionNodeInd + 1, shortExtNode, shortExtNode, false, true)
 
 				extNodeSelectors1 := make([]byte, rowLen)
-				setExtNodeSelectors(extNodeSelectors1, oldExtNodeInNewTrie, int(numberOfNibbles1), branchC16)
+				setExtNodeSelectors(extNodeSelectors1, shortExtNode, int(numberOfNibbles1), branchC16)
 				extNodeSelectors1 = append(extNodeSelectors1, 25)
 
 				// The shortened extension node is needed as a witness to be able to check in a circuit
@@ -1586,7 +1607,7 @@ func prepareWitness(statedb *state.StateDB, addr common.Address, proof1, proof2,
 				rows = append(rows, extNodeSelectors1)
 				rows = append(rows, extensionRowS1)
 				rows = append(rows, extensionRowC1)
-				addForHashing(oldExtNodeInNewTrie, &toBeHashed)
+				addForHashing(shortExtNode, &toBeHashed)
 			}
 		} else {
 			// We don't have a leaf in the shorter proof, but we will add it there
