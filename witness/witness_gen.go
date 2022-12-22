@@ -1560,20 +1560,22 @@ func prepareWitness(statedb *state.StateDB, addr common.Address, proof1, proof2,
 						shortExtNode = proof[len(proof) - 3]
 					}
 				} else {
-					shortNibbles := longNibbles[ind:]
-					fmt.Println(shortNibbles)
-					compact := trie.HexToCompact(shortNibbles)
-					// add RLP2:
-					compact = append([]byte{128 + byte(len(compact))}, compact...)
-					fmt.Println(compact)
+					// Needed only for len1 > len2
+					rows[len(rows)-branchRows-9][driftedPos] = longNibbles[ind]
 
+					shortNibbles := longNibbles[ind:]
+					compact := trie.HexToCompact(shortNibbles)
 					longStartBranch := 2 + (longExtNode[1] - 128) // cannot be "short" in terms of having the length at position 0; TODO: extension with length at position 2 not supported (the probability very small)
+
+					if len(shortNibbles) > 1 {
+						// add RLP2:
+						compact = append([]byte{128 + byte(len(compact))}, compact...)
+					}
+					
 					shortExtNode = append(compact, longExtNode[longStartBranch:]...)
 
 					// add RLP1:
 					shortExtNode = append([]byte{192 + byte(len(shortExtNode))}, shortExtNode...)
-
-					// TODO: shortExtNode only one nibble
 
 					fmt.Println(shortExtNode)
 					fmt.Println("==========")
