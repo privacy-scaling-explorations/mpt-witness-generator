@@ -1309,12 +1309,6 @@ func prepareWitness(statedb *state.StateDB, addr common.Address, proof1, proof2,
 				longExtNode = proof1[len1 - 1]
 			}
 
-			/*
-			foo, err := statedb.GetTrie().TryGet(key)
-			check(err)
-			fmt.Println(foo)
-			*/
-
 			rlp_elems, _, err := rlp.SplitList(longExtNode)
 			check(err)
 			c, _ := rlp.CountValues(rlp_elems)
@@ -1561,9 +1555,9 @@ func prepareWitness(statedb *state.StateDB, addr common.Address, proof1, proof2,
 					}
 				} else {
 					// Needed only for len1 > len2
-					rows[len(rows)-branchRows-9][driftedPos] = longNibbles[ind]
+					rows[len(rows)-branchRows-9][driftedPos] = longNibbles[numberOfNibbles]
 
-					shortNibbles := longNibbles[ind+1:]
+					shortNibbles := longNibbles[numberOfNibbles+1:]
 					compact := trie.HexToCompact(shortNibbles)
 					longStartBranch := 2 + (longExtNode[1] - 128) // cannot be "short" in terms of having the length at position 0; TODO: extension with length at position 2 not supported (the probability very small)
 
