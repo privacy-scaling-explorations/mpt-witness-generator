@@ -1170,7 +1170,11 @@ func prepareWitness(statedb *state.StateDB, addr common.Address, proof1, proof2,
 		if leafKeyRow[0] != 248 {
 			keyLen := int(leafKeyRow[1] - 128)
 			if (leafKeyRow[2] != 32) && (leafKeyRow[2] != 0) { // second term is for extension node
-				nibbles = append(nibbles, leafKeyRow[2] - 48)
+				if leafKeyRow[2] < 32 { // extension node
+					nibbles = append(nibbles, leafKeyRow[2] - 16)
+				} else { // leaf
+					nibbles = append(nibbles, leafKeyRow[2] - 48)
+				}
 			}
 			for i := 0; i < keyLen - 1; i++ { // -1 because the first byte doesn't have any nibbles
 				b := leafKeyRow[3 + i]
@@ -1182,7 +1186,11 @@ func prepareWitness(statedb *state.StateDB, addr common.Address, proof1, proof2,
 		} else {
 			keyLen := int(leafKeyRow[2] - 128)
 			if (leafKeyRow[3] != 32) && (leafKeyRow[3] != 0) { // second term is for extension node
-				nibbles = append(nibbles, leafKeyRow[3] - 48)
+				if leafKeyRow[3] < 32 { // extension node
+					nibbles = append(nibbles, leafKeyRow[3] - 16)
+				} else { // leaf
+					nibbles = append(nibbles, leafKeyRow[3] - 48)
+				}
 			}
 			for i := 0; i < keyLen - 1; i++ { // -1 because the first byte doesn't have any nibbles
 				b := leafKeyRow[4 + i]
@@ -1312,12 +1320,13 @@ func prepareWitness(statedb *state.StateDB, addr common.Address, proof1, proof2,
 			rlp_elems, _, err := rlp.SplitList(longExtNode)
 			check(err)
 			c, _ := rlp.CountValues(rlp_elems)
-			isInsertedExtNode := (c == 2) && isExtension && !isShorterProofLastLeaf
+			// Note that isModifiedExtNode happens also when we have a branch instead of shortExtNode
+			isModifiedExtNode := (c == 2) && !isShorterProofLastLeaf
 
 			if len1 > len2 {
-				addBranch(proof1[len1-2], proof1[len1-2], key[keyIndex + numberOfNibbles], true, branchC16, branchC1, isInsertedExtNode)
+				addBranch(proof1[len1-2], proof1[len1-2], key[keyIndex + numberOfNibbles], true, branchC16, branchC1, isModifiedExtNode)
 			} else {
-				addBranch(proof2[len2-2], proof2[len2-2], key[keyIndex + numberOfNibbles], false, branchC16, branchC1, isInsertedExtNode)
+				addBranch(proof2[len2-2], proof2[len2-2], key[keyIndex + numberOfNibbles], false, branchC16, branchC1, isModifiedExtNode)
 			}
 			rows = append(rows, extRows...)
 
@@ -1356,7 +1365,7 @@ func prepareWitness(statedb *state.StateDB, addr common.Address, proof1, proof2,
 					// TODO: isInsertedExtNode
 					rows = append(rows, leafRows...)
 				} else {
-					if !isInsertedExtNode {
+					if !isModifiedExtNode {
 						rows = append(rows, leafRows...)
 						var leafForHashingC []byte
 						leafRows, leafForHashingC = prepareStorageLeafRows(proof2[len2-1], 3, false)
@@ -1398,7 +1407,7 @@ func prepareWitness(statedb *state.StateDB, addr common.Address, proof1, proof2,
 				rows[len(rows)-branchRows-offset][driftedPos] =
 					getDriftedPosition(leafRow, numberOfNibbles) // -branchRows-offset lands into branch init
 
-				if isInsertedExtNode {
+				if isModifiedExtNode {
 					rows[len(rows)-branchRows-offset][isInsertedExtNodeS] = 1
 				}
 
@@ -1412,7 +1421,7 @@ func prepareWitness(statedb *state.StateDB, addr common.Address, proof1, proof2,
 
 				rows[len(rows)-branchRows][driftedPos] = getDriftedPosition(leafRows[0], numberOfNibbles) // -branchRows lands into branch init
 
-				if isInsertedExtNode {
+				if isModifiedExtNode {
 					rows[len(rows)-branchRows][isInsertedExtNodeC] = 1
 				}
 
@@ -1425,7 +1434,7 @@ func prepareWitness(statedb *state.StateDB, addr common.Address, proof1, proof2,
 				if isAccountProof {
 					rows = append(rows, leafRows...)
 				} else {
-					if !isInsertedExtNode {
+					if !isModifiedExtNode {
 						rows = append(rows, leafRows...)
 						var leafForHashingC []byte
 						leafRows, leafForHashingC = prepareStorageLeafRows(proof2[len2-1], 3, false)
@@ -1466,7 +1475,7 @@ func prepareWitness(statedb *state.StateDB, addr common.Address, proof1, proof2,
 			// Only key is needed because we already have the value (it doesn't change)
 			// in the parallel proof.
 			if isAccountProof {
-				if !isInsertedExtNode {
+				if !isModifiedExtNode {
 					h := append(neighbourNode, 5)
 					toBeHashed = append(toBeHashed, h)
 
@@ -1479,7 +1488,7 @@ func prepareWitness(statedb *state.StateDB, addr common.Address, proof1, proof2,
 					rows = append(rows, pRows...)	
 				}
 			} else {
-				if !isInsertedExtNode {
+				if !isModifiedExtNode {
 					sLeafRows, _ := prepareStorageLeafRows(neighbourNode, 15, false)
 					rows = append(rows, sLeafRows[0])
 				} else {
@@ -1492,7 +1501,7 @@ func prepareWitness(statedb *state.StateDB, addr common.Address, proof1, proof2,
 				rows = append(rows, nonExistingStorageRow)
 			}
 
-			if isInsertedExtNode {
+			if isModifiedExtNode {
 				numberOfNibbles0, extensionRowS, extensionRowC :=
 					prepareExtensionRows(extNibblesS, extensionNodeInd, longExtNode, longExtNode, true, false)
 

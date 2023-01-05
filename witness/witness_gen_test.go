@@ -3255,17 +3255,6 @@ func TestExtNodeInsertedBefore5After1FirstLevel(t *testing.T) {
 	ExtNodeInserted(key1, key2, key3, "ExtNodeInsertedBefore5After1FirstLevel")	
 }
 
-/*
-func TestExtNodeInNewBranchFirstLevel(t *testing.T) {
-	key1 := common.HexToHash("0x2345610000000000000000000000000000000000000000000000000000000000")
-	key2 := common.HexToHash("0x2345630000000000000000000000000000000000000000000000000000000000")
-	key3 := common.HexToHash("0x6354000000000000000000000000000000000000000000000000000000000000")
-
-	ExtNodeInserted(key1, key2, key3)	
-	ExtNodeInserted(key1, key2, key3, "ExtNodeInsertedInNewBranchFirstLevel")	
-}
-*/
-
 func TestExtNodeInsertedBefore4After1(t *testing.T) {
 	oracle.NodeUrl = oracle.LocalUrl
 
@@ -3374,4 +3363,12 @@ func TestExtNodeDeletedBefore4After1(t *testing.T) {
 	GenerateProof("ExtNodeDeletedBefore4After1", trieModifications, statedb)
 
 	oracle.PreventHashingInSecureTrie = false
+}
+
+func TestExtNodeInNewBranchFirstLevel(t *testing.T) {
+	key1 := common.HexToHash("0x2345610000000000000000000000000000000000000000000000000000000000")
+	key2 := common.HexToHash("0x2345630000000000000000000000000000000000000000000000000000000000")
+	key3 := common.HexToHash("0x6354000000000000000000000000000000000000000000000000000000000000")
+
+	ExtNodeInserted(key1, key2, key3, "ExtNodeInsertedInNewBranchFirstLevel")	
 }
