@@ -1502,8 +1502,15 @@ func prepareWitness(statedb *state.StateDB, addr common.Address, proof1, proof2,
 			}
 
 			if isModifiedExtNode {
+				var extNibbles [][]byte
+				if len1 > len2 {
+					extNibbles = extNibblesC
+				} else {
+					extNibbles = extNibblesS
+				}			
+
 				numberOfNibbles0, extensionRowS, extensionRowC :=
-					prepareExtensionRows(extNibblesS, extensionNodeInd, longExtNode, longExtNode, true, false)
+					prepareExtensionRows(extNibbles, extensionNodeInd, longExtNode, longExtNode, true, false)
 
 				extNodeSelectors := make([]byte, rowLen)
 				setExtNodeSelectors(extNodeSelectors, longExtNode, int(numberOfNibbles0), branchC16)
@@ -1581,23 +1588,14 @@ func prepareWitness(statedb *state.StateDB, addr common.Address, proof1, proof2,
 					shortExtNode = append([]byte{192 + byte(len(shortExtNode))}, shortExtNode...)
 				}
 
-				// debugging
-				hasher := trie.NewHasher(false)
-				h := hasher.HashData(shortExtNode)
-				hh := common.BytesToHash(h)
-				fmt.Println(hh.Bytes())
-				fmt.Println("========")
-
-				// end debugging
-
 				// Get the nibbles of the shortened extension node:
 				nibbles := getExtensionNodeNibbles(shortExtNode)
 
 				// Enable `prepareExtensionRows` call:
-				extNibblesS = append(extNibblesS, nibbles)
+				extNibbles = append(extNibbles, nibbles)
 
 				numberOfNibbles1, extensionRowS1, extensionRowC1 :=
-					prepareExtensionRows(extNibblesS, extensionNodeInd + 1, shortExtNode, shortExtNode, false, true)
+					prepareExtensionRows(extNibbles, extensionNodeInd + 1, shortExtNode, shortExtNode, false, true)
 
 				extNodeSelectors1 := make([]byte, rowLen)
 				setExtNodeSelectors(extNodeSelectors1, shortExtNode, int(numberOfNibbles1), branchC16)
