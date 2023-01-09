@@ -53,6 +53,7 @@ const isExtNodeCNonHashedPos = 32
 
 const isInsertedExtNodeS = 34
 const isInsertedExtNodeC = 35
+const isShortExtNodeBranch = 36
 
 /*
 Info about row type (given as the last element of the row):
@@ -1546,60 +1547,75 @@ func prepareWitness(statedb *state.StateDB, addr common.Address, proof1, proof2,
 				var proof [][]byte
 				if isAccountProof {
 					proof, _, _, _, err = statedb.GetProof(addr)
-
 				} else {
 					proof, _, _, _, err = statedb.GetStorageProof(addr, key)
 				}
 				check(err)
 
-				var shortExtNode []byte
-				if len2 > len1 {
-					elems, _, err := rlp.SplitList(proof[len(proof) - 1])
-					check(err)
-					c, _ := rlp.CountValues(elems)
-
-					// Note that `oldExtNodeKey` has nibbles properly set only up to the end of nibbles,
-					// this is enough to get the old extension node by `GetProof` or `GetStorageProof` -
-					// we will get its underlying branch, but sometimes also the leaf in a branch if
-					// the nibble will correspond to the leaf (we left the nibbles from
-					// `keyIndex + len(oldNibbles)` the same as the nibbles in the new extension node).
-
-					if c == 17 { // last element in a proof is a branch
-						shortExtNode = proof[len(proof) - 2]
-					} else { // last element in a proof is a leaf
-						shortExtNode = proof[len(proof) - 3]
-					}
-				} else {
-					// Needed only for len1 > len2
-					rows[len(rows)-branchRows-9][driftedPos] = longNibbles[numberOfNibbles]
-
-					shortNibbles := longNibbles[numberOfNibbles+1:]
-					compact := trie.HexToCompact(shortNibbles)
-					longStartBranch := 2 + (longExtNode[1] - 128) // cannot be "short" in terms of having the length at position 0; TODO: extension with length at position 2 not supported (the probability very small)
-
-					if len(shortNibbles) > 1 {
-						// add RLP2:
-						compact = append([]byte{128 + byte(len(compact))}, compact...)
-					}
-					
-					shortExtNode = append(compact, longExtNode[longStartBranch:]...)
-
-					// add RLP1:
-					shortExtNode = append([]byte{192 + byte(len(shortExtNode))}, shortExtNode...)
+				// There is no short extension node when `len(longNibbles) - numberOfNibbles = 1`, in this case there
+				// is simply a branch instead.
+				shortExtNodeIsBranch := len(longNibbles) - numberOfNibbles == 1
+				if shortExtNodeIsBranch {
+					rows[len(rows)-branchRows-9][isShortExtNodeBranch] = 1
 				}
 
-				// Get the nibbles of the shortened extension node:
-				nibbles := getExtensionNodeNibbles(shortExtNode)
-
-				// Enable `prepareExtensionRows` call:
-				extNibbles = append(extNibbles, nibbles)
-
-				numberOfNibbles1, extensionRowS1, extensionRowC1 :=
-					prepareExtensionRows(extNibbles, extensionNodeInd + 1, shortExtNode, shortExtNode, false, true)
-
+				var shortExtNode []byte
 				extNodeSelectors1 := make([]byte, rowLen)
-				setExtNodeSelectors(extNodeSelectors1, shortExtNode, int(numberOfNibbles1), branchC16)
-				extNodeSelectors1 = append(extNodeSelectors1, 25)
+				emptyExtRows := prepareEmptyExtensionRows(false, true)
+				extensionRowS1 := emptyExtRows[0]
+				extensionRowC1 := emptyExtRows[1]
+
+				if !shortExtNodeIsBranch {
+					if len2 > len1 {
+						elems, _, err := rlp.SplitList(proof[len(proof) - 1])
+						check(err)
+						c, _ := rlp.CountValues(elems)
+
+						// Note that `oldExtNodeKey` has nibbles properly set only up to the end of nibbles,
+						// this is enough to get the old extension node by `GetProof` or `GetStorageProof` -
+						// we will get its underlying branch, but sometimes also the leaf in a branch if
+						// the nibble will correspond to the leaf (we left the nibbles from
+						// `keyIndex + len(oldNibbles)` the same as the nibbles in the new extension node).
+
+						if c == 17 { // last element in a proof is a branch
+							shortExtNode = proof[len(proof) - 2]
+						} else { // last element in a proof is a leaf
+							shortExtNode = proof[len(proof) - 3]
+						}
+					} else {
+						// Needed only for len1 > len2
+						rows[len(rows)-branchRows-9][driftedPos] = longNibbles[numberOfNibbles]
+
+						shortNibbles := longNibbles[numberOfNibbles+1:]
+						compact := trie.HexToCompact(shortNibbles)
+						longStartBranch := 2 + (longExtNode[1] - 128) // cannot be "short" in terms of having the length at position 0; TODO: extension with length at position 2 not supported (the probability very small)
+
+						if len(shortNibbles) > 1 {
+							// add RLP2:
+							compact = append([]byte{128 + byte(len(compact))}, compact...)
+						}
+						
+						shortExtNode = append(compact, longExtNode[longStartBranch:]...)
+
+						// add RLP1:
+						shortExtNode = append([]byte{192 + byte(len(shortExtNode))}, shortExtNode...)
+					}
+
+					// Get the nibbles of the shortened extension node:
+					nibbles := getExtensionNodeNibbles(shortExtNode)
+
+					// Enable `prepareExtensionRows` call:
+					extNibbles = append(extNibbles, nibbles)
+
+					var numberOfNibbles1 byte
+					numberOfNibbles1, extensionRowS1, extensionRowC1 =
+						prepareExtensionRows(extNibbles, extensionNodeInd + 1, shortExtNode, shortExtNode, false, true)
+
+					setExtNodeSelectors(extNodeSelectors1, shortExtNode, int(numberOfNibbles1), branchC16)
+					extNodeSelectors1 = append(extNodeSelectors1, 25)
+				} else {
+					extNodeSelectors1 = append(extNodeSelectors1, 25)
+				}
 
 				// The shortened extension node is needed as a witness to be able to check in a circuit
 				// that the shortened extension node and newly added leaf (that causes newly inserted

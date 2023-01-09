@@ -3380,3 +3380,11 @@ func TestExtNodeDeletedBranchDeletedFirstLevel(t *testing.T) {
 	
 	ExtNodeDeleted(key1, key2, key3, "ExtNodeDeletedBranchDeletedFirstLevel")
 }
+
+func TestExtNodeModifiedShortIsBranchFirstLevel(t *testing.T) {
+	key1 := common.HexToHash("0x2345610000000000000000000000000000000000000000000000000000000000")
+	key2 := common.HexToHash("0x2345630000000000000000000000000000000000000000000000000000000000")
+	key3 := common.HexToHash("0x2345100000000000000000000000000000000000000000000000000000000000")
+
+	ExtNodeInserted(key1, key2, key3, "ExtNodeModifiedShortIsBranchFirstLevel")	
+}
