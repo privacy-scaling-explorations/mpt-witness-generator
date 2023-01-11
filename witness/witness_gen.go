@@ -1614,6 +1614,11 @@ func prepareWitness(statedb *state.StateDB, addr common.Address, proof1, proof2,
 					setExtNodeSelectors(extNodeSelectors1, shortExtNode, int(numberOfNibbles1), branchC16)
 					extNodeSelectors1 = append(extNodeSelectors1, 25)
 				} else {
+					if len1 > len2 {
+						// Needed only for len1 > len2
+						rows[len(rows)-branchRows-9][driftedPos] = longNibbles[numberOfNibbles]
+					}
+
 					extNodeSelectors1 = append(extNodeSelectors1, 25)
 				}
 
