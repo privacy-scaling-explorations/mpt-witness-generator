@@ -2859,8 +2859,7 @@ func TestNonHashedExtensionNodeInBranchTwoNibbles(t *testing.T) {
 }
 */
 
-func TestExtNodeReplaceWithBranch(t *testing.T) {
-	// Replace extension node with branch
+func TestBranchAfterExtNode(t *testing.T) {
 	blockNum := 0
 	blockNumberParent := big.NewInt(int64(blockNum))
 	blockHeaderParent := oracle.PrefetchBlock(blockNumberParent, true, nil)
@@ -2874,8 +2873,8 @@ func TestExtNodeReplaceWithBranch(t *testing.T) {
 
 	oracle.PreventHashingInSecureTrie = true // to store the unchanged key
 
-	key1Hex := "0x1" 
-	key2Hex := "0x2" 
+	key1Hex := "0x1000000000000000000000000" 
+	key2Hex := "0x2000000000000000000000000" 
 	key1 := common.HexToHash(key1Hex)
 	key2 := common.HexToHash(key2Hex)
 
@@ -2888,14 +2887,13 @@ func TestExtNodeReplaceWithBranch(t *testing.T) {
 	statedb.SetState(addr, key2, val2)
 	fmt.Println(key2)
 
-	// Uncomment if you want to make sure key1 and key2 are stored in the trie before key3 is stored
-	// statedb.IntermediateRoot(false)
+	statedb.IntermediateRoot(false)
 
 	key1Hex += "1"
 	key3 := common.HexToHash(key1Hex)
 	statedb.SetState(addr, key3, val2)
 	fmt.Println(key3)
-	
+
 	statedb.IntermediateRoot(false)
 
 	val := common.BigToHash(big.NewInt(int64(17)))
@@ -2907,7 +2905,7 @@ func TestExtNodeReplaceWithBranch(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	GenerateProof("ExtNodeReplaceWithBranch", trieModifications, statedb)
+	GenerateProof("BranchAfterExtNode", trieModifications, statedb)
 
 	oracle.PreventHashingInSecureTrie = false
 }
@@ -3394,5 +3392,5 @@ func TestExtNodeDeletedExtShortIsBranchFirstLevel(t *testing.T) {
 	key2 := common.HexToHash("0x2345630000000000000000000000000000000000000000000000000000000000")
 	key3 := common.HexToHash("0x2345100000000000000000000000000000000000000000000000000000000000")
 
-	ExtNodeDeleted(key1, key2, key3, "ExtNodeDeletedExtShortIsBranchFirstLevel")	
+	ExtNodeDeleted(key1, key2, key3, "ExtNodeInsertedExtShortIsBranchFirstLevel")	
 }

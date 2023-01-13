@@ -1141,6 +1141,9 @@ func prepareWitness(statedb *state.StateDB, addr common.Address, proof1, proof2,
 					}
 				}
 			}
+
+			extensionRowS = nil
+			extensionRowC = nil
 		default:
 			fmt.Println("invalid number of list elements")
 		}
