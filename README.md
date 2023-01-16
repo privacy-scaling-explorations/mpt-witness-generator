@@ -16,9 +16,21 @@ What is changed compared to geth:
 
 ## Generate witnesses
 
-To generate witnesses for MPT circuit, go into witness folder and execute:
+To generate witnesses for MPT circuit, go into witness folder and execute
 
-go test
+```
+go test witness_gen_test.go witness_gen.go
+```
+
+to generate the tests that use Infura blockchain.
+
+Execute
+
+```
+go test witness_gen_local_test.go witness_gen.go
+```
+
+to generate the tests that use a local blockchain.
 
 The witness files will appear in generated_witnesses folder.
 
