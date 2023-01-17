@@ -10,6 +10,184 @@ import (
 	"github.com/miha-stopar/mpt/trie"
 )
 
+func prepareBranchWitness(rows [][]byte, branch []byte, branchStart int, branchRLPOffset int) {
+	rowInd := 1 // start with 1 because rows[0] contains some RLP data
+	colInd := branchNodeRLPLen
+
+	i := 0
+	insideInd := -1
+	for {
+		if (branchRLPOffset + i == len(branch) - 1) { // -1 because of the last 128 (branch value)
+			break
+		}
+		b := branch[branchRLPOffset+i]
+		if insideInd == -1 && b == 128 {
+			rows[rowInd][branchStart + branchNodeRLPLen] = b
+			rowInd++
+		} else if insideInd == -1 && b != 128 {
+			if b == 160 {
+				insideInd = 32
+				colInd = branchNodeRLPLen - 1
+			} else {
+				// non-hashed node
+				insideInd = int(b) - 192
+				colInd = branchNodeRLPLen
+			}
+			rows[rowInd][branchStart + colInd] = b
+		} else {
+			colInd++
+			rows[rowInd][branchStart + colInd] = b
+			if insideInd == 1 {
+				insideInd = -1
+				rowInd++
+				colInd = 0
+			} else {
+				insideInd--
+			}
+		}	
+
+		i++
+	}	
+}
+
+func prepareTwoBranchesWitness(branch1, branch2 []byte, key, branchC16, branchC1 byte, isBranchSPlaceholder, isBranchCPlaceholder bool) [][]byte {
+	rows := make([][]byte, 17)
+	rows[0] = make([]byte, rowLen)
+
+	// Branch (length 21 = 213 - 192) with one byte of RLP meta data
+	// [213,128,194,32,1,128,194,32,1,128,128,128,128,128,128,128,128,128,128,128,128,128]
+
+	// Branch (length 83) with two bytes of RLP meta data
+	// [248,81,128,128,...
+
+	// Branch (length 340) with three bytes of RLP meta data
+	// [249,1,81,128,16,...
+
+	if branch1[0] < 192 + 32 {
+		rows[0][isBranchSNonHashedPos] = 1
+	} else {
+		rows[0][isBranchSNonHashedPos] = 0
+	}
+	if branch2[0] < 192 + 32 {
+		rows[0][isBranchCNonHashedPos] = 1
+	} else {
+		rows[0][isBranchCNonHashedPos] = 0
+	}
+
+	// branch init:
+	// bytes 0 and 1: whether branch S has 2 or 3 RLP meta data bytes
+	// bytes 2 and 3: whether branch C has 2 or 3 RLP meta data bytes
+	// bytes 4 and 5: branch S RLP meta data bytes
+	// byte 6: branch S RLP meta data byte (if there are 3 RLP meta data bytes in branch S)
+	// bytes 7 and 8: branch C RLP meta data bytes
+	// byte 9: branch C RLP meta data byte (if there are 3 RLP meta data bytes in branch C)
+
+	branch1RLPOffset := 2
+	rows[0][0] = 1 // 1 0 means two RLP bytes
+	rows[0][1] = 0
+	if branch1[0] == 249 {
+		branch1RLPOffset = 3
+		rows[0][0] = 0 // 0 1 means three RLP bytes
+		rows[0][1] = 1
+	} else if branch1[0] < 248 {
+		branch1RLPOffset = 1
+		rows[0][0] = 1 // 1 1 means one RLP byte
+		rows[0][1] = 1
+	}
+
+	branch2RLPOffset := 2
+	rows[0][2] = 1 // 1 0 means two RLP bytes
+	rows[0][3] = 0
+	if branch2[0] == 249 {
+		branch2RLPOffset = 3
+		rows[0][2] = 0 // 0 1 means three RLP bytes
+		rows[0][3] = 1
+	} else if branch2[0] < 248 {
+		branch2RLPOffset = 1
+		rows[0][2] = 1 // 1 1 means one RLP byte
+		rows[0][3] = 1
+	}
+
+	// Let's put in the 0-th row some RLP data (the length of the whole branch RLP)
+	rows[0][4] = branch1[0]
+	rows[0][7] = branch2[0]
+
+	if branch1RLPOffset >= 2 {
+		rows[0][5] = branch1[1]
+	}
+
+	if branch2RLPOffset >= 2 {
+		rows[0][8] = branch2[1]
+	}
+
+	if branch1RLPOffset == 3 {
+		rows[0][6] = branch1[2]
+	}
+
+	if branch2RLPOffset == 3 {
+		rows[0][9] = branch2[2]
+	}
+
+	rows[0][keyPos] = key
+
+	if isBranchSPlaceholder {
+		rows[0][isBranchSPlaceholderPos] = 1
+	}
+	if isBranchCPlaceholder {
+		rows[0][isBranchCPlaceholderPos] = 1
+	}
+
+	rows[0][isBranchC16Pos] = branchC16
+	rows[0][isBranchC1Pos] = branchC1
+
+	for i := 1; i < 17; i++ {
+		rows[i] = make([]byte, rowLen)
+		// assign row type
+		if i == 0 {
+			rows[i][rowLen-1] = 0
+		} else {
+			rows[i][rowLen-1] = 1
+		}
+	}
+
+	prepareBranchWitness(rows, branch1, 0, branch1RLPOffset)
+	prepareBranchWitness(rows, branch2, 2+32, branch2RLPOffset)
+
+	return rows
+}
+
+// addBranch takes two branches (named S and C) as returned by GetProof and returns the MPT circuit
+// branch witness in 19 rows. Note that the MPT circuit branch witness is equipped with some additional
+// information in the first witness row (named branch init row):
+//  - modifiedIndex tells us at which position in the branch the change occurred;
+//  - branchC16/branchC1 tells us how many address (if account proof) or key (if storage proof) nibbles
+//    have been used up to this branch;
+//  - isCPlaceholder tells us whether the C branch is a placeholder.
+//
+// An example of branch (with two children) returned by GetProof:
+// [213,128,194,32,1,128,194,32,1,128,128,128,128,128,128,128,128,128,128,128,128,128]
+func addBranch(branch1, branch2 []byte, modifiedIndex byte, isCPlaceholder bool, branchC16, branchC1 byte, insertedExtension bool) ([][]byte, []byte) {
+	isBranchSPlaceholder := false
+	isBranchCPlaceholder := false
+	if isCPlaceholder {
+		isBranchCPlaceholder = true
+	} else {
+		isBranchSPlaceholder = true
+	}
+
+	bRows := prepareTwoBranchesWitness(branch1, branch2, modifiedIndex, branchC16, branchC1, isBranchSPlaceholder, isBranchCPlaceholder)
+
+	branchToBeHashed := branch1
+	if !isCPlaceholder {
+		branchToBeHashed = branch2
+	}
+
+	return bRows, branchToBeHashed
+}
+
+// prepareWitness takes two GetProof proofs (before and after single modification) and prepares
+// a witness for an MPT circuit. Alongside, it prepares the byte streams that need to be hashed
+// and inserted into Keccak lookup table.
 func prepareWitness(statedb *state.StateDB, addr common.Address, proof1, proof2, extNibblesS, extNibblesC [][]byte, key []byte, neighbourNode []byte,
 		isAccountProof, nonExistingAccountProof, nonExistingStorageProof, isShorterProofLastLeaf bool) ([][]byte, [][]byte, bool) {
 	rows := make([][]byte, 0)
@@ -204,25 +382,6 @@ func prepareWitness(statedb *state.StateDB, addr common.Address, proof1, proof2,
 		}
 	}
 
-	addBranch := func(branch1, branch2 []byte, modifiedIndex byte, isCPlaceholder bool, branchC16, branchC1 byte, insertedExtension bool) {
-		isBranchSPlaceholder := false
-		isBranchCPlaceholder := false
-		if isCPlaceholder {
-			isBranchCPlaceholder = true
-		} else {
-			isBranchSPlaceholder = true
-		}
-
-		bRows := prepareTwoBranchesWitness(branch1, branch2, modifiedIndex, branchC16, branchC1, isBranchSPlaceholder, isBranchCPlaceholder)
-		rows = append(rows, bRows...)
-
-		branchToBeHashed := branch1
-		if !isCPlaceholder {
-			branchToBeHashed = branch2
-		}
-		addForHashing(branchToBeHashed, &toBeHashed)
-	}
-
 	getDriftedPosition := func(leafKeyRow []byte, numberOfNibbles int) byte {
 		// Get position to which a leaf drifted (to be set in branch init):
 		var nibbles []byte
@@ -383,9 +542,13 @@ func prepareWitness(statedb *state.StateDB, addr common.Address, proof1, proof2,
 			isModifiedExtNode := (c == 2) && !isShorterProofLastLeaf
 
 			if len1 > len2 {
-				addBranch(proof1[len1-2], proof1[len1-2], key[keyIndex + numberOfNibbles], true, branchC16, branchC1, isModifiedExtNode)
+				bRows, branchToBeHashed := addBranch(proof1[len1-2], proof1[len1-2], key[keyIndex + numberOfNibbles], true, branchC16, branchC1, isModifiedExtNode)
+				rows = append(rows, bRows...)
+				addForHashing(branchToBeHashed, &toBeHashed)
 			} else {
-				addBranch(proof2[len2-2], proof2[len2-2], key[keyIndex + numberOfNibbles], false, branchC16, branchC1, isModifiedExtNode)
+				bRows, branchToBeHashed := addBranch(proof2[len2-2], proof2[len2-2], key[keyIndex + numberOfNibbles], false, branchC16, branchC1, isModifiedExtNode)
+				rows = append(rows, bRows...)
+				addForHashing(branchToBeHashed, &toBeHashed)
 			}
 			rows = append(rows, extRows...)
 
