@@ -219,6 +219,47 @@ func prepareParallelBranches(branch1, branch2 []byte, modifiedIndex byte, isCPla
 	return bRows, branchToBeHashed
 }
 
+// getDriftedPosition returns the position in branch to which the leaf drifted because another
+// leaf has been added to the same slot. This information is stored into a branch init row.
+func getDriftedPosition(leafKeyRow []byte, numberOfNibbles int) byte {
+	var nibbles []byte
+	if leafKeyRow[0] != 248 {
+		keyLen := int(leafKeyRow[1] - 128)
+		if (leafKeyRow[2] != 32) && (leafKeyRow[2] != 0) { // second term is for extension node
+			if leafKeyRow[2] < 32 { // extension node
+				nibbles = append(nibbles, leafKeyRow[2] - 16)
+			} else { // leaf
+				nibbles = append(nibbles, leafKeyRow[2] - 48)
+			}
+		}
+		for i := 0; i < keyLen - 1; i++ { // -1 because the first byte doesn't have any nibbles
+			b := leafKeyRow[3 + i]
+			n1 := b / 16
+			n2 := b - n1 * 16
+			nibbles = append(nibbles, n1)
+			nibbles = append(nibbles, n2)
+		}
+	} else {
+		keyLen := int(leafKeyRow[2] - 128)
+		if (leafKeyRow[3] != 32) && (leafKeyRow[3] != 0) { // second term is for extension node
+			if leafKeyRow[3] < 32 { // extension node
+				nibbles = append(nibbles, leafKeyRow[3] - 16)
+			} else { // leaf
+				nibbles = append(nibbles, leafKeyRow[3] - 48)
+			}
+		}
+		for i := 0; i < keyLen - 1; i++ { // -1 because the first byte doesn't have any nibbles
+			b := leafKeyRow[4 + i]
+			n1 := b / 16
+			n2 := b - n1 * 16
+			nibbles = append(nibbles, n1)
+			nibbles = append(nibbles, n2)
+		}
+	}
+
+	return nibbles[numberOfNibbles]
+}
+
 // prepareWitness takes two GetProof proofs (before and after single modification) and prepares
 // a witness for an MPT circuit. Alongside, it prepares the byte streams that need to be hashed
 // and inserted into Keccak lookup table.
@@ -402,81 +443,6 @@ func prepareWitness(statedb *state.StateDB, addr common.Address, proof1, proof2,
 
 			extensionRowS = nil
 			extensionRowC = nil
-		}
-	}
-
-	getDriftedPosition := func(leafKeyRow []byte, numberOfNibbles int) byte {
-		// Get position to which a leaf drifted (to be set in branch init):
-		var nibbles []byte
-		if leafKeyRow[0] != 248 {
-			keyLen := int(leafKeyRow[1] - 128)
-			if (leafKeyRow[2] != 32) && (leafKeyRow[2] != 0) { // second term is for extension node
-				if leafKeyRow[2] < 32 { // extension node
-					nibbles = append(nibbles, leafKeyRow[2] - 16)
-				} else { // leaf
-					nibbles = append(nibbles, leafKeyRow[2] - 48)
-				}
-			}
-			for i := 0; i < keyLen - 1; i++ { // -1 because the first byte doesn't have any nibbles
-				b := leafKeyRow[3 + i]
-				n1 := b / 16
-				n2 := b - n1 * 16
-				nibbles = append(nibbles, n1)
-				nibbles = append(nibbles, n2)
-			}
-		} else {
-			keyLen := int(leafKeyRow[2] - 128)
-			if (leafKeyRow[3] != 32) && (leafKeyRow[3] != 0) { // second term is for extension node
-				if leafKeyRow[3] < 32 { // extension node
-					nibbles = append(nibbles, leafKeyRow[3] - 16)
-				} else { // leaf
-					nibbles = append(nibbles, leafKeyRow[3] - 48)
-				}
-			}
-			for i := 0; i < keyLen - 1; i++ { // -1 because the first byte doesn't have any nibbles
-				b := leafKeyRow[4 + i]
-				n1 := b / 16
-				n2 := b - n1 * 16
-				nibbles = append(nibbles, n1)
-				nibbles = append(nibbles, n2)
-			}
-		}
-
-		return nibbles[numberOfNibbles]
-	}	
-
-	setExtNodeSelectors := func(row, proofEl []byte, numberOfNibbles int, branchC16 byte) {
-		row[isExtensionPos] = 1
-		if len(proofEl) > 56 { // 56 because there is 1 byte for length
-			// isCExtLongerThan55 doesn't need to be set here
-			row[isSExtLongerThan55Pos] = 1
-		}
-
-		if len(proofEl) < 32 {
-			// isExtNodeSNonHashed doesn't need to be set here
-			row[isExtNodeSNonHashedPos] = 1
-		}
-
-		if numberOfNibbles == 1 {
-			if branchC16 == 1 {
-				row[isExtShortC16Pos] = 1
-			} else {
-				row[isExtShortC1Pos] = 1
-			}
-		} else {
-			if numberOfNibbles % 2 == 0 {
-				if branchC16 == 1 {
-					row[isExtLongEvenC16Pos] = 1
-				} else {
-					row[isExtLongEvenC1Pos] = 1
-				}
-			} else {
-				if branchC16 == 1 {
-					row[isExtLongOddC16Pos] = 1
-				} else {
-					row[isExtLongOddC1Pos] = 1
-				}
-			}
 		}
 	}
 
