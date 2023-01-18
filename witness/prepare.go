@@ -1,11 +1,9 @@
 package witness
 
 import (
-	"fmt"
 	"math"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/miha-stopar/mpt/state"
 	"github.com/miha-stopar/mpt/trie"
 )
@@ -238,24 +236,20 @@ func prepareWitness(statedb *state.StateDB, addr common.Address, proof1, proof2,
 	len1 := len(proof1)
 	len2 := len(proof2)
 
-	// When value in the trie is updated, both proofs are of the same length.
-	// When value is added and there is no node which needs to be changed
-	// into branch, one proof has a leaf and one doesn't have it.
-
-	// Check if the last proof element in the shorter proof is a leaf -
-	// if it is, then there is an additional branch.
-	additionalBranchNeeded := func(proofEl []byte) bool {
-		elems, _, err := rlp.SplitList(proofEl)
-		check(err)
-		c, _ := rlp.CountValues(elems)
-		return c == 2
-	}
+	// When a value in the trie is updated, both proofs are of the same length.
+	// Otherwise, when a value is added (not updated) and there is no node which needs to be changed
+	// into a branch, one proof has a leaf and one does not have it.
+	// The third option is when a value is added and the existing leaf is turned into a branch,
+	// in this case we have an additional branch in C proof (when deleting a value causes
+	// that a branch with two leaves turns into a leaf, we have an additional branch in S proof).
 
 	additionalBranch := false
 	if len1 < len2 && len1 > 0 { // len = 0 when trie trie is empty
-		additionalBranch = additionalBranchNeeded(proof1[len1-1])
+		// Check if the last proof element in the shorter proof is a leaf -
+		// if it is, then there is an additional branch.
+		additionalBranch = !isBranch(proof1[len1 - 1])
 	} else if len2 < len1 && len2 > 0 {
-		additionalBranch = additionalBranchNeeded(proof2[len2-1])
+		additionalBranch = !isBranch(proof2[len2 - 1])
 	}
 
 	upTo := minLen
@@ -270,13 +264,8 @@ func prepareWitness(statedb *state.StateDB, addr common.Address, proof1, proof2,
 	branchC16 := byte(0); 
 	branchC1 := byte(1);
 	for i := 0; i < upTo; i++ {
-		elems, _, err := rlp.SplitList(proof1[i])
-		if err != nil {
-			fmt.Println("decode error", err)
-		}
-
-		switch c, _ := rlp.CountValues(elems); c {
-		case 2:
+		isItBranch := isBranch(proof1[i])
+		if !isItBranch {
 			if i != len1 - 1 { // extension node
 				var numberOfNibbles byte
 				numberOfNibbles, extensionRowS, extensionRowC = prepareExtensionRows(extNibblesS, extensionNodeInd, proof1[i], proof2[i], false, false)
@@ -314,7 +303,7 @@ func prepareWitness(statedb *state.StateDB, addr common.Address, proof1, proof2,
 
 				toBeHashed = append(toBeHashed, leafForHashing)
 			}
-		case 17:
+		} else {
 			switchC16 := true // If not extension node, switchC16 = true.
 			if extensionRowS != nil {
 				keyLen := getExtensionNodeKeyLen(proof1[i-1])
@@ -413,8 +402,6 @@ func prepareWitness(statedb *state.StateDB, addr common.Address, proof1, proof2,
 
 			extensionRowS = nil
 			extensionRowC = nil
-		default:
-			fmt.Println("invalid number of list elements")
 		}
 	}
 
@@ -571,11 +558,9 @@ func prepareWitness(statedb *state.StateDB, addr common.Address, proof1, proof2,
 				longExtNode = proof1[len1 - 1]
 			}
 
-			rlp_elems, _, err := rlp.SplitList(longExtNode)
-			check(err)
-			c, _ := rlp.CountValues(rlp_elems)
+			isItBranch := isBranch(longExtNode)
 			// Note that isModifiedExtNode happens also when we have a branch instead of shortExtNode
-			isModifiedExtNode := (c == 2) && !isShorterProofLastLeaf
+			isModifiedExtNode := !isItBranch && !isShorterProofLastLeaf
 
 			if len1 > len2 {
 				bRows, branchToBeHashed := prepareParallelBranches(proof1[len1-2], proof1[len1-2], key[keyIndex + numberOfNibbles], true, branchC16, branchC1, isModifiedExtNode)
@@ -802,6 +787,7 @@ func prepareWitness(statedb *state.StateDB, addr common.Address, proof1, proof2,
 				k := trie.HexToKeybytes(longExtNodeKey)
 				key := common.BytesToHash(k)
 				var proof [][]byte
+				var err error
 				if isAccountProof {
 					proof, _, _, _, err = statedb.GetProof(addr)
 				} else {
@@ -824,9 +810,7 @@ func prepareWitness(statedb *state.StateDB, addr common.Address, proof1, proof2,
 
 				if !shortExtNodeIsBranch {
 					if len2 > len1 {
-						elems, _, err := rlp.SplitList(proof[len(proof) - 1])
-						check(err)
-						c, _ := rlp.CountValues(elems)
+						isItBranch := isBranch(proof[len(proof) - 1])
 
 						// Note that `oldExtNodeKey` has nibbles properly set only up to the end of nibbles,
 						// this is enough to get the old extension node by `GetProof` or `GetStorageProof` -
@@ -834,7 +818,7 @@ func prepareWitness(statedb *state.StateDB, addr common.Address, proof1, proof2,
 						// the nibble will correspond to the leaf (we left the nibbles from
 						// `keyIndex + len(oldNibbles)` the same as the nibbles in the new extension node).
 
-						if c == 17 { // last element in a proof is a branch
+						if isItBranch { // last element in a proof is a branch
 							shortExtNode = proof[len(proof) - 2]
 						} else { // last element in a proof is a leaf
 							shortExtNode = proof[len(proof) - 3]
@@ -955,13 +939,9 @@ func prepareWitness(statedb *state.StateDB, addr common.Address, proof1, proof2,
 		addPlaceholder()
 	} else {
 		// Let's always use C proof for non-existing proof.
-		lastRLP := proof2[len(proof2)-1];
-		elems, _, err := rlp.SplitList(lastRLP)
-		check(err)
-		c, _ := rlp.CountValues(elems)
 		// Account proof has drifted leaf as the last row, storage proof has non-existing-storage row
 		// as the last row.
-		if c == 17 {
+		if isBranch(proof2[len(proof2)-1]) {
 			// When non existing proof and only the branches are returned, we add a placeholder leaf.
 			// This is to enable the lookup (in account leaf row), most constraints are disabled for these rows.
 			if !isAccountProof {

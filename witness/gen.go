@@ -10,6 +10,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/miha-stopar/mpt/oracle"
 	"github.com/miha-stopar/mpt/state"
 	"github.com/miha-stopar/mpt/trie"
@@ -146,6 +147,18 @@ func listToJson(row []byte) string {
 	json += "]"
 
 	return json
+}
+
+// isBranch takes GetProof element and returns whether the element is a branch.
+func isBranch(proofEl []byte) bool {
+	elems, _, err := rlp.SplitList(proofEl)
+	check(err)
+	c, err1 := rlp.CountValues(elems)
+	check(err1)
+	if c != 2 && c != 17 {
+		log.Fatal("Proof element is neither leaf or branch")
+	}
+	return c == 17
 }
 
 // Equip proof with intermediate state roots, first level info, counter, address RLC,
