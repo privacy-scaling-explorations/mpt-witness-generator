@@ -82,8 +82,18 @@ Info about row type (given as the last element of the row):
 25: modified extension node after modification selectors
 */
 
-type ModType int64
+const (
+	BranchInitRow = iota
+	BranchChildRow
+	StorageLeafKeySRow
+	StorageLeafKeyCRow
+	AccountLeafKeyCRow // 4
+	HashRow
+	AccountLeafKeyRow // 6
+	// TODO
+)
 
+type ModType int64
 const (
 	StorageMod ModType = iota
 	NonceMod
@@ -292,10 +302,12 @@ func prepareDriftedLeafPlaceholder(isAccount bool) [][]byte {
 	return [][]byte{driftedLeaf}
 }
 
+// addForHashing takes the stream of bytes and append a byte to it that marks this stream
+// to be hashed and put into keccak lookup table that is to be used by MPT circuit.
 func addForHashing(toBeHashed []byte, toBeHashedCollection *[][]byte) {
 	forHashing := make([]byte, len(toBeHashed))
 	copy(forHashing, toBeHashed)
-	forHashing = append(forHashing, 5) // 5 means it needs to be hashed
+	forHashing = append(forHashing, HashRow)
 	*toBeHashedCollection = append(*toBeHashedCollection, forHashing)
 }
 

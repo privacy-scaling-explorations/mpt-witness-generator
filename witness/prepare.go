@@ -10,6 +10,12 @@ import (
 	"github.com/miha-stopar/mpt/trie"
 )
 
+// prepareBranchWitness takes the rows that are to be filled with branch data and it takes
+// a branch as returned by GetProof. There are 19 rows for a branch and prepareBranchWitness
+// fills the rows from index 1 to index 16 (index 0 is init, index 17 and 18 are for extension
+// node when it applies). The parameter branchStart depends on whether it is S or C branch -
+// S occupies the first 34 columns, C occupies the next 34 columns.
+// The branch children are positioned each in its own row.
 func prepareBranchWitness(rows [][]byte, branch []byte, branchStart int, branchRLPOffset int) {
 	rowInd := 1 // start with 1 because rows[0] contains some RLP data
 	colInd := branchNodeRLPLen
@@ -50,7 +56,34 @@ func prepareBranchWitness(rows [][]byte, branch []byte, branchStart int, branchR
 	}	
 }
 
-func prepareTwoBranchesWitness(branch1, branch2 []byte, key, branchC16, branchC1 byte, isBranchSPlaceholder, isBranchCPlaceholder bool) [][]byte {
+// prepareTwoBranches takes two branches (named S and C) as returned by GetProof and returns
+// 19 rows. The first row is branch init row which contains information of how long is each
+// of the two branches, at which child the change occurs, whether the branch is a placeholder.
+// The following 16 rows present branch children: S branch occupies the first 34 columns,
+// C branch occupies the next 34 columns. The last two rows present the extension node (when
+// a branch is in an extension node, otherwise all 0s).
+//
+// Example:
+// [1 0 1 0 248 241 0 248 241 0 1 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]
+// [0 0 128 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 128 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1]
+// [0 160 164 92 78 34 81 137 173 236 78 208 145 118 128 60 46 5 176 8 229 165 42 222 110 4 252 228 93 243 26 160 241 85 0 160 95 174 59 239 229 74 221 53 227 115 207 137 94 29 119 126 56 209 55 198 212 179 38 213 219 36 111 62 46 43 176 168 1]
+// [0 0 128 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 128 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1]
+// [0 160 60 157 212 182 167 69 206 32 151 2 14 23 149 67 58 187 84 249 195 159 106 68 203 199 199 65 194 33 215 102 71 138 0 160 60 157 212 182 167 69 206 32 151 2 14 23 149 67 58 187 84 249 195 159 106 68 203 199 199 65 194 33 215 102 71 138 1]
+// [0 0 128 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 128 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1]
+// [0 0 128 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 128 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1]
+// [0 160 21 230 18 20 253 84 192 151 178 53 157 0 9 105 229 121 222 71 120 109 159 109 9 218 254 1 50 139 117 216 194 252 0 160 21 230 18 20 253 84 192 151 178 53 157 0 9 105 229 121 222 71 120 109 159 109 9 218 254 1 50 139 117 216 194 252 1]
+// [0 160 229 29 220 149 183 173 68 40 11 103 39 76 251 20 162 242 21 49 103 245 160 99 143 218 74 196 2 61 51 34 105 123 0 160 229 29 220 149 183 173 68 40 11 103 39 76 251 20 162 242 21 49 103 245 160 99 143 218 74 196 2 61 51 34 105 123 1]
+// [0 0 128 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 128 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1]
+// [0 160 0 140 67 252 58 164 68 143 34 163 138 133 54 27 218 38 80 20 142 115 221 100 73 161 165 75 83 53 8 58 236 1 0 160 0 140 67 252 58 164 68 143 34 163 138 133 54 27 218 38 80 20 142 115 221 100 73 161 165 75 83 53 8 58 236 1 1]
+// [0 160 149 169 206 0 129 86 168 48 42 127 100 73 109 90 171 56 216 28 132 44 167 14 46 189 224 213 37 0 234 165 140 236 0 160 149 169 206 0 129 86 168 48 42 127 100 73 109 90 171 56 216 28 132 44 167 14 46 189 224 213 37 0 234 165 140 236 1]
+// [0 160 42 63 45 28 165 209 201 220 231 99 153 208 48 174 250 66 196 18 123 250 55 107 64 178 159 49 190 84 159 179 138 235 0 160 42 63 45 28 165 209 201 220 231 99 153 208 48 174 250 66 196 18 123 250 55 107 64 178 159 49 190 84 159 179 138 235 1]
+// [0 0 128 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 128 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1]
+// [0 0 128 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 128 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1]
+// [0 0 128 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 128 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1]
+// [0 0 128 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 128 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1]
+// [0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 16]
+// [0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 17]
+func prepareTwoBranches(branch1, branch2 []byte, key, branchC16, branchC1 byte, isBranchSPlaceholder, isBranchCPlaceholder bool) [][]byte {
 	rows := make([][]byte, 17)
 	rows[0] = make([]byte, rowLen)
 
@@ -144,20 +177,23 @@ func prepareTwoBranchesWitness(branch1, branch2 []byte, key, branchC16, branchC1
 		rows[i] = make([]byte, rowLen)
 		// assign row type
 		if i == 0 {
-			rows[i][rowLen-1] = 0
+			rows[i][rowLen-1] = BranchInitRow
 		} else {
-			rows[i][rowLen-1] = 1
+			rows[i][rowLen-1] = BranchChildRow
 		}
 	}
 
+	// Fill rows 1 - 16 (columns 0 - 33) with S branch:
 	prepareBranchWitness(rows, branch1, 0, branch1RLPOffset)
+	// Fill rows 1 - 16 (columns 34 - 67) with C branch:
 	prepareBranchWitness(rows, branch2, 2+32, branch2RLPOffset)
 
 	return rows
 }
 
-// addBranch takes two branches (named S and C) as returned by GetProof and returns the MPT circuit
-// branch witness in 19 rows. Note that the MPT circuit branch witness is equipped with some additional
+// prepareParallelBranches takes two branches (named S and C) as returned by GetProof and returns
+// the MPT circuit witness of two branches in 19 rows.
+// Note that the MPT circuit branch witness is equipped with some additional
 // information in the first witness row (named branch init row):
 //  - modifiedIndex tells us at which position in the branch the change occurred;
 //  - branchC16/branchC1 tells us how many address (if account proof) or key (if storage proof) nibbles
@@ -166,7 +202,7 @@ func prepareTwoBranchesWitness(branch1, branch2 []byte, key, branchC16, branchC1
 //
 // An example of branch (with two children) returned by GetProof:
 // [213,128,194,32,1,128,194,32,1,128,128,128,128,128,128,128,128,128,128,128,128,128]
-func addBranch(branch1, branch2 []byte, modifiedIndex byte, isCPlaceholder bool, branchC16, branchC1 byte, insertedExtension bool) ([][]byte, []byte) {
+func prepareParallelBranches(branch1, branch2 []byte, modifiedIndex byte, isCPlaceholder bool, branchC16, branchC1 byte, insertedExtension bool) ([][]byte, []byte) {
 	isBranchSPlaceholder := false
 	isBranchCPlaceholder := false
 	if isCPlaceholder {
@@ -175,7 +211,7 @@ func addBranch(branch1, branch2 []byte, modifiedIndex byte, isCPlaceholder bool,
 		isBranchSPlaceholder = true
 	}
 
-	bRows := prepareTwoBranchesWitness(branch1, branch2, modifiedIndex, branchC16, branchC1, isBranchSPlaceholder, isBranchCPlaceholder)
+	bRows := prepareTwoBranches(branch1, branch2, modifiedIndex, branchC16, branchC1, isBranchSPlaceholder, isBranchCPlaceholder)
 
 	branchToBeHashed := branch1
 	if !isCPlaceholder {
@@ -300,7 +336,7 @@ func prepareWitness(statedb *state.StateDB, addr common.Address, proof1, proof2,
 				}
 			}
 
-			bRows := prepareTwoBranchesWitness(proof1[i], proof2[i], key[keyIndex], branchC16, branchC1, false, false)
+			bRows := prepareTwoBranches(proof1[i], proof2[i], key[keyIndex], branchC16, branchC1, false, false)
 			keyIndex += 1
 
 			// extension node rows
@@ -542,11 +578,11 @@ func prepareWitness(statedb *state.StateDB, addr common.Address, proof1, proof2,
 			isModifiedExtNode := (c == 2) && !isShorterProofLastLeaf
 
 			if len1 > len2 {
-				bRows, branchToBeHashed := addBranch(proof1[len1-2], proof1[len1-2], key[keyIndex + numberOfNibbles], true, branchC16, branchC1, isModifiedExtNode)
+				bRows, branchToBeHashed := prepareParallelBranches(proof1[len1-2], proof1[len1-2], key[keyIndex + numberOfNibbles], true, branchC16, branchC1, isModifiedExtNode)
 				rows = append(rows, bRows...)
 				addForHashing(branchToBeHashed, &toBeHashed)
 			} else {
-				bRows, branchToBeHashed := addBranch(proof2[len2-2], proof2[len2-2], key[keyIndex + numberOfNibbles], false, branchC16, branchC1, isModifiedExtNode)
+				bRows, branchToBeHashed := prepareParallelBranches(proof2[len2-2], proof2[len2-2], key[keyIndex + numberOfNibbles], false, branchC16, branchC1, isModifiedExtNode)
 				rows = append(rows, bRows...)
 				addForHashing(branchToBeHashed, &toBeHashed)
 			}
