@@ -260,6 +260,10 @@ func getDriftedPosition(leafKeyRow []byte, numberOfNibbles int) byte {
 	return nibbles[numberOfNibbles]
 }
 
+// addModifiedExtNode adds rows for a modified extension node before and after modification.
+// These rows are added only when an existing extension node gets shortened or elongated (in terms
+// of the extension node nibbles) because of another extension node being added or deleted.
+// The rows added are somewhat exceptional as otherwise they do not appear.
 func addModifiedExtNode(statedb *state.StateDB, addr common.Address, rows *[][]byte, proof1, proof2,
 		extNibblesS, extNibblesC [][]byte,
 		key, neighbourNode []byte,
@@ -403,8 +407,10 @@ func addModifiedExtNode(statedb *state.StateDB, addr common.Address, rows *[][]b
 	addForHashing(shortExtNode, toBeHashed)
 }
 
-
-func addBranchAndPlaceholder(statedb *state.StateDB, addr common.Address, rows *[][]byte, proof1, proof2,
+// addBranchAndPlaceholderAndLeaf adds to the rows a branch and its placeholder counterpart
+// (used when one of the proofs have one branch more than the other). It also adds leaf rows.
+// When needed, it adds modified extension node rows.
+func addBranchAndPlaceholderAndLeaf(statedb *state.StateDB, addr common.Address, rows *[][]byte, proof1, proof2,
 		extNibblesS, extNibblesC [][]byte,
 		key, neighbourNode []byte,
 		keyIndex, extensionNodeInd int,
@@ -504,33 +510,7 @@ func addBranchAndPlaceholder(statedb *state.StateDB, addr common.Address, rows *
 	}
 	*rows = append(*rows, extRows...)
 
-	var leafRows [][]byte
-	var leafForHashing [][]byte
-	if isAccountProof {
-		leafS := proof1[len1-1]
-		leafC := proof2[len2-1]
-
-		// When generating a proof that account doesn't exist, the length of both proofs is the same (doesn't reach
-		// this code).
-		keyRowS, keyRowC, nonExistingAccountRow, nonceBalanceRowS, nonceBalanceRowC, storageCodeHashRowS, storageCodeHashRowC :=
-			prepareAccountLeafRows(leafS, leafC, key, nonExistingAccountProof, false)
-		leafRows = append(leafRows, keyRowS)
-		leafRows = append(leafRows, keyRowC)
-		leafRows = append(leafRows, nonExistingAccountRow) // not really needed
-		leafRows = append(leafRows, nonceBalanceRowS)
-		leafRows = append(leafRows, nonceBalanceRowC)
-		leafRows = append(leafRows, storageCodeHashRowS)
-		leafRows = append(leafRows, storageCodeHashRowC)
-
-		leafS = append(leafS, 5)
-		leafC = append(leafC, 5)
-		leafForHashing = append(leafForHashing, leafS)
-		leafForHashing = append(leafForHashing, leafC)
-	} else {
-		var leafForHashingS []byte
-		leafRows, leafForHashingS = prepareStorageLeafRows(proof1[len1-1], 2, false)
-		leafForHashing = append(leafForHashing, leafForHashingS)
-	}
+	leafRows, leafForHashing := prepareLeaf(proof1, proof2, key, isAccountProof, nonExistingAccountProof)
 
 	if len1 > len2 {
 		*toBeHashed = append(*toBeHashed, leafForHashing...)
@@ -696,7 +676,7 @@ func addElementAndPlaceholder(statedb *state.StateDB, addr common.Address, rows 
 		additionalBranch, isAccountProof, nonExistingAccountProof,
 		isShorterProofLastLeaf bool, branchC16, branchC1 byte, toBeHashed *[][]byte) {
 	if additionalBranch {
-		addBranchAndPlaceholder(statedb, addr, rows, proof1, proof2, extNibblesS, extNibblesC, key, neighbourNode,
+		addBranchAndPlaceholderAndLeaf(statedb, addr, rows, proof1, proof2, extNibblesS, extNibblesC, key, neighbourNode,
 			keyIndex, extensionNodeInd, additionalBranch,
 			isAccountProof, nonExistingAccountProof, isShorterProofLastLeaf, branchC16, branchC1, toBeHashed)
 	} else {
