@@ -150,7 +150,39 @@ func prepareNonExistingStorageRow(leafC, keyNibbles []byte, noLeaf bool) []byte 
 	return nonExistingStorageRow
 }
 
-func getNonceBalanceRow(leaf, nonce []byte, keyLen, balanceStart int, balanceRlpLen byte) []byte {
+// getNonceBalanceRow takes GetProof account leaf and prepares a row that contains nonce and balance.
+func getNonceBalanceRow(leaf []byte, keyLen int) ([]byte, int) {
+	nonceStart := 3 + keyLen + 1 + 1 + 1 + 1
+
+	var nonceRlpLen byte
+	var balanceStart int
+	var nonce []byte
+
+	// If the first nonce byte is > 128, it means it presents (nonce_len - 128),
+	// if the first nonce byte is <= 128, the actual nonce value is < 128 and is exactly this first byte
+	// (however, when nonce = 0, the actual value that is stored is 128)
+	if leaf[nonceStart] <= 128 {
+		// only one nonce byte
+		nonceRlpLen = 1
+		nonce = leaf[nonceStart : nonceStart+int(nonceRlpLen)]
+		balanceStart = nonceStart + int(nonceRlpLen)
+	} else {
+		nonceRlpLen = leaf[nonceStart] - 128
+		nonce = leaf[nonceStart : nonceStart+int(nonceRlpLen)+1]
+		balanceStart = nonceStart + int(nonceRlpLen) + 1
+	}
+
+	var balanceRlpLen byte
+	var storageStart int
+	if leaf[balanceStart] <= 128 {
+		// only one balance byte
+		balanceRlpLen = 1
+		storageStart = balanceStart + int(balanceRlpLen)
+	} else {
+		balanceRlpLen = leaf[balanceStart] - 128
+		storageStart = balanceStart + int(balanceRlpLen) + 1
+	}
+
 	nonceBalanceRow := make([]byte, rowLen)
 	for i := 0; i < len(nonce); i++ {
 		nonceBalanceRow[branchNodeRLPLen+i] = nonce[i]
@@ -169,7 +201,7 @@ func getNonceBalanceRow(leaf, nonce []byte, keyLen, balanceStart int, balanceRlp
 		nonceBalanceRow[branch2start+2+i] = balance[i] // c_advices
 	}
 
-	return nonceBalanceRow
+	return nonceBalanceRow, storageStart
 }
 
 func getStorageCodeHashRow(leaf []byte, storageStart int) []byte {
@@ -285,62 +317,10 @@ func prepareAccountLeafRows(leafS, leafC, addressNibbles []byte, nonExistingAcco
 			panic("Account leaf RLP 2 (C)")
 		}
 
-		nonceStartS := 3 + keyLenS + 1 + 1 + 1 + 1
-		nonceStartC := 3 + keyLenC + 1 + 1 + 1 + 1
-
-		var nonceRlpLenS byte
-		var nonceRlpLenC byte
-		var balanceStartS int
-		var balanceStartC int
-		var nonceS []byte
-		var nonceC []byte
-		// If the first nonce byte is > 128, it means it presents (nonce_len - 128),
-		// if the first nonce byte is <= 128, the actual nonce value is < 128 and is exactly this first byte
-		// (however, when nonce = 0, the actual value that is stored is 128)
-		if leafS[nonceStartS] <= 128 {
-			// only one nonce byte
-			nonceRlpLenS = 1
-			nonceS = leafS[nonceStartS : nonceStartS+int(nonceRlpLenS)]
-			balanceStartS = nonceStartS + int(nonceRlpLenS)
-		} else {
-			nonceRlpLenS = leafS[nonceStartS] - 128
-			nonceS = leafS[nonceStartS : nonceStartS+int(nonceRlpLenS)+1]
-			balanceStartS = nonceStartS + int(nonceRlpLenS) + 1
-		}
-		if leafC[nonceStartC] <= 128 {
-			// only one nonce byte
-			nonceRlpLenC = 1
-			nonceC = leafC[nonceStartC : nonceStartC+int(nonceRlpLenC)]
-			balanceStartC = nonceStartC + int(nonceRlpLenC)
-		} else {
-			nonceRlpLenC = leafC[nonceStartC] - 128
-			nonceC = leafC[nonceStartC : nonceStartC+int(nonceRlpLenC)+1]
-			balanceStartC = nonceStartC + int(nonceRlpLenC) + 1
-		}
-
-		var balanceRlpLenS byte
-		var balanceRlpLenC byte
-		var storageStartS int
-		var storageStartC int
-		if leafS[balanceStartS] <= 128 {
-			// only one balance byte
-			balanceRlpLenS = 1
-			storageStartS = balanceStartS + int(balanceRlpLenS)
-		} else {
-			balanceRlpLenS = leafS[balanceStartS] - 128
-			storageStartS = balanceStartS + int(balanceRlpLenS) + 1
-		}
-		if leafC[balanceStartC] <= 128 {
-			// only one balance byte
-			balanceRlpLenC = 1
-			storageStartC = balanceStartC + int(balanceRlpLenC)
-		} else {
-			balanceRlpLenC = leafC[balanceStartC] - 128
-			storageStartC = balanceStartC + int(balanceRlpLenC) + 1
-		}
-
-		nonceBalanceRowS = getNonceBalanceRow(leafS, nonceS, keyLenS, balanceStartS, balanceRlpLenS)
-		nonceBalanceRowC = getNonceBalanceRow(leafC, nonceC, keyLenC, balanceStartC, balanceRlpLenC)
+		storageStartS := 0
+		storageStartC := 0
+		nonceBalanceRowS, storageStartS = getNonceBalanceRow(leafS, keyLenS)
+		nonceBalanceRowC, storageStartC = getNonceBalanceRow(leafC, keyLenC)
 
 		storageCodeHashRowS = getStorageCodeHashRow(leafS, storageStartS)
 		storageCodeHashRowC = getStorageCodeHashRow(leafC, storageStartC)
