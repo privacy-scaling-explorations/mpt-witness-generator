@@ -446,7 +446,7 @@ func prepareAccountProof(i int, tMod TrieModification, tModsLen int, statedb *st
 		accountProof1[0] = account
 	}
 
-	accountProof, accountProof1, sRoot, cRoot = modifyAccountProofSpecialTests(addrh, accountProof, accountProof1, aNeighbourNode2, specialTest)	
+	addrh, accountAddr, accountProof, accountProof1, sRoot, cRoot = modifyAccountProofSpecialTests(addrh, accountAddr, sRoot, cRoot, accountProof, accountProof1, aNeighbourNode2, specialTest)	
 
 	aNode := aNeighbourNode2
 	isShorterProofLastLeaf := isLastLeaf1

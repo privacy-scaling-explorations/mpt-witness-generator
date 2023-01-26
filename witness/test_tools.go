@@ -44,10 +44,9 @@ func moveAccountFromThirdToSecondLevel(addrh []byte, account []byte) []byte {
 
 // modifyAccountProofSpecialTests modifies S and C account proofs to serve for special tests - like putting
 // the account leaf in the first trie level.
-func modifyAccountProofSpecialTests(addrh []byte, accountProof, accountProof1 [][]byte, aNeighbourNode2 []byte, specialTest byte) ([][]byte, [][]byte, common.Hash, common.Hash) {
-	var sRoot common.Hash
-	var cRoot common.Hash
-	accountAddr := trie.KeybytesToHex(addrh)
+func modifyAccountProofSpecialTests(addrh, accountAddr []byte, sRoot, cRoot common.Hash, accountProof, accountProof1 [][]byte, aNeighbourNode2 []byte, specialTest byte) ([]byte, []byte, [][]byte, [][]byte, common.Hash, common.Hash) {
+	// var sRoot common.Hash
+	// var cRoot common.Hash
 
 	if (specialTest == 1) {
 		account := accountProof1[len(accountProof1)-1]
@@ -195,5 +194,5 @@ func modifyAccountProofSpecialTests(addrh []byte, accountProof, accountProof1 []
 		cRoot = common.BytesToHash(hasher.HashData(accountProof1[0]))
 	}
 
-	return accountProof, accountProof1, sRoot, cRoot
+	return addrh, accountAddr, accountProof, accountProof1, sRoot, cRoot
 }
