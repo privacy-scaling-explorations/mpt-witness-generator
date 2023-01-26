@@ -534,33 +534,10 @@ func getParallelProofs(trieModifications []TrieModification, statedb *state.Stat
 			}
 
 			if (specialTest == 1) {
-				account := accountProof1[len(accountProof1)-1]
 				if len(accountProof1) != 2 {
 					panic("account should be in the second level (one branch above it)")
 				}
-				firstNibble := addrh[0] / 16
-				newAccount := moveAccountFromSecondToFirstLevel(firstNibble, account)
-
-				newAccount1 := make([]byte, len(account)+1) 
-				copy(newAccount1, newAccount)
-				
-				accountProof = make([][]byte, 1)
-				accountProof[0] = newAccount
-				accountProof1 = make([][]byte, 1)
-				accountProof1[0] = newAccount1
-
-				// storage leaf in S proof is a placeholder, thus newAccount needs to have an empty trie hash
-				// for the root:
-				emptyTrieHash := []byte{86, 232, 31, 23, 27, 204, 85, 166, 255, 131, 69, 230, 146, 192, 248, 110, 91, 72, 224, 27, 153, 108, 173, 192, 1, 98, 47, 181, 227, 99, 180, 33}
-				rootStart := len(newAccount) - 64 - 1;
-
-				for i := 0; i < 32; i++ {
-					newAccount[rootStart + i] = emptyTrieHash[i]
-				}
-			
-				hasher := trie.NewHasher(false)
-				sRoot = common.BytesToHash(hasher.HashData(newAccount))
-				cRoot = common.BytesToHash(hasher.HashData(newAccount1))
+				accountProof, accountProof1, sRoot, cRoot = modifyAccountSpecialTest1(addrh, accountProof1[len(accountProof1)-1])
 			}
 			
 			rowsState, toBeHashedAcc, _ :=

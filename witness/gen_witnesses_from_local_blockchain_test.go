@@ -202,7 +202,7 @@ func TestAccountBranchPlaceholder(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	GenerateProofSpecial("AccountBranchPlaceholder", trieModifications, statedb, 2) // don't use the same number as in the test below ("*PlaceholderInFirstLevel")
+	GenerateProof("AccountBranchPlaceholder", trieModifications, statedb)
 
 	oracle.NodeUrl = oracle.RemoteUrl
 }
