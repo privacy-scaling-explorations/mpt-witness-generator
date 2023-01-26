@@ -510,7 +510,13 @@ func addBranchAndPlaceholderAndLeaf(statedb *state.StateDB, addr common.Address,
 	}
 	*rows = append(*rows, extRows...)
 
-	leafRows, leafForHashing := prepareLeaf(proof1, proof2, key, isAccountProof, nonExistingAccountProof)
+	var leafRows [][]byte
+	var leafForHashing [][]byte
+	if isAccountProof {
+		leafRows, leafForHashing = prepareAccountLeaf(proof1[len1-1], proof2[len2-1], key, nonExistingAccountProof)
+	} else {
+		leafRows, leafForHashing = prepareStorageLeaf(proof1[len1-1], key, nonExistingAccountProof)
+	}
 
 	if len1 > len2 {
 		*toBeHashed = append(*toBeHashed, leafForHashing...)

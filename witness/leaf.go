@@ -2,37 +2,33 @@ package witness
 
 // TODO: use everywhere where prepareAccountLeafRows is called
 
-func prepareLeaf(proof1, proof2 [][]byte, key []byte, isAccountProof, nonExistingAccountProof bool) ([][]byte, [][]byte) {
-	len1 := len(proof1)
-	len2 := len(proof2)
-
+func prepareAccountLeaf(leafS, leafC []byte, key []byte, nonExistingAccountProof bool) ([][]byte, [][]byte) {
 	var leafRows [][]byte
 	var leafForHashing [][]byte
-	if isAccountProof {
-		leafS := proof1[len1-1]
-		leafC := proof2[len2-1]
+	// When generating a proof that account doesn't exist, the length of both proofs is the same (doesn't reach
+	// this code).
+	keyRowS, keyRowC, nonExistingAccountRow, nonceBalanceRowS, nonceBalanceRowC, storageCodeHashRowS, storageCodeHashRowC :=
+		prepareAccountLeafRows(leafS, leafC, key, nonExistingAccountProof, false)
+	leafRows = append(leafRows, keyRowS)
+	leafRows = append(leafRows, keyRowC)
+	leafRows = append(leafRows, nonExistingAccountRow) // not really needed
+	leafRows = append(leafRows, nonceBalanceRowS)
+	leafRows = append(leafRows, nonceBalanceRowC)
+	leafRows = append(leafRows, storageCodeHashRowS)
+	leafRows = append(leafRows, storageCodeHashRowC)
 
-		// When generating a proof that account doesn't exist, the length of both proofs is the same (doesn't reach
-		// this code).
-		keyRowS, keyRowC, nonExistingAccountRow, nonceBalanceRowS, nonceBalanceRowC, storageCodeHashRowS, storageCodeHashRowC :=
-			prepareAccountLeafRows(leafS, leafC, key, nonExistingAccountProof, false)
-		leafRows = append(leafRows, keyRowS)
-		leafRows = append(leafRows, keyRowC)
-		leafRows = append(leafRows, nonExistingAccountRow) // not really needed
-		leafRows = append(leafRows, nonceBalanceRowS)
-		leafRows = append(leafRows, nonceBalanceRowC)
-		leafRows = append(leafRows, storageCodeHashRowS)
-		leafRows = append(leafRows, storageCodeHashRowC)
+	leafS = append(leafS, 5)
+	leafC = append(leafC, 5)
+	leafForHashing = append(leafForHashing, leafS)
+	leafForHashing = append(leafForHashing, leafC)
 
-		leafS = append(leafS, 5)
-		leafC = append(leafC, 5)
-		leafForHashing = append(leafForHashing, leafS)
-		leafForHashing = append(leafForHashing, leafC)
-	} else {
-		var leafForHashingS []byte
-		leafRows, leafForHashingS = prepareStorageLeafRows(proof1[len1-1], 2, false)
-		leafForHashing = append(leafForHashing, leafForHashingS)
-	}
+	return leafRows, leafForHashing
+}
+
+func prepareStorageLeaf(leafS []byte, key []byte, nonExistingAccountProof bool) ([][]byte, [][]byte) {
+	var leafForHashing [][]byte
+	leafRows, leafForHashingS := prepareStorageLeafRows(leafS, 2, false)
+	leafForHashing = append(leafForHashing, leafForHashingS)
 
 	return leafRows, leafForHashing
 }
@@ -204,7 +200,8 @@ func getNonceBalanceRow(leaf []byte, keyLen int) ([]byte, int) {
 	return nonceBalanceRow, storageStart
 }
 
-func getStorageCodeHashRow(leaf []byte, storageStart int) []byte {
+// getStorageRootCodeHashRow takes GetProof account leaf and prepares a row that contains storage root and hash root.
+func getStorageRootCodeHashRow(leaf []byte, storageStart int) []byte {
 	storageCodeHashRow := make([]byte, rowLen)
 	storageRlpLen := leaf[storageStart] - 128
 	if storageRlpLen != 32 {
@@ -322,8 +319,8 @@ func prepareAccountLeafRows(leafS, leafC, addressNibbles []byte, nonExistingAcco
 		nonceBalanceRowS, storageStartS = getNonceBalanceRow(leafS, keyLenS)
 		nonceBalanceRowC, storageStartC = getNonceBalanceRow(leafC, keyLenC)
 
-		storageCodeHashRowS = getStorageCodeHashRow(leafS, storageStartS)
-		storageCodeHashRowC = getStorageCodeHashRow(leafC, storageStartC)
+		storageCodeHashRowS = getStorageRootCodeHashRow(leafS, storageStartS)
+		storageCodeHashRowC = getStorageRootCodeHashRow(leafC, storageStartC)
 	} 
 
 	keyRowS = append(keyRowS, 6)
