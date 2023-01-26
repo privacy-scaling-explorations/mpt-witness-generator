@@ -513,7 +513,7 @@ func addBranchAndPlaceholderAndLeaf(statedb *state.StateDB, addr common.Address,
 	var leafRows [][]byte
 	var leafForHashing [][]byte
 	if isAccountProof {
-		leafRows, leafForHashing = prepareAccountLeaf(proof1[len1-1], proof2[len2-1], key, nonExistingAccountProof)
+		leafRows, leafForHashing = prepareAccountLeaf(proof1[len1-1], proof2[len2-1], key, nonExistingAccountProof, false)
 	} else {
 		leafRows, leafForHashing = prepareStorageLeaf(proof1[len1-1], key, nonExistingAccountProof)
 	}
@@ -704,24 +704,12 @@ func addElementAndPlaceholder(statedb *state.StateDB, addr common.Address, rows 
 
 			// When generating a proof that account doesn't exist, the length of both proofs is the same (doesn't reach
 			// this code).
-			keyRowS, keyRowC, nonExistingAccountRow, nonceBalanceRowS, nonceBalanceRowC, storageCodeHashRowS, storageCodeHashRowC :=
-				prepareAccountLeafRows(leafS, leafC, key, nonExistingAccountProof, false)
-			
-			*rows = append(*rows, keyRowS)
-			*rows = append(*rows, keyRowC)
-			*rows = append(*rows, nonExistingAccountRow) // not really needed
-			*rows = append(*rows, nonceBalanceRowS)
-			*rows = append(*rows, nonceBalanceRowC)
-			*rows = append(*rows, storageCodeHashRowS)
-			*rows = append(*rows, storageCodeHashRowC)
+			leafRows, leafForHashing := prepareAccountLeaf(leafS, leafC, key, nonExistingAccountProof, false)
+			*rows = append(*rows, leafRows...)
+			*toBeHashed = append(*toBeHashed, leafForHashing...)
 
 			pRows := prepareDriftedLeafPlaceholder(true)
 			*rows = append(*rows, pRows...)
-
-			leafS = append(leafS, 5)
-			leafC = append(leafC, 5)
-			*toBeHashed = append(*toBeHashed, leafS)
-			*toBeHashed = append(*toBeHashed, leafC)
 		} else {
 			var leafRows [][]byte
 			var leafForHashing []byte
@@ -812,21 +800,9 @@ func prepareWitness(statedb *state.StateDB, addr common.Address, proof1, proof2,
 				leafS := proof1[l-1]
 				leafC := proof2[l-1]
 
-				keyRowS, keyRowC, nonExistingAccountRow, nonceBalanceRowS, nonceBalanceRowC, storageCodeHashRowS, storageCodeHashRowC :=
-					prepareAccountLeafRows(leafS, leafC, key, nonExistingAccountProof, false)
-				
-				rows = append(rows, keyRowS)
-				rows = append(rows, keyRowC)
-				rows = append(rows, nonExistingAccountRow)
-				rows = append(rows, nonceBalanceRowS)
-				rows = append(rows, nonceBalanceRowC)
-				rows = append(rows, storageCodeHashRowS)
-				rows = append(rows, storageCodeHashRowC)
-
-				leafS = append(leafS, 5)
-				leafC = append(leafC, 5)
-				toBeHashed = append(toBeHashed, leafS)
-				toBeHashed = append(toBeHashed, leafC)
+				leafRows, leafForHashing := prepareAccountLeaf(leafS, leafC, key, nonExistingAccountProof, false)
+				rows = append(rows, leafRows...)
+				toBeHashed = append(toBeHashed, leafForHashing...)
 			} else {
 				leafRows, leafForHashing := prepareStorageLeafRows(proof1[i], 2, false) // leaf s
 				rows = append(rows, leafRows...)
@@ -1004,16 +980,8 @@ func prepareWitness(statedb *state.StateDB, addr common.Address, proof1, proof2,
 					leaf[4+i] = remainingNibbles[2*i + offset] * 16 + remainingNibbles[2*i + 1 + offset]
 				}
 				
-				keyRowS, keyRowC, nonExistingAccountRow, nonceBalanceRowS, nonceBalanceRowC, storageCodeHashRowS, storageCodeHashRowC :=
-					prepareAccountLeafRows(leaf, leaf, key, nonExistingAccountProof, true)
-				
-				rows = append(rows, keyRowS)
-				rows = append(rows, keyRowC)
-				rows = append(rows, nonExistingAccountRow)
-				rows = append(rows, nonceBalanceRowS)
-				rows = append(rows, nonceBalanceRowC)
-				rows = append(rows, storageCodeHashRowS)
-				rows = append(rows, storageCodeHashRowC)
+				leafRows, _ := prepareAccountLeaf(leaf, leaf, key, nonExistingAccountProof, true)
+				rows = append(rows, leafRows...)
 
 				pRows := prepareDriftedLeafPlaceholder(isAccountProof)
 				rows = append(rows, pRows...)	

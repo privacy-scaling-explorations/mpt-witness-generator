@@ -2,13 +2,13 @@ package witness
 
 // TODO: use everywhere where prepareAccountLeafRows is called
 
-func prepareAccountLeaf(leafS, leafC []byte, key []byte, nonExistingAccountProof bool) ([][]byte, [][]byte) {
+func prepareAccountLeaf(leafS, leafC []byte, key []byte, nonExistingAccountProof, noLeaf bool) ([][]byte, [][]byte) {
 	var leafRows [][]byte
 	var leafForHashing [][]byte
 	// When generating a proof that account doesn't exist, the length of both proofs is the same (doesn't reach
 	// this code).
 	keyRowS, keyRowC, nonExistingAccountRow, nonceBalanceRowS, nonceBalanceRowC, storageCodeHashRowS, storageCodeHashRowC :=
-		prepareAccountLeafRows(leafS, leafC, key, nonExistingAccountProof, false)
+		prepareAccountLeafRows(leafS, leafC, key, nonExistingAccountProof, noLeaf)
 	leafRows = append(leafRows, keyRowS)
 	leafRows = append(leafRows, keyRowC)
 	leafRows = append(leafRows, nonExistingAccountRow) // not really needed
