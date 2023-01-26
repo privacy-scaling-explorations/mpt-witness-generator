@@ -19,7 +19,7 @@ What is changed compared to geth:
 To generate witnesses for MPT circuit, go into witness folder and execute
 
 ```
-go test gen_witnesses_from_infura_blockchain_test.go gen.go prepare.go leaf.go extension_node.go
+go test gen_witnesses_from_infura_blockchain_test.go gen.go prepare.go leaf.go extension_node.go modified_extension_node.go test_tools.go branch.go
 ```
 
 to generate the tests that use Infura blockchain.
@@ -27,7 +27,7 @@ to generate the tests that use Infura blockchain.
 Execute
 
 ```
-go test gen_witnesses_from_local_blockchain_test.go gen.go prepare.go leaf.go extension_node.go
+go test gen_witnesses_from_local_blockchain_test.go gen.go prepare.go leaf.go extension_node.go modified_extension_node.go test_tools.go branch.go
 ```
 
 to generate the tests that use a local blockchain.

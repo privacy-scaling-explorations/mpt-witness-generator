@@ -341,3 +341,57 @@ func prepareDriftedLeafPlaceholder(isAccount bool) [][]byte {
 
 	return [][]byte{driftedLeaf}
 }
+
+func addLeafAndPlaceholder(rows *[][]byte, proof1, proof2 [][]byte, key []byte, nonExistingAccountProof, isAccountProof bool, toBeHashed *[][]byte) {
+	len1 := len(proof1)
+	len2 := len(proof2)
+
+	// We don't have a leaf in the shorter proof, but we will add it there
+	// as a placeholder.
+	if isAccountProof {
+		var leafS []byte
+		var leafC []byte
+		if len1 > len2 {
+			leafS = proof1[len1-1]
+			leafC = proof1[len1-1] // placeholder
+		} else {
+			leafC = proof2[len2-1]
+			leafS = proof2[len2-1] // placeholder
+		}
+
+		// When generating a proof that account doesn't exist, the length of both proofs is the same (doesn't reach
+		// this code).
+		leafRows, leafForHashing := prepareAccountLeaf(leafS, leafC, key, nonExistingAccountProof, false)
+		*rows = append(*rows, leafRows...)
+		*toBeHashed = append(*toBeHashed, leafForHashing...)
+
+		pRows := prepareDriftedLeafPlaceholder(true)
+		*rows = append(*rows, pRows...)
+	} else {
+		var leafRows [][]byte
+		var leafForHashing []byte
+		if len1 > len2 {
+			leafRows, leafForHashing = prepareStorageLeafRows(proof1[len1-1], 2, false)
+		} else {
+			leafRows, leafForHashing = prepareStorageLeafRows(proof2[len2-1], 2, true)
+		}
+		
+		*rows = append(*rows, leafRows...)
+		*toBeHashed = append(*toBeHashed, leafForHashing)
+
+		// No leaf means value is 0, set valueIsZero = true:
+		if len1 > len2 {
+			leafRows, _ = prepareStorageLeafRows(proof1[len1-1], 3, true)
+		} else {
+			leafRows, _ = prepareStorageLeafRows(proof2[len2-1], 3, false)
+		}
+		*rows = append(*rows, leafRows...)
+
+		pRows := prepareDriftedLeafPlaceholder(isAccountProof)
+		*rows = append(*rows, pRows...)
+
+		// For non existing proof, S and C proofs are the same
+		nonExistingStorageRow := prepareEmptyNonExistingStorageRow()
+		*rows = append(*rows, nonExistingStorageRow)	
+	}
+}
