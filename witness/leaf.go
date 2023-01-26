@@ -1,7 +1,5 @@
 package witness
 
-// TODO: use everywhere where prepareAccountLeafRows is called
-
 func prepareAccountLeaf(leafS, leafC []byte, key []byte, nonExistingAccountProof, noLeaf bool) ([][]byte, [][]byte) {
 	var leafRows [][]byte
 	var leafForHashing [][]byte
@@ -331,4 +329,15 @@ func prepareAccountLeafRows(leafS, leafC, addressNibbles []byte, nonExistingAcco
 	storageCodeHashRowC = append(storageCodeHashRowC, 11)
 
 	return keyRowS, keyRowC, nonExistingAccountRow, nonceBalanceRowS, nonceBalanceRowC, storageCodeHashRowS, storageCodeHashRowC
+}
+
+func prepareDriftedLeafPlaceholder(isAccount bool) [][]byte {
+	driftedLeaf := make([]byte, rowLen)
+	if isAccount {
+		driftedLeaf = append(driftedLeaf, 10)
+	} else {
+		driftedLeaf = append(driftedLeaf, 15)
+	}
+
+	return [][]byte{driftedLeaf}
 }
