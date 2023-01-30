@@ -1692,6 +1692,10 @@ func TestDeleteAccount(t *testing.T) {
 }
 
 func TestImplicitlyCreateAccountWithNonce(t *testing.T) {
+	// When there is a change in an account that does not exist, a placeholder account leaf is added
+	// as a witness. The last branch contains information about the leaf at `modified_node` being just
+	// a placeholder and the circuit ensures that when the leaf is a placeholder, the branch (last branch)
+	// children at `modified_node` is nil.
 	blockNum := 1
 	blockNumberParent := big.NewInt(int64(blockNum))
 	blockHeaderParent := oracle.PrefetchBlock(blockNumberParent, true, nil)
@@ -1721,12 +1725,32 @@ func TestImplicitlyCreateAccountWithBalance(t *testing.T) {
 
 	trieMod := TrieModification{
     	Type: BalanceMod,
-		Nonce: 142,
+		Balance: big.NewInt(7),
 		Address: addr,
 	}
 	trieModifications := []TrieModification{trieMod}
 
 	GenerateProof("ImplicitlyCreateAccountWithBalance", trieModifications, statedb)
+}
+
+func TestImplicitlyCreateAccountWithCodeHash(t *testing.T) {
+	blockNum := 1
+	blockNumberParent := big.NewInt(int64(blockNum))
+	blockHeaderParent := oracle.PrefetchBlock(blockNumberParent, true, nil)
+	database := state.NewDatabase(blockHeaderParent)
+	statedb, _ := state.New(blockHeaderParent.Root, database, nil)
+	
+	addr := common.HexToAddress("0xaabccf12580138bc2bbceeeaa111df4e42ab81ab")
+	codeHash := []byte{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}
+
+	trieMod := TrieModification{
+    	Type: BalanceMod,
+		CodeHash: codeHash,
+		Address: addr,
+	}
+	trieModifications := []TrieModification{trieMod}
+
+	GenerateProof("ImplicitlyCreateAccountWithCodeHash", trieModifications, statedb)
 }
 
 func TestAccountAddPlaceholderBranch(t *testing.T) {
