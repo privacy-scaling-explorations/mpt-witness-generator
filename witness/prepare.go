@@ -7,15 +7,14 @@ import (
 	"github.com/miha-stopar/mpt/state"
 )
 
-// addBranchAndPlaceholderAndLeaf adds to the rows a branch and its placeholder counterpart
-// (used when one of the proofs have one branch more than the other). It also adds leaf rows.
-// When needed, it adds modified extension node rows.
-func addBranchAndPlaceholderAndLeaf(statedb *state.StateDB, addr common.Address, rows *[][]byte, proof1, proof2,
+// addBranchAndPlaceholder adds to the rows a branch and its placeholder counterpart
+// (used when one of the proofs have one branch more than the other).
+func addBranchAndPlaceholder(statedb *state.StateDB, addr common.Address, rows *[][]byte, proof1, proof2,
 		extNibblesS, extNibblesC [][]byte,
 		key, neighbourNode []byte,
 		keyIndex, extensionNodeInd int,
 		additionalBranch, isAccountProof, nonExistingAccountProof,
-		isShorterProofLastLeaf bool, branchC16, branchC1 byte, toBeHashed *[][]byte) {
+		isShorterProofLastLeaf bool, branchC16, branchC1 byte, toBeHashed *[][]byte) (bool, bool, int) {
 	len1 := len(proof1)
 	len2 := len(proof2)
 
@@ -95,9 +94,8 @@ func addBranchAndPlaceholderAndLeaf(statedb *state.StateDB, addr common.Address,
 		longExtNode = proof1[len1 - 1]
 	}
 
-	isItBranch := isBranch(longExtNode)
 	// Note that isModifiedExtNode happens also when we have a branch instead of shortExtNode
-	isModifiedExtNode := !isItBranch && !isShorterProofLastLeaf
+	isModifiedExtNode := !isBranch(longExtNode) && !isShorterProofLastLeaf
 
 	if len1 > len2 {
 		bRows, branchToBeHashed := prepareParallelBranches(proof1[len1-2], proof1[len1-2], key[keyIndex + numberOfNibbles], true, branchC16, branchC1, isModifiedExtNode)
@@ -110,162 +108,7 @@ func addBranchAndPlaceholderAndLeaf(statedb *state.StateDB, addr common.Address,
 	}
 	*rows = append(*rows, extRows...)
 
-	var leafRows [][]byte
-	var leafForHashing [][]byte
-	if isAccountProof {
-		leafRows, leafForHashing = prepareAccountLeaf(proof1[len1-1], proof2[len2-1], key, nonExistingAccountProof, false)
-	} else {
-		leafRows, leafForHashing = prepareStorageLeaf(proof1[len1-1], key, nonExistingAccountProof)
-	}
-
-	if len1 > len2 {
-		*toBeHashed = append(*toBeHashed, leafForHashing...)
-		// All account leaf rows already generated above, for storage leaf only S is generated above.
-		if isAccountProof {
-			// TODO: isInsertedExtNode
-			*rows = append(*rows, leafRows...)
-		} else {
-			if !isModifiedExtNode {
-				*rows = append(*rows, leafRows...)
-				var leafForHashingC []byte
-				leafRows, leafForHashingC = prepareStorageLeafRows(proof2[len2-1], 3, false)
-				*rows = append(*rows, leafRows...)
-				*toBeHashed = append(*toBeHashed, leafForHashingC)
-			} else {
-				// We do not have leaf in one of the proofs when extension node is inserted.
-				// We can use the same leaf for S and C because we have the same extension
-				// node and branch in the rows above (inserted extension node rows are below
-				// leaf rows). We just need to make sure the row selectors are the right one.
-				*rows = append(*rows, leafRows...)
-
-				l := len(leafRows[0])
-				leafKey := make([]byte, l)
-				copy(leafKey, leafRows[0])
-				leafKey[l - 1] = 3
-				*rows = append(*rows, leafKey)
-
-				l = len(leafRows[1])
-				leafVal := make([]byte, l)
-				copy(leafVal, leafRows[1])
-				leafVal[l - 1] = 14
-				*rows = append(*rows, leafVal)
-			}
-		}
-
-		// We now get the first nibble of the leaf that was turned into branch.
-		// This first nibble presents the position of the leaf once it moved
-		// into the new branch.
-
-		// Note: leafRows[0] in this case (len1 > len2) is leafRowS[0],
-		// leafRows[0] in case below (len2 > len1) is leafRowC[0],
-		offset := 4
-		leafRow := leafRows[0]
-		if isAccountProof {
-			offset = 7
-			leafRow = leafRows[1]
-		}
-		(*rows)[len(*rows)-branchRows-offset][driftedPos] =
-			getDriftedPosition(leafRow, numberOfNibbles) // -branchRows-offset lands into branch init
-
-		if isModifiedExtNode {
-			(*rows)[len(*rows)-branchRows-offset][isInsertedExtNodeS] = 1
-		}
-
-		if isExtension {
-			setExtNodeSelectors((*rows)[len(*rows)-branchRows-offset], proof1[len1-3], numberOfNibbles, branchC16)
-		}
-	} else {
-		// We now get the first nibble of the leaf that was turned into branch.
-		// This first nibble presents the position of the leaf once it moved
-		// into the new branch.
-
-		(*rows)[len(*rows)-branchRows][driftedPos] = getDriftedPosition(leafRows[0], numberOfNibbles) // -branchRows lands into branch init
-
-		if isModifiedExtNode {
-			(*rows)[len(*rows)-branchRows][isInsertedExtNodeC] = 1
-		}
-
-		if isExtension {
-			setExtNodeSelectors((*rows)[len(*rows)-branchRows], proof2[len2-3], numberOfNibbles, branchC16)	
-		}
-
-		*toBeHashed = append(*toBeHashed, leafForHashing...)
-		// All account leaf rows already generated above, for storage leaf only S is generated above.
-		if isAccountProof {
-			*rows = append(*rows, leafRows...)
-		} else {
-			if !isModifiedExtNode {
-				*rows = append(*rows, leafRows...)
-				var leafForHashingC []byte
-				leafRows, leafForHashingC = prepareStorageLeafRows(proof2[len2-1], 3, false)
-				*rows = append(*rows, leafRows...)
-				*toBeHashed = append(*toBeHashed, leafForHashingC)
-			} else {
-				var leafForHashingC []byte
-				leafRows, leafForHashingC = prepareStorageLeafRows(proof2[len2-1], 3, false)
-				// We do not have leaf in one of the proofs when extension node is inserted.
-				// We can use the same leaf for S and C because we have the same extension
-				// node and branch in the rows above (inserted extension node rows are below
-				// leaf rows). We just need to make sure the row selectors are the right one.
-
-				l := len(leafRows[0])
-				leafKey := make([]byte, l)
-				copy(leafKey, leafRows[0])
-				leafKey[l - 1] = 2
-				*rows = append(*rows, leafKey)
-
-				l = len(leafRows[1])
-				leafVal := make([]byte, l)
-				copy(leafVal, leafRows[1])
-				leafVal[l - 1] = 13
-				*rows = append(*rows, leafVal)
-
-				*rows = append(*rows, leafRows...)
-				*toBeHashed = append(*toBeHashed, leafForHashingC)
-			}
-		}
-	}
-
-	// The branch contains hash of the neighbouring leaf, to be able
-	// to check it, we add node RLP to toBeHashed
-	addForHashing(neighbourNode, toBeHashed)
-
-	// Neighbouring leaf - the leaf that used to be one level above,
-	// but it was "drifted down" when additional branch was added.
-	// Only key is needed because we already have the value (it doesn't change)
-	// in the parallel proof.
-	if isAccountProof {
-		if !isModifiedExtNode {
-			h := append(neighbourNode, 5)
-			*toBeHashed = append(*toBeHashed, h)
-
-			keyRowS, _, _, _, _, _, _ :=
-				prepareAccountLeafRows(neighbourNode, neighbourNode, key, nonExistingAccountProof, false)
-			keyRowS = append(keyRowS, 10)
-			*rows = append(*rows, keyRowS)
-		} else {
-			pRows := prepareDriftedLeafPlaceholder(isAccountProof)
-			*rows = append(*rows, pRows...)	
-		}
-	} else {
-		if !isModifiedExtNode {
-			sLeafRows, _ := prepareStorageLeafRows(neighbourNode, 15, false)
-			*rows = append(*rows, sLeafRows[0])
-		} else {
-			pRows := prepareDriftedLeafPlaceholder(isAccountProof)
-			*rows = append(*rows, pRows...)	
-		}
-		
-		// For non existing proof, S and C proofs are the same
-		nonExistingStorageRow := prepareEmptyNonExistingStorageRow()
-		*rows = append(*rows, nonExistingStorageRow)
-	}
-
-	if isModifiedExtNode {
-		addModifiedExtNode(statedb, addr, rows, proof1, proof2, extNibblesS, extNibblesC, key, neighbourNode,
-			keyIndex, extensionNodeInd, numberOfNibbles, additionalBranch,
-			isAccountProof, nonExistingAccountProof, isShorterProofLastLeaf, branchC16, branchC1, toBeHashed)
-	}
+	return isModifiedExtNode, isExtension, numberOfNibbles
 }
 
 // prepareWitness takes two GetProof proofs (before and after single modification) and prepares
@@ -313,8 +156,7 @@ func prepareWitness(statedb *state.StateDB, addr common.Address, proof1, proof2,
 	branchC16 := byte(0); 
 	branchC1 := byte(1);
 	for i := 0; i < upTo; i++ {
-		isItBranch := isBranch(proof1[i])
-		if !isItBranch {
+		if !isBranch(proof1[i]) {
 			if i != len1 - 1 { // extension node
 				var numberOfNibbles byte
 				numberOfNibbles, extensionRowS, extensionRowC = prepareExtensionRows(extNibblesS, extensionNodeInd, proof1[i], proof2[i], false, false)
@@ -443,23 +285,21 @@ func prepareWitness(statedb *state.StateDB, addr common.Address, proof1, proof2,
 	}	
 	
 	if len1 != len2 {
-		/*
-		// addElementAndPlaceholder adds to the rows the GetProof element and its parallel empty counterpart.
-		// The empty counterpart (placeholder) is needed when the lengths of S and C proofs are different.
-		// When a proof element is a branch, a placeholder branch is added.
-		// When a proof element is a leaf, a placeholder leaf is added.
-		// When a proof element is a modified extension node (new extension node appears at the position
-		// of the existing extension node), additional rows are added (extension node before and after
-		// modification).
-		addElementAndPlaceholder(statedb, addr, &rows, proof1, proof2, extNibblesS, extNibblesC, key, neighbourNode,
-			keyIndex, extensionNodeInd, additionalBranch,
-			isAccountProof, nonExistingAccountProof, isShorterProofLastLeaf, branchC16, branchC1, &toBeHashed)
-		TODO: split into two functions
-		*/
 		if additionalBranch {
-			addBranchAndPlaceholderAndLeaf(statedb, addr, &rows, proof1, proof2, extNibblesS, extNibblesC, key, neighbourNode,
+			isModifiedExtNode, isExtension, numberOfNibbles := addBranchAndPlaceholder(statedb, addr, &rows, proof1, proof2, extNibblesS, extNibblesC, key, neighbourNode,
 				keyIndex, extensionNodeInd, additionalBranch,
 				isAccountProof, nonExistingAccountProof, isShorterProofLastLeaf, branchC16, branchC1, &toBeHashed)
+
+			addLeafAfterBranchPlaceholder(&rows, proof1, proof2, neighbourNode, key, nonExistingAccountProof, isAccountProof, isModifiedExtNode, isExtension, branchC16, numberOfNibbles, &toBeHashed)
+
+			// When a proof element is a modified extension node (new extension node appears at the position
+			// of the existing extension node), additional rows are added (extension node before and after
+			// modification).
+			if isModifiedExtNode {
+				addModifiedExtNode(statedb, addr, &rows, proof1, proof2, extNibblesS, extNibblesC, key, neighbourNode,
+					keyIndex, extensionNodeInd, numberOfNibbles, additionalBranch,
+					isAccountProof, nonExistingAccountProof, isShorterProofLastLeaf, branchC16, branchC1, &toBeHashed)
+			}
 		} else {
 			addLeafAndPlaceholder(&rows, proof1, proof2, key, nonExistingAccountProof, isAccountProof, &toBeHashed)
 		}

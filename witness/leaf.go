@@ -342,6 +342,8 @@ func prepareDriftedLeafPlaceholder(isAccount bool) [][]byte {
 	return [][]byte{driftedLeaf}
 }
 
+// addLeafAndPlaceholder adds to the rows a leaf and its placeholder counterpart
+// (used when one of the proofs have one branch more than the other).
 func addLeafAndPlaceholder(rows *[][]byte, proof1, proof2 [][]byte, key []byte, nonExistingAccountProof, isAccountProof bool, toBeHashed *[][]byte) {
 	len1 := len(proof1)
 	len2 := len(proof2)
@@ -393,5 +395,160 @@ func addLeafAndPlaceholder(rows *[][]byte, proof1, proof2 [][]byte, key []byte, 
 		// For non existing proof, S and C proofs are the same
 		nonExistingStorageRow := prepareEmptyNonExistingStorageRow()
 		*rows = append(*rows, nonExistingStorageRow)	
+	}
+}
+
+func addLeafAfterBranchPlaceholder(rows *[][]byte, proof1, proof2 [][]byte, neighbourNode, key []byte, nonExistingAccountProof, isAccountProof, isModifiedExtNode, isExtension bool, branchC16 byte, numberOfNibbles int, toBeHashed *[][]byte) {
+	len1 := len(proof1)
+	len2 := len(proof2)
+
+	var leafRows [][]byte
+	var leafForHashing [][]byte
+	if isAccountProof {
+		leafRows, leafForHashing = prepareAccountLeaf(proof1[len1-1], proof2[len2-1], key, nonExistingAccountProof, false)
+	} else {
+		leafRows, leafForHashing = prepareStorageLeaf(proof1[len1-1], key, nonExistingAccountProof)
+	}
+	*toBeHashed = append(*toBeHashed, leafForHashing...)
+
+	if len1 > len2 {
+		// All account leaf rows already generated above, for storage leaf only S is generated above.
+		if isAccountProof {
+			// TODO: isInsertedExtNode
+			*rows = append(*rows, leafRows...)
+		} else {
+			if !isModifiedExtNode {
+				*rows = append(*rows, leafRows...)
+				var leafForHashingC []byte
+				leafRows, leafForHashingC = prepareStorageLeafRows(proof2[len2-1], 3, false)
+				*rows = append(*rows, leafRows...)
+				*toBeHashed = append(*toBeHashed, leafForHashingC)
+			} else {
+				// We do not have leaf in one of the proofs when extension node is inserted.
+				// We can use the same leaf for S and C because we have the same extension
+				// node and branch in the rows above (inserted extension node rows are below
+				// leaf rows). We just need to make sure the row selectors are the right one.
+				*rows = append(*rows, leafRows...)
+
+				l := len(leafRows[0])
+				leafKey := make([]byte, l)
+				copy(leafKey, leafRows[0])
+				leafKey[l - 1] = 3
+				*rows = append(*rows, leafKey)
+
+				l = len(leafRows[1])
+				leafVal := make([]byte, l)
+				copy(leafVal, leafRows[1])
+				leafVal[l - 1] = 14
+				*rows = append(*rows, leafVal)
+			}
+		}
+
+		// We now get the first nibble of the leaf that was turned into branch.
+		// This first nibble presents the position of the leaf once it moved
+		// into the new branch.
+
+		// Note: leafRows[0] in this case (len1 > len2) is leafRowS[0],
+		// leafRows[0] in case below (len2 > len1) is leafRowC[0],
+		offset := 4
+		leafRow := leafRows[0]
+		if isAccountProof {
+			offset = 7
+			leafRow = leafRows[1]
+		}
+		(*rows)[len(*rows)-branchRows-offset][driftedPos] =
+			getDriftedPosition(leafRow, numberOfNibbles) // -branchRows-offset lands into branch init
+
+		if isModifiedExtNode {
+			(*rows)[len(*rows)-branchRows-offset][isInsertedExtNodeS] = 1
+		}
+
+		if isExtension {
+			setExtNodeSelectors((*rows)[len(*rows)-branchRows-offset], proof1[len1-3], numberOfNibbles, branchC16)
+		}
+	} else {
+		// We now get the first nibble of the leaf that was turned into branch.
+		// This first nibble presents the position of the leaf once it moved
+		// into the new branch.
+
+		(*rows)[len(*rows)-branchRows][driftedPos] = getDriftedPosition(leafRows[0], numberOfNibbles) // -branchRows lands into branch init
+
+		if isModifiedExtNode {
+			(*rows)[len(*rows)-branchRows][isInsertedExtNodeC] = 1
+		}
+
+		if isExtension {
+			setExtNodeSelectors((*rows)[len(*rows)-branchRows], proof2[len2-3], numberOfNibbles, branchC16)	
+		}
+
+		// All account leaf rows already generated above, for storage leaf only S is generated above.
+		if isAccountProof {
+			*rows = append(*rows, leafRows...)
+		} else {
+			if !isModifiedExtNode {
+				*rows = append(*rows, leafRows...)
+				var leafForHashingC []byte
+				leafRows, leafForHashingC = prepareStorageLeafRows(proof2[len2-1], 3, false)
+				*rows = append(*rows, leafRows...)
+				*toBeHashed = append(*toBeHashed, leafForHashingC)
+			} else {
+				var leafForHashingC []byte
+				leafRows, leafForHashingC = prepareStorageLeafRows(proof2[len2-1], 3, false)
+				// We do not have leaf in one of the proofs when extension node is inserted.
+				// We can use the same leaf for S and C because we have the same extension
+				// node and branch in the rows above (inserted extension node rows are below
+				// leaf rows). We just need to make sure the row selectors are the right one.
+
+				l := len(leafRows[0])
+				leafKey := make([]byte, l)
+				copy(leafKey, leafRows[0])
+				leafKey[l - 1] = 2
+				*rows = append(*rows, leafKey)
+
+				l = len(leafRows[1])
+				leafVal := make([]byte, l)
+				copy(leafVal, leafRows[1])
+				leafVal[l - 1] = 13
+				*rows = append(*rows, leafVal)
+
+				*rows = append(*rows, leafRows...)
+				*toBeHashed = append(*toBeHashed, leafForHashingC)
+			}
+		}
+	}
+
+	// The branch contains hash of the neighbouring leaf, to be able
+	// to check it, we add node RLP to toBeHashed
+	addForHashing(neighbourNode, toBeHashed)
+
+	// Neighbouring leaf - the leaf that used to be one level above,
+	// but it was "drifted down" when additional branch was added.
+	// Only key is needed because we already have the value (it doesn't change)
+	// in the parallel proof.
+	if isAccountProof {
+		if !isModifiedExtNode {
+			h := append(neighbourNode, 5)
+			*toBeHashed = append(*toBeHashed, h)
+
+			keyRowS, _, _, _, _, _, _ :=
+				prepareAccountLeafRows(neighbourNode, neighbourNode, key, nonExistingAccountProof, false)
+			keyRowS = append(keyRowS, 10)
+			*rows = append(*rows, keyRowS)
+		} else {
+			pRows := prepareDriftedLeafPlaceholder(isAccountProof)
+			*rows = append(*rows, pRows...)	
+		}
+	} else {
+		if !isModifiedExtNode {
+			sLeafRows, _ := prepareStorageLeafRows(neighbourNode, 15, false)
+			*rows = append(*rows, sLeafRows[0])
+		} else {
+			pRows := prepareDriftedLeafPlaceholder(isAccountProof)
+			*rows = append(*rows, pRows...)	
+		}
+		
+		// For non existing proof, S and C proofs are the same
+		nonExistingStorageRow := prepareEmptyNonExistingStorageRow()
+		*rows = append(*rows, nonExistingStorageRow)
 	}
 }
