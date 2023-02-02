@@ -400,12 +400,9 @@ func addLeafAndPlaceholder(rows *[][]byte, proof1, proof2 [][]byte, key []byte, 
 
 // addStorageLeafAfterBranchPlaceholder adds storage leaf rows after branch that is a placeholder.
 // It also handles the case when there is a modified extension node.
-func addStorageLeafAfterBranchPlaceholder(rows *[][]byte, proof1, proof2 [][]byte, neighbourNode, key []byte, nonExistingAccountProof, isModifiedExtNode, isExtension bool, numberOfNibbles int, toBeHashed *[][]byte) {
+func addStorageLeafAfterBranchPlaceholder(rows *[][]byte, proof1, proof2, leafRows [][]byte, neighbourNode, key []byte, nonExistingAccountProof, isModifiedExtNode, isExtension bool, numberOfNibbles int, toBeHashed *[][]byte) {
 	len1 := len(proof1)
 	len2 := len(proof2)
-
-	leafRows, leafForHashing := prepareStorageLeaf(proof1[len1-1], key, nonExistingAccountProof)
-	*toBeHashed = append(*toBeHashed, leafForHashing...)
 
 	if len1 > len2 {
 		if !isModifiedExtNode {
@@ -432,33 +429,8 @@ func addStorageLeafAfterBranchPlaceholder(rows *[][]byte, proof1, proof2 [][]byt
 			copy(leafVal, leafRows[1])
 			leafVal[l - 1] = 14
 			*rows = append(*rows, leafVal)
-		}
-
-		// We now get the first nibble of the leaf that was turned into branch.
-		// This first nibble presents the position of the leaf once it moved
-		// into the new branch.
-
-		// Note: leafRows[0] in this case (len1 > len2) is leafRowS[0],
-		// leafRows[0] in case below (len2 > len1) is leafRowC[0],
-		offset := 4
-		leafRow := leafRows[0]
-		(*rows)[len(*rows)-branchRows-offset][driftedPos] =
-			getDriftedPosition(leafRow, numberOfNibbles) // -branchRows-offset lands into branch init
-
-		if isModifiedExtNode {
-			(*rows)[len(*rows)-branchRows-offset][isInsertedExtNodeS] = 1
-		}
-	} else {
-		// We now get the first nibble of the leaf that was turned into branch.
-		// This first nibble presents the position of the leaf once it moved
-		// into the new branch.
-
-		(*rows)[len(*rows)-branchRows][driftedPos] = getDriftedPosition(leafRows[0], numberOfNibbles) // -branchRows lands into branch init
-
-		if isModifiedExtNode {
-			(*rows)[len(*rows)-branchRows][isInsertedExtNodeC] = 1
-		}
-
+		}	
+	} else {	
 		if !isModifiedExtNode {
 			*rows = append(*rows, leafRows...)
 			var leafForHashingC []byte
@@ -513,43 +485,8 @@ func addStorageLeafAfterBranchPlaceholder(rows *[][]byte, proof1, proof2 [][]byt
 
 // addAccountLeafAfterBranchPlaceholder adds account leaf rows after branch that is a placeholder.
 // It also handles the case when there is a modified extension node.
-func addAccountLeafAfterBranchPlaceholder(rows *[][]byte, proof1, proof2 [][]byte, neighbourNode, key []byte, nonExistingAccountProof, isModifiedExtNode, isExtension bool, numberOfNibbles int, toBeHashed *[][]byte) {
-	len1 := len(proof1)
-	len2 := len(proof2)
-
-	leafRows, leafForHashing := prepareAccountLeaf(proof1[len1-1], proof2[len2-1], key, nonExistingAccountProof, false)
-	*toBeHashed = append(*toBeHashed, leafForHashing...)
-
-	if len1 > len2 {
-		*rows = append(*rows, leafRows...)
-
-		// We now get the first nibble of the leaf that was turned into branch.
-		// This first nibble presents the position of the leaf once it moved
-		// into the new branch.
-
-		// Note: leafRows[0] in this case (len1 > len2) is leafRowS[0],
-		// leafRows[0] in case below (len2 > len1) is leafRowC[0],
-		offset := 7
-		leafRow := leafRows[1]
-		(*rows)[len(*rows)-branchRows-offset][driftedPos] =
-			getDriftedPosition(leafRow, numberOfNibbles) // -branchRows-offset lands into branch init
-
-		if isModifiedExtNode {
-			(*rows)[len(*rows)-branchRows-offset][isInsertedExtNodeS] = 1
-		}
-	} else {
-		// We now get the first nibble of the leaf that was turned into branch.
-		// This first nibble presents the position of the leaf once it moved
-		// into the new branch.
-
-		(*rows)[len(*rows)-branchRows][driftedPos] = getDriftedPosition(leafRows[0], numberOfNibbles) // -branchRows lands into branch init
-
-		if isModifiedExtNode {
-			(*rows)[len(*rows)-branchRows][isInsertedExtNodeC] = 1
-		}
-
-		*rows = append(*rows, leafRows...)
-	}
+func addAccountLeafAfterBranchPlaceholder(rows *[][]byte, proof1, proof2, leafRows [][]byte, neighbourNode, key []byte, nonExistingAccountProof, isModifiedExtNode, isExtension bool, numberOfNibbles int, toBeHashed *[][]byte) {
+	*rows = append(*rows, leafRows...)
 
 	// The branch contains hash of the neighbouring leaf, to be able
 	// to check it, we add node RLP to toBeHashed

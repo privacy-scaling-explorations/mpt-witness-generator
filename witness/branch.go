@@ -261,7 +261,7 @@ func getDriftedPosition(leafKeyRow []byte, numberOfNibbles int) byte {
 // (used when one of the proofs have one branch more than the other).
 func addBranchAndPlaceholder(statedb *state.StateDB, addr common.Address, rows *[][]byte, proof1, proof2,
 		extNibblesS, extNibblesC [][]byte,
-		key, neighbourNode []byte,
+		leafRow0, key, neighbourNode []byte,
 		keyIndex, extensionNodeInd int,
 		additionalBranch, isAccountProof, nonExistingAccountProof,
 		isShorterProofLastLeaf bool, branchC16, branchC1 byte, toBeHashed *[][]byte) (bool, bool, int, byte) {
@@ -352,6 +352,17 @@ func addBranchAndPlaceholder(statedb *state.StateDB, addr common.Address, rows *
 		if isExtension {
 			setExtNodeSelectors(bRows[0], proof1[len1-3], numberOfNibbles, branchC16)
 		}
+		if isModifiedExtNode {
+			bRows[0][isInsertedExtNodeS] = 1
+		}
+
+		// We now get the first nibble of the leaf that was turned into branch.
+		// This first nibble presents the position of the leaf once it moved
+		// into the new branch.
+
+		// Note: leafRows[0] in this case (len1 > len2) is leafRowS[0],
+		// leafRows[0] in case below (len2 > len1) is leafRowC[0],
+		bRows[0][driftedPos] = getDriftedPosition(leafRow0, numberOfNibbles)
 					
 		*rows = append(*rows, bRows...)
 		addForHashing(branchToBeHashed, toBeHashed)
@@ -360,6 +371,13 @@ func addBranchAndPlaceholder(statedb *state.StateDB, addr common.Address, rows *
 		if isExtension {
 			setExtNodeSelectors(bRows[0], proof2[len2-3], numberOfNibbles, branchC16)	
 		}
+		if isModifiedExtNode {
+			bRows[0][isInsertedExtNodeC] = 1
+		}
+		// We now get the first nibble of the leaf that was turned into branch.
+		// This first nibble presents the position of the leaf once it moved
+		// into the new branch.
+		bRows[0][driftedPos] = getDriftedPosition(leafRow0, numberOfNibbles)
 
 		*rows = append(*rows, bRows...)
 		addForHashing(branchToBeHashed, toBeHashed)

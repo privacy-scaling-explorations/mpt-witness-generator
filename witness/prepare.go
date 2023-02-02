@@ -181,15 +181,26 @@ func prepareWitness(statedb *state.StateDB, addr common.Address, proof1, proof2,
 	}	
 	
 	if len1 != len2 {
-		if additionalBranch {
-			isModifiedExtNode, isExtension, numberOfNibbles, branchC16 := addBranchAndPlaceholder(statedb, addr, &rows, proof1, proof2, extNibblesS, extNibblesC, key, neighbourNode,
+		if additionalBranch {	
+			var leafRows [][]byte
+			var leafForHashing [][]byte
+			if isAccountProof {
+				leafRows, leafForHashing = prepareAccountLeaf(proof1[len1-1], proof2[len2-1], key, nonExistingAccountProof, false)
+				toBeHashed = append(toBeHashed, leafForHashing...)
+			} else {
+				leafRows, leafForHashing = prepareStorageLeaf(proof1[len1-1], key, nonExistingAccountProof)
+				toBeHashed = append(toBeHashed, leafForHashing...)
+			}
+			
+			isModifiedExtNode, isExtension, numberOfNibbles, branchC16 := addBranchAndPlaceholder(statedb, addr, &rows, proof1, proof2, extNibblesS, extNibblesC,
+				leafRows[0], key, neighbourNode,
 				keyIndex, extensionNodeInd, additionalBranch,
 				isAccountProof, nonExistingAccountProof, isShorterProofLastLeaf, branchC16, branchC1, &toBeHashed)
 
 			if isAccountProof {
-				addAccountLeafAfterBranchPlaceholder(&rows, proof1, proof2, neighbourNode, key, nonExistingAccountProof, isModifiedExtNode, isExtension, numberOfNibbles, &toBeHashed)	
+				addAccountLeafAfterBranchPlaceholder(&rows, proof1, proof2, leafRows, neighbourNode, key, nonExistingAccountProof, isModifiedExtNode, isExtension, numberOfNibbles, &toBeHashed)	
 			} else {	
-				addStorageLeafAfterBranchPlaceholder(&rows, proof1, proof2, neighbourNode, key, nonExistingAccountProof, isModifiedExtNode, isExtension, numberOfNibbles, &toBeHashed)
+				addStorageLeafAfterBranchPlaceholder(&rows, proof1, proof2, leafRows, neighbourNode, key, nonExistingAccountProof, isModifiedExtNode, isExtension, numberOfNibbles, &toBeHashed)
 			}
 
 			// When a proof element is a modified extension node (new extension node appears at the position
