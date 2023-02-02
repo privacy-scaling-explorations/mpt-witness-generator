@@ -14,7 +14,7 @@ func addBranchAndPlaceholder(statedb *state.StateDB, addr common.Address, rows *
 		key, neighbourNode []byte,
 		keyIndex, extensionNodeInd int,
 		additionalBranch, isAccountProof, nonExistingAccountProof,
-		isShorterProofLastLeaf bool, branchC16, branchC1 byte, toBeHashed *[][]byte) (bool, bool, int) {
+		isShorterProofLastLeaf bool, branchC16, branchC1 byte, toBeHashed *[][]byte) (bool, bool, int, byte) {
 	len1 := len(proof1)
 	len2 := len(proof2)
 
@@ -108,7 +108,7 @@ func addBranchAndPlaceholder(statedb *state.StateDB, addr common.Address, rows *
 	}
 	*rows = append(*rows, extRows...)
 
-	return isModifiedExtNode, isExtension, numberOfNibbles
+	return isModifiedExtNode, isExtension, numberOfNibbles, branchC16
 }
 
 // prepareWitness takes two GetProof proofs (before and after single modification) and prepares
@@ -286,7 +286,7 @@ func prepareWitness(statedb *state.StateDB, addr common.Address, proof1, proof2,
 	
 	if len1 != len2 {
 		if additionalBranch {
-			isModifiedExtNode, isExtension, numberOfNibbles := addBranchAndPlaceholder(statedb, addr, &rows, proof1, proof2, extNibblesS, extNibblesC, key, neighbourNode,
+			isModifiedExtNode, isExtension, numberOfNibbles, branchC16 := addBranchAndPlaceholder(statedb, addr, &rows, proof1, proof2, extNibblesS, extNibblesC, key, neighbourNode,
 				keyIndex, extensionNodeInd, additionalBranch,
 				isAccountProof, nonExistingAccountProof, isShorterProofLastLeaf, branchC16, branchC1, &toBeHashed)
 

@@ -414,7 +414,6 @@ func addLeafAfterBranchPlaceholder(rows *[][]byte, proof1, proof2 [][]byte, neig
 	if len1 > len2 {
 		// All account leaf rows already generated above, for storage leaf only S is generated above.
 		if isAccountProof {
-			// TODO: isInsertedExtNode
 			*rows = append(*rows, leafRows...)
 		} else {
 			if !isModifiedExtNode {
