@@ -400,7 +400,7 @@ func addLeafAndPlaceholder(rows *[][]byte, proof1, proof2 [][]byte, key []byte, 
 
 // addStorageLeafAfterBranchPlaceholder adds storage leaf rows after branch that is a placeholder.
 // It also handles the case when there is a modified extension node.
-func addStorageLeafAfterBranchPlaceholder(rows *[][]byte, proof1, proof2 [][]byte, neighbourNode, key []byte, nonExistingAccountProof, isModifiedExtNode, isExtension bool, branchC16 byte, numberOfNibbles int, toBeHashed *[][]byte) {
+func addStorageLeafAfterBranchPlaceholder(rows *[][]byte, proof1, proof2 [][]byte, neighbourNode, key []byte, nonExistingAccountProof, isModifiedExtNode, isExtension bool, numberOfNibbles int, toBeHashed *[][]byte) {
 	len1 := len(proof1)
 	len2 := len(proof2)
 
@@ -448,10 +448,6 @@ func addStorageLeafAfterBranchPlaceholder(rows *[][]byte, proof1, proof2 [][]byt
 		if isModifiedExtNode {
 			(*rows)[len(*rows)-branchRows-offset][isInsertedExtNodeS] = 1
 		}
-
-		if isExtension {
-			setExtNodeSelectors((*rows)[len(*rows)-branchRows-offset], proof1[len1-3], numberOfNibbles, branchC16)
-		}
 	} else {
 		// We now get the first nibble of the leaf that was turned into branch.
 		// This first nibble presents the position of the leaf once it moved
@@ -461,10 +457,6 @@ func addStorageLeafAfterBranchPlaceholder(rows *[][]byte, proof1, proof2 [][]byt
 
 		if isModifiedExtNode {
 			(*rows)[len(*rows)-branchRows][isInsertedExtNodeC] = 1
-		}
-
-		if isExtension {
-			setExtNodeSelectors((*rows)[len(*rows)-branchRows], proof2[len2-3], numberOfNibbles, branchC16)	
 		}
 
 		if !isModifiedExtNode {
@@ -519,9 +511,9 @@ func addStorageLeafAfterBranchPlaceholder(rows *[][]byte, proof1, proof2 [][]byt
 	*rows = append(*rows, nonExistingStorageRow)
 }
 
-// addAccountLeafAfterBranchPlaceholder adds storage leaf rows after branch that is a placeholder.
+// addAccountLeafAfterBranchPlaceholder adds account leaf rows after branch that is a placeholder.
 // It also handles the case when there is a modified extension node.
-func addAccountLeafAfterBranchPlaceholder(rows *[][]byte, proof1, proof2 [][]byte, neighbourNode, key []byte, nonExistingAccountProof, isModifiedExtNode, isExtension bool, branchC16 byte, numberOfNibbles int, toBeHashed *[][]byte) {
+func addAccountLeafAfterBranchPlaceholder(rows *[][]byte, proof1, proof2 [][]byte, neighbourNode, key []byte, nonExistingAccountProof, isModifiedExtNode, isExtension bool, numberOfNibbles int, toBeHashed *[][]byte) {
 	len1 := len(proof1)
 	len2 := len(proof2)
 
@@ -545,10 +537,6 @@ func addAccountLeafAfterBranchPlaceholder(rows *[][]byte, proof1, proof2 [][]byt
 		if isModifiedExtNode {
 			(*rows)[len(*rows)-branchRows-offset][isInsertedExtNodeS] = 1
 		}
-
-		if isExtension {
-			setExtNodeSelectors((*rows)[len(*rows)-branchRows-offset], proof1[len1-3], numberOfNibbles, branchC16)
-		}
 	} else {
 		// We now get the first nibble of the leaf that was turned into branch.
 		// This first nibble presents the position of the leaf once it moved
@@ -558,10 +546,6 @@ func addAccountLeafAfterBranchPlaceholder(rows *[][]byte, proof1, proof2 [][]byt
 
 		if isModifiedExtNode {
 			(*rows)[len(*rows)-branchRows][isInsertedExtNodeC] = 1
-		}
-
-		if isExtension {
-			setExtNodeSelectors((*rows)[len(*rows)-branchRows], proof2[len2-3], numberOfNibbles, branchC16)	
 		}
 
 		*rows = append(*rows, leafRows...)

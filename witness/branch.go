@@ -1,5 +1,10 @@
 package witness
 
+import (
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/miha-stopar/mpt/state"
+)
+
 // prepareBranchWitness takes the rows that are to be filled with branch data and it takes
 // a branch as returned by GetProof. There are 19 rows for a branch and prepareBranchWitness
 // fills the rows from index 1 to index 16 (index 0 is init, index 17 and 18 are for extension
@@ -250,4 +255,116 @@ func getDriftedPosition(leafKeyRow []byte, numberOfNibbles int) byte {
 	}
 
 	return nibbles[numberOfNibbles]
+}
+
+// addBranchAndPlaceholder adds to the rows a branch and its placeholder counterpart
+// (used when one of the proofs have one branch more than the other).
+func addBranchAndPlaceholder(statedb *state.StateDB, addr common.Address, rows *[][]byte, proof1, proof2,
+		extNibblesS, extNibblesC [][]byte,
+		key, neighbourNode []byte,
+		keyIndex, extensionNodeInd int,
+		additionalBranch, isAccountProof, nonExistingAccountProof,
+		isShorterProofLastLeaf bool, branchC16, branchC1 byte, toBeHashed *[][]byte) (bool, bool, int, byte) {
+	len1 := len(proof1)
+	len2 := len(proof2)
+
+	numberOfNibbles := 0
+	var extRows [][]byte
+	isExtension := (len1 == len2 + 2) || (len2 == len1 + 2)
+	if !isExtension {
+		extRows = prepareEmptyExtensionRows(false, false)
+		if branchC16 == 1 {
+			branchC16 = 0
+			branchC1 = 1
+		} else {
+			branchC16 = 1
+			branchC1 = 0
+		}
+	} else {
+		var numNibbles byte
+		var extensionRowS []byte
+		var extensionRowC []byte
+		if len1 > len2 {
+			numNibbles, extensionRowS, extensionRowC =
+				prepareExtensionRows(extNibblesS, extensionNodeInd, proof1[len1 - 3], proof1[len1 - 3], false, false)
+		} else {
+			numNibbles, extensionRowS, extensionRowC =
+				prepareExtensionRows(extNibblesC, extensionNodeInd, proof2[len2 - 3], proof2[len2 - 3], false, false)
+		}
+		numberOfNibbles = int(numNibbles)
+		extRows = append(extRows, extensionRowS)
+		extRows = append(extRows, extensionRowC)
+
+		// adding extension node for hashing:
+		if len1 > len2 {
+			addForHashing(proof1[len1-3], toBeHashed)
+		} else {
+			addForHashing(proof2[len2-3], toBeHashed)
+		}
+
+		if numberOfNibbles % 2 == 0 {
+			if branchC16 == 1 {
+				branchC16 = 0
+				branchC1 = 1
+			} else {
+				branchC16 = 1
+				branchC1 = 0
+			}
+		}
+	}
+
+	/*
+	For special cases when a new extension node is inserted.
+
+	Imagine you have an extension node at n1 n2 n3 n4 (where each of these is a nibble).
+	Let's say this extension node has the following nibbles as the extension: n5 n6 n7.
+	So at position n1 n2 n3 n4 n5 n6 n7 there is some branch.
+	Now we want to add a leaf at position n1 n2 n3 n4 n5 m1 where m1 != n6.
+	The adding algorithm walks through the trie, but it bumps into an extension node where
+	it should put this leaf. So a new extension node is added at position n1 n2 n3 n4 which only
+	has one nibble: n5. So at n1 n2 n3 n4 n5 we have a branch now. In this brach, at position m we
+	have a leaf, while at position n6 we have another extension node with one extension nibble: n7.
+	At this position (n7) we have the branch from the original extension node.
+
+	When an extension node is inserted because of the added key, C proof will contain this new
+	extension node and the underlying branch. However, S proof will stop at the old extension node. 
+	This old extension node is not part of the C proof, but we need to ensure that it is in the C trie.
+	We need to take into accout that in the C trie the old extension node has a shortened extension.
+
+	The problem is where to store the old extension node. Note that in the above code the new
+	extension node and the underlying branch rows are prepared. For example, when len2 > len1 we
+	take extension node from proof2[len2 - 3] and branch from proof2[len2 - 2]. In this case,
+	the old extension node in proof1[len1 - 1] has been ignored. For this reason we store it
+	in the rows before we add a leaf.
+	*/
+	var longExtNode []byte
+	if len1 > len2 {
+		longExtNode = proof2[len2 - 1]
+	} else {
+		longExtNode = proof1[len1 - 1]
+	}
+
+	// Note that isModifiedExtNode happens also when we have a branch instead of shortExtNode
+	isModifiedExtNode := !isBranch(longExtNode) && !isShorterProofLastLeaf
+
+	if len1 > len2 {
+		bRows, branchToBeHashed := prepareParallelBranches(proof1[len1-2], proof1[len1-2], key[keyIndex + numberOfNibbles], true, branchC16, branchC1, isModifiedExtNode)
+		if isExtension {
+			setExtNodeSelectors(bRows[0], proof1[len1-3], numberOfNibbles, branchC16)
+		}
+					
+		*rows = append(*rows, bRows...)
+		addForHashing(branchToBeHashed, toBeHashed)
+	} else {
+		bRows, branchToBeHashed := prepareParallelBranches(proof2[len2-2], proof2[len2-2], key[keyIndex + numberOfNibbles], false, branchC16, branchC1, isModifiedExtNode)
+		if isExtension {
+			setExtNodeSelectors(bRows[0], proof2[len2-3], numberOfNibbles, branchC16)	
+		}
+
+		*rows = append(*rows, bRows...)
+		addForHashing(branchToBeHashed, toBeHashed)
+	}
+	*rows = append(*rows, extRows...)
+
+	return isModifiedExtNode, isExtension, numberOfNibbles, branchC16
 }
