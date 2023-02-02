@@ -290,7 +290,11 @@ func prepareWitness(statedb *state.StateDB, addr common.Address, proof1, proof2,
 				keyIndex, extensionNodeInd, additionalBranch,
 				isAccountProof, nonExistingAccountProof, isShorterProofLastLeaf, branchC16, branchC1, &toBeHashed)
 
-			addLeafAfterBranchPlaceholder(&rows, proof1, proof2, neighbourNode, key, nonExistingAccountProof, isAccountProof, isModifiedExtNode, isExtension, branchC16, numberOfNibbles, &toBeHashed)
+			if isAccountProof {
+				addAccountLeafAfterBranchPlaceholder(&rows, proof1, proof2, neighbourNode, key, nonExistingAccountProof, isModifiedExtNode, isExtension, branchC16, numberOfNibbles, &toBeHashed)
+			} else {
+				addStorageLeafAfterBranchPlaceholder(&rows, proof1, proof2, neighbourNode, key, nonExistingAccountProof, isModifiedExtNode, isExtension, branchC16, numberOfNibbles, &toBeHashed)
+			}
 
 			// When a proof element is a modified extension node (new extension node appears at the position
 			// of the existing extension node), additional rows are added (extension node before and after
