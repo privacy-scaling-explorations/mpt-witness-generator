@@ -277,6 +277,28 @@ func prepareWitness(statedb *state.StateDB, addr common.Address, proof1, proof2,
 				}
 				
 				leafRows, _ := prepareAccountLeaf(leaf, leaf, key, nonExistingAccountProof, true)
+
+				leafRows[0][1] = byte(keyLen) + 73
+				leafRows[1][1] = byte(keyLen) + 73
+				leafRows[3][0] = 184
+				leafRows[3][1] = 70
+				leafRows[3][2] = 128
+				leafRows[3][branch2start] = 248
+				leafRows[3][branch2start + 1] = 68
+				leafRows[3][branch2start + 2] = 128
+
+				leafRows[4][0] = 184
+				leafRows[4][1] = 70
+				leafRows[4][2] = 128
+				leafRows[4][branch2start] = 248
+				leafRows[4][branch2start + 1] = 68
+				leafRows[4][branch2start + 2] = 128
+				
+				leafRows[5][1] = 160
+				leafRows[5][branch2start + 1] = 160
+				leafRows[6][1] = 160
+				leafRows[6][branch2start + 1] = 160
+
 				rows = append(rows, leafRows...)
 
 				pRows := prepareDriftedLeafPlaceholder(isAccountProof)
