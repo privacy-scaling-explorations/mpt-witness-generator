@@ -1,14 +1,12 @@
 package witness
 
 import (
-	"math"
-
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/miha-stopar/mpt/state"
 )
 
 // prepareWitness takes two GetProof proofs (before and after single modification) and prepares
-// a witness for an MPT circuit. Alongside, it prepares the byte streams that need to be hashed
+// a witness for the MPT circuit. Alongside, it prepares the byte streams that need to be hashed
 // and inserted into Keccak lookup table.
 func prepareWitness(statedb *state.StateDB, addr common.Address, proof1, proof2, extNibblesS, extNibblesC [][]byte, key []byte, neighbourNode []byte,
 		isAccountProof, nonExistingAccountProof, nonExistingStorageProof, isShorterProofLastLeaf bool) ([][]byte, [][]byte, bool) {
@@ -221,88 +219,12 @@ func prepareWitness(statedb *state.StateDB, addr common.Address, proof1, proof2,
 		if isBranch(proof2[len(proof2)-1]) {
 			// When non existing proof and only the branches are returned, we add a placeholder leaf.
 			// This is to enable the lookup (in account leaf row), most constraints are disabled for these rows.
-			if !isAccountProof {
-				// We need to prepare placeholder storage leaf rows.
-				leaf := make([]byte, rowLen)
-				// Just some values to avoid assignement errors:
-				leaf[0] = 228
-				leaf[1] = 130
-				leaf[2] = 51
-
-				leafRows, _ := prepareStorageLeafRows(leaf, 2, false)
-				rows = append(rows, leafRows...)
-				leafRows, _ = prepareStorageLeafRows(leaf, 3, false)
-				rows = append(rows, leafRows...)
-
-				pRows := prepareDriftedLeafPlaceholder(isAccountProof)
-				rows = append(rows, pRows...)	
-
-				if nonExistingStorageProof {
-					leaf := prepareEmptyNonExistingStorageRow()
-
-					isEven := keyIndex % 2 == 0 
-					keyLen := int(math.Floor(float64(64-keyIndex) / float64(2))) + 1
-					remainingNibbles := key[keyIndex:]
-					leaf[1] = byte(keyLen) + 128
-					if isEven {
-						leaf[2] = 32
-					} else {
-						leaf[2] = remainingNibbles[0] + 48
-					}
-
-					rows = append(rows, leaf)	
-				} else {
-					nonExistingStorageRow := prepareEmptyNonExistingStorageRow()
-					rows = append(rows, nonExistingStorageRow)	
-				}
+			if isAccountProof {
+				leafRows := prepareAccountLeafPlaceholderRows(key, keyIndex, nonExistingAccountProof)
+				rows = append(rows, leafRows...)	
 			} else {
-				isEven := keyIndex % 2 == 0 
-				keyLen := int(math.Floor(float64(64-keyIndex) / float64(2))) + 1
-				remainingNibbles := key[keyIndex:]
-				offset := 0
-				leaf := make([]byte, rowLen)
-				leaf[0] = 248
-				leaf[2] = byte(keyLen) + 128
-				leaf[3 + keyLen] = 184
-				leaf[3 + keyLen + 1 + 1] = 248
-				leaf[3 + keyLen + 1 + 1 + 1] = leaf[3 + keyLen + 1] - 2
-				if isEven {
-					leaf[3] = 32
-				} else {
-					leaf[3] = remainingNibbles[0] + 48
-					offset = 1
-				}
-				for i := 0; i < keyLen - 1; i++ {
-					leaf[4+i] = remainingNibbles[2*i + offset] * 16 + remainingNibbles[2*i + 1 + offset]
-				}
-				
-				leafRows, _ := prepareAccountLeaf(leaf, leaf, key, nonExistingAccountProof, true)
-
-				leafRows[0][1] = byte(keyLen) + 73
-				leafRows[1][1] = byte(keyLen) + 73
-				leafRows[3][0] = 184
-				leafRows[3][1] = 70
-				leafRows[3][2] = 128
-				leafRows[3][branch2start] = 248
-				leafRows[3][branch2start + 1] = 68
-				leafRows[3][branch2start + 2] = 128
-
-				leafRows[4][0] = 184
-				leafRows[4][1] = 70
-				leafRows[4][2] = 128
-				leafRows[4][branch2start] = 248
-				leafRows[4][branch2start + 1] = 68
-				leafRows[4][branch2start + 2] = 128
-				
-				leafRows[5][1] = 160
-				leafRows[5][branch2start + 1] = 160
-				leafRows[6][1] = 160
-				leafRows[6][branch2start + 1] = 160
-
-				rows = append(rows, leafRows...)
-
-				pRows := prepareDriftedLeafPlaceholder(isAccountProof)
-				rows = append(rows, pRows...)	
+				leafRows := prepareStorageLeafPlaceholderRows(key, keyIndex, nonExistingStorageProof)
+				rows = append(rows, leafRows...)	
 			}
 		} else {
 			pRows := prepareDriftedLeafPlaceholder(isAccountProof)

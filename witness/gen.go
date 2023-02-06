@@ -21,6 +21,7 @@ const branch2start = branchNodeRLPLen + 32
 const branchRows = 19 // 1 (init) + 16 (children) + 2 (extension S and C)
 
 const accountLeafRows = 8
+const storageLeafRows = 6
 const counterLen = 4
 
 // rowLen - each branch node has 2 positions for RLP meta data and 32 positions for hash

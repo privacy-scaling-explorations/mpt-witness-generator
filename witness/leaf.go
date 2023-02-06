@@ -1,5 +1,7 @@
 package witness
 
+import "math"
+
 func prepareAccountLeaf(leafS, leafC []byte, key []byte, nonExistingAccountProof, noLeaf bool) ([][]byte, [][]byte) {
 	var leafRows [][]byte
 	var leafForHashing [][]byte
@@ -508,4 +510,93 @@ func addAccountLeafAfterBranchPlaceholder(rows *[][]byte, proof1, proof2, leafRo
 		pRows := prepareDriftedLeafPlaceholder(true)
 		*rows = append(*rows, pRows...)	
 	}
+}
+
+func prepareStorageLeafPlaceholderRows(key []byte, keyIndex int, nonExistingStorageProof bool) [][]byte {
+	rows := make([][]byte, storageLeafRows)
+
+	leaf := make([]byte, rowLen)
+	// Just some values to avoid assignment errors:
+	leaf[0] = 228
+	leaf[1] = 130
+	leaf[2] = 51
+
+	leafRows, _ := prepareStorageLeafRows(leaf, 2, false)
+	rows = append(rows, leafRows...)
+	leafRows, _ = prepareStorageLeafRows(leaf, 3, false)
+	rows = append(rows, leafRows...)
+
+	pRows := prepareDriftedLeafPlaceholder(false)
+	rows = append(rows, pRows...)	
+
+	if nonExistingStorageProof {
+		leaf := prepareEmptyNonExistingStorageRow()
+
+		isEven := keyIndex % 2 == 0 
+		keyLen := int(math.Floor(float64(64-keyIndex) / float64(2))) + 1
+		remainingNibbles := key[keyIndex:]
+		leaf[1] = byte(keyLen) + 128
+		if isEven {
+			leaf[2] = 32
+		} else {
+			leaf[2] = remainingNibbles[0] + 48
+		}
+
+		rows = append(rows, leaf)	
+	} else {
+		nonExistingStorageRow := prepareEmptyNonExistingStorageRow()
+		rows = append(rows, nonExistingStorageRow)	
+	}
+
+	return rows
+}
+
+func prepareAccountLeafPlaceholderRows(key []byte, keyIndex int, nonExistingAccountProof bool) [][]byte {
+	isEven := keyIndex % 2 == 0 
+	keyLen := int(math.Floor(float64(64-keyIndex) / float64(2))) + 1
+	remainingNibbles := key[keyIndex:]
+	offset := 0
+	leaf := make([]byte, rowLen)
+	leaf[0] = 248
+	leaf[2] = byte(keyLen) + 128
+	leaf[3 + keyLen] = 184
+	leaf[3 + keyLen + 1 + 1] = 248
+	leaf[3 + keyLen + 1 + 1 + 1] = leaf[3 + keyLen + 1] - 2
+	if isEven {
+		leaf[3] = 32
+	} else {
+		leaf[3] = remainingNibbles[0] + 48
+		offset = 1
+	}
+	for i := 0; i < keyLen - 1; i++ {
+		leaf[4+i] = remainingNibbles[2*i + offset] * 16 + remainingNibbles[2*i + 1 + offset]
+	}
+	
+	leafRows, _ := prepareAccountLeaf(leaf, leaf, key, nonExistingAccountProof, true)
+
+	leafRows[0][1] = byte(keyLen) + 73
+	leafRows[1][1] = byte(keyLen) + 73
+	leafRows[3][0] = 184
+	leafRows[3][1] = 70
+	leafRows[3][2] = 128
+	leafRows[3][branch2start] = 248
+	leafRows[3][branch2start + 1] = 68
+	leafRows[3][branch2start + 2] = 128
+
+	leafRows[4][0] = 184
+	leafRows[4][1] = 70
+	leafRows[4][2] = 128
+	leafRows[4][branch2start] = 248
+	leafRows[4][branch2start + 1] = 68
+	leafRows[4][branch2start + 2] = 128
+	
+	leafRows[5][1] = 160
+	leafRows[5][branch2start + 1] = 160
+	leafRows[6][1] = 160
+	leafRows[6][branch2start + 1] = 160
+
+	pRows := prepareDriftedLeafPlaceholder(true)
+	leafRows = append(leafRows, pRows...)
+
+	return leafRows
 }
