@@ -59,23 +59,8 @@ func prepareWitness(statedb *state.StateDB, addr common.Address, proof1, proof2,
 				continue
 			}
 
-			if isAccountProof {
-				l := len(proof1)
-				leafS := proof1[l-1]
-				leafC := proof2[l-1]
-
-				leafRows, leafForHashing := prepareAccountLeaf(leafS, leafC, key, nonExistingAccountProof, false)
-				rows = append(rows, leafRows...)
-				toBeHashed = append(toBeHashed, leafForHashing...)
-			} else {
-				leafRows, leafForHashing := prepareStorageLeafRows(proof1[i], 2, false) // leaf s
-				rows = append(rows, leafRows...)
-				toBeHashed = append(toBeHashed, leafForHashing)
-				leafRows, leafForHashing = prepareStorageLeafRows(proof2[i], 3, false) // leaf s
-				rows = append(rows, leafRows...)	
-
-				toBeHashed = append(toBeHashed, leafForHashing)
-			}
+			l := len(proof1)
+			addLeafRows(&rows, proof1[l-1], proof2[l-1], key, nonExistingAccountProof, nonExistingStorageProof, isAccountProof, &toBeHashed)
 		} else {
 			switchC16 := true // If not extension node, switchC16 = true.
 			if extensionRowS != nil {
@@ -212,35 +197,18 @@ func prepareWitness(statedb *state.StateDB, addr common.Address, proof1, proof2,
 		} else {
 			addLeafAndPlaceholder(&rows, proof1, proof2, key, nonExistingAccountProof, isAccountProof, &toBeHashed)
 		}
-	} else {
+	} else if isBranch(proof2[len(proof2)-1]) {
 		// Let's always use C proof for non-existing proof.
 		// Account proof has drifted leaf as the last row, storage proof has non-existing-storage row
 		// as the last row.
-		if isBranch(proof2[len(proof2)-1]) {
-			// When non existing proof and only the branches are returned, we add a placeholder leaf.
-			// This is to enable the lookup (in account leaf row), most constraints are disabled for these rows.
-			if isAccountProof {
-				leafRows := prepareAccountLeafPlaceholderRows(key, keyIndex, nonExistingAccountProof)
-				rows = append(rows, leafRows...)	
-			} else {
-				leafRows := prepareStorageLeafPlaceholderRows(key, keyIndex, nonExistingStorageProof)
-				rows = append(rows, leafRows...)	
-			}
+		// When non existing proof and only the branches are returned, we add a placeholder leaf.
+		// This is to enable the lookup (in account leaf row), most constraints are disabled for these rows.
+		if isAccountProof {
+			leafRows := prepareAccountLeafPlaceholderRows(key, keyIndex, nonExistingAccountProof)
+			rows = append(rows, leafRows...)	
 		} else {
-			pRows := prepareDriftedLeafPlaceholder(isAccountProof)
-			rows = append(rows, pRows...)	
-
-			if !isAccountProof {
-				if nonExistingStorageProof {
-					cKeyRow := rows[len(rows) - 3]
-					noLeaf := false
-					nonExistingStorageRow := prepareNonExistingStorageRow(cKeyRow, key, noLeaf)
-					rows = append(rows, nonExistingStorageRow)	
-				} else {
-					nonExistingStorageRow := prepareEmptyNonExistingStorageRow()
-					rows = append(rows, nonExistingStorageRow)	
-				}
-			}
+			leafRows := prepareStorageLeafPlaceholderRows(key, keyIndex, nonExistingStorageProof)
+			rows = append(rows, leafRows...)	
 		}
 	}
 
