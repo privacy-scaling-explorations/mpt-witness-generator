@@ -35,7 +35,7 @@ func TestUpdateOneLevel(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	UpdateStateAndGenProof("UpdateOneLevel", ks[:], values, []common.Address{addr, addr}, trieModifications)
+	updateStateAndPrepareWitness("UpdateOneLevel", ks[:], values, []common.Address{addr, addr}, trieModifications)
 }
 
 func TestUpdateOneLevel1(t *testing.T) {
@@ -57,7 +57,7 @@ func TestUpdateOneLevel1(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	UpdateStateAndGenProof("UpdateOneLevel1", ks[:], values, []common.Address{addr, addr}, trieModifications)
+	updateStateAndPrepareWitness("UpdateOneLevel1", ks[:], values, []common.Address{addr, addr}, trieModifications)
 }
 
 func TestUpdateOneLevelBigVal(t *testing.T) {
@@ -87,7 +87,7 @@ func TestUpdateOneLevelBigVal(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	UpdateStateAndGenProof("UpdateOneLevelBigVal", ks[:], values, []common.Address{addr, addr}, trieModifications)
+	updateStateAndPrepareWitness("UpdateOneLevelBigVal", ks[:], values, []common.Address{addr, addr}, trieModifications)
 }
 
 func TestUpdateTwoLevels(t *testing.T) {
@@ -119,7 +119,7 @@ func TestUpdateTwoLevels(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	UpdateStateAndGenProof("UpdateTwoLevels", ks[:], values, []common.Address{addr, addr, addr}, trieModifications)
+	updateStateAndPrepareWitness("UpdateTwoLevels", ks[:], values, []common.Address{addr, addr, addr}, trieModifications)
 }
 
 func TestUpdateTwoLevelsBigVal(t *testing.T) {
@@ -152,7 +152,7 @@ func TestUpdateTwoLevelsBigVal(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 	
-	UpdateStateAndGenProof("UpdateTwoLevelsBigVal", ks[:], values, []common.Address{addr, addr, addr}, trieModifications)
+	updateStateAndPrepareWitness("UpdateTwoLevelsBigVal", ks[:], values, []common.Address{addr, addr, addr}, trieModifications)
 }
 
 func TestUpdateThreeLevels(t *testing.T) {
@@ -207,7 +207,7 @@ func TestUpdateThreeLevels(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	UpdateStateAndGenProof("UpdateThreeLevels", ks[:], values, addresses, trieModifications)
+	updateStateAndPrepareWitness("UpdateThreeLevels", ks[:], values, addresses, trieModifications)
 }
 
 func TestFromNilToValue(t *testing.T) {
@@ -247,7 +247,7 @@ func TestFromNilToValue(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	UpdateStateAndGenProof("FromNilToValue", ks[:], values, addresses, trieModifications) 
+	updateStateAndPrepareWitness("FromNilToValue", ks[:], values, addresses, trieModifications) 
 }
 
 func TestDelete(t *testing.T) {
@@ -279,7 +279,7 @@ func TestDelete(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	UpdateStateAndGenProof("Delete", ks[:], values, addresses, trieModifications)
+	updateStateAndPrepareWitness("Delete", ks[:], values, addresses, trieModifications)
 }
 
 func TestUpdateOneLevelEvenAddress(t *testing.T) {
@@ -307,7 +307,7 @@ func TestUpdateOneLevelEvenAddress(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	UpdateStateAndGenProof("UpdateOneLevelEvenAddress", ks[:], values, addresses, trieModifications)
+	updateStateAndPrepareWitness("UpdateOneLevelEvenAddress", ks[:], values, addresses, trieModifications)
 }
 
 func TestAddBranch(t *testing.T) {
@@ -341,7 +341,7 @@ func TestAddBranch(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	UpdateStateAndGenProof("AddBranch", ks[:], values, addresses, trieModifications)
+	updateStateAndPrepareWitness("AddBranch", ks[:], values, addresses, trieModifications)
 }
 
 func TestAddBranchLong(t *testing.T) {
@@ -378,7 +378,7 @@ func TestAddBranchLong(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	UpdateStateAndGenProof("AddBranchLong", ks[:], values, addresses, trieModifications)
+	updateStateAndPrepareWitness("AddBranchLong", ks[:], values, addresses, trieModifications)
 }
 
 func TestDeleteBranch(t *testing.T) {
@@ -416,7 +416,7 @@ func TestDeleteBranch(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	UpdateStateAndGenProof("DeleteBranch", ks[:], values, addresses, trieModifications)
+	updateStateAndPrepareWitness("DeleteBranch", ks[:], values, addresses, trieModifications)
 }
 
 func TestDeleteBranchLong(t *testing.T) {
@@ -457,7 +457,7 @@ func TestDeleteBranchLong(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	UpdateStateAndGenProof("DeleteBranchLong", ks[:], values, addresses, trieModifications)
+	updateStateAndPrepareWitness("DeleteBranchLong", ks[:], values, addresses, trieModifications)
 }
 
 func TestAddBranchTwoLevels(t *testing.T) {
@@ -506,7 +506,7 @@ func TestAddBranchTwoLevels(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	UpdateStateAndGenProof("AddBranchTwoLevels", ks[:], values, addresses, trieModifications)
+	updateStateAndPrepareWitness("AddBranchTwoLevels", ks[:], values, addresses, trieModifications)
 }
 
 func TestAddBranchTwoLevelsLong(t *testing.T) {
@@ -550,7 +550,7 @@ func TestAddBranchTwoLevelsLong(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	UpdateStateAndGenProof("AddBranchTwoLevelsLong", ks[:], values, addresses, trieModifications)
+	updateStateAndPrepareWitness("AddBranchTwoLevelsLong", ks[:], values, addresses, trieModifications)
 }
 
 func TestDeleteBranchTwoLevels(t *testing.T) {
@@ -589,7 +589,7 @@ func TestDeleteBranchTwoLevels(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	UpdateStateAndGenProof("DeleteBranchTwoLevels", ks[:], values, addresses, trieModifications)
+	updateStateAndPrepareWitness("DeleteBranchTwoLevels", ks[:], values, addresses, trieModifications)
 }
 
 func TestDeleteBranchTwoLevelsLong(t *testing.T) {
@@ -630,7 +630,7 @@ func TestDeleteBranchTwoLevelsLong(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	UpdateStateAndGenProof("DeleteBranchTwoLevelsLong", ks[:], values, addresses, trieModifications)
+	updateStateAndPrepareWitness("DeleteBranchTwoLevelsLong", ks[:], values, addresses, trieModifications)
 }
 
 func TestExtensionOneKeyByteSel1(t *testing.T) {
@@ -686,7 +686,7 @@ func TestExtensionOneKeyByteSel1(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	UpdateStateAndGenProof("ExtensionOneKeyByteSel1", ks[:], values, addresses, trieModifications)
+	updateStateAndPrepareWitness("ExtensionOneKeyByteSel1", ks[:], values, addresses, trieModifications)
 }
 
 func TestExtensionAddedOneKeyByteSel1(t *testing.T) {
@@ -725,7 +725,7 @@ func TestExtensionAddedOneKeyByteSel1(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	UpdateStateAndGenProof("ExtensionAddedOneKeyByteSel1", ks[:], values, addresses, trieModifications)
+	updateStateAndPrepareWitness("ExtensionAddedOneKeyByteSel1", ks[:], values, addresses, trieModifications)
 }
 
 func TestExtensionDeletedOneKeyByteSel1(t *testing.T) {
@@ -765,7 +765,7 @@ func TestExtensionDeletedOneKeyByteSel1(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	UpdateStateAndGenProof("ExtensionDeletedOneKeyByteSel1", ks[:], values, addresses, trieModifications)
+	updateStateAndPrepareWitness("ExtensionDeletedOneKeyByteSel1", ks[:], values, addresses, trieModifications)
 }
 
 func TestExtensionOneKeyByteSel2(t *testing.T) {
@@ -798,7 +798,7 @@ func TestExtensionOneKeyByteSel2(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	UpdateStateAndGenProof("ExtensionOneKeyByteSel2", ks[:], values, addresses, trieModifications)
+	updateStateAndPrepareWitness("ExtensionOneKeyByteSel2", ks[:], values, addresses, trieModifications)
 }
 
 func TestExtensionAddedOneKeyByteSel2(t *testing.T) {
@@ -835,7 +835,7 @@ func TestExtensionAddedOneKeyByteSel2(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	UpdateStateAndGenProof("ExtensionAddedOneKeyByteSel2", ks[:], values, addresses, trieModifications)
+	updateStateAndPrepareWitness("ExtensionAddedOneKeyByteSel2", ks[:], values, addresses, trieModifications)
 }
 
 func TestExtensionDeletedOneKeyByteSel2(t *testing.T) {
@@ -869,7 +869,7 @@ func TestExtensionDeletedOneKeyByteSel2(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	UpdateStateAndGenProof("ExtensionDeletedOneKeyByteSel2", ks[:], values, addresses, trieModifications) 
+	updateStateAndPrepareWitness("ExtensionDeletedOneKeyByteSel2", ks[:], values, addresses, trieModifications) 
 }
 
 func TestExtensionTwoKeyBytesSel1(t *testing.T) {
@@ -909,7 +909,7 @@ func TestExtensionTwoKeyBytesSel1(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	UpdateStateAndGenProof("ExtensionTwoKeyBytesSel1", ks[:], values, addresses, trieModifications)
+	updateStateAndPrepareWitness("ExtensionTwoKeyBytesSel1", ks[:], values, addresses, trieModifications)
 }
 
 func TestExtensionAddedTwoKeyBytesSel1(t *testing.T) {
@@ -947,7 +947,7 @@ func TestExtensionAddedTwoKeyBytesSel1(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	UpdateStateAndGenProof("ExtensionAddedTwoKeyBytesSel1", ks[:], values, addresses, trieModifications)
+	updateStateAndPrepareWitness("ExtensionAddedTwoKeyBytesSel1", ks[:], values, addresses, trieModifications)
 }
 
 func TestExtensionDeletedTwoKeyBytesSel1(t *testing.T) {
@@ -982,7 +982,7 @@ func TestExtensionDeletedTwoKeyBytesSel1(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	UpdateStateAndGenProof("ExtensionDeletedTwoKeyBytesSel1", ks[:], values, addresses, trieModifications)
+	updateStateAndPrepareWitness("ExtensionDeletedTwoKeyBytesSel1", ks[:], values, addresses, trieModifications)
 }
 
 func TestExtensionTwoKeyBytesSel2(t *testing.T) {
@@ -1015,7 +1015,7 @@ func TestExtensionTwoKeyBytesSel2(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	UpdateStateAndGenProof("ExtensionTwoKeyBytesSel2", ks[:], values, addresses, trieModifications)
+	updateStateAndPrepareWitness("ExtensionTwoKeyBytesSel2", ks[:], values, addresses, trieModifications)
 }
 
 func TestExtensionAddedTwoKeyBytesSel2(t *testing.T) {
@@ -1052,7 +1052,7 @@ func TestExtensionAddedTwoKeyBytesSel2(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	UpdateStateAndGenProof("ExtensionAddedTwoKeyBytesSel2", ks[:], values, addresses, trieModifications)
+	updateStateAndPrepareWitness("ExtensionAddedTwoKeyBytesSel2", ks[:], values, addresses, trieModifications)
 }
 
 func TestExtensionDeletedTwoKeyBytesSel2(t *testing.T) {
@@ -1086,7 +1086,7 @@ func TestExtensionDeletedTwoKeyBytesSel2(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	UpdateStateAndGenProof("ExtensionDeletedTwoKeyBytesSel2", ks[:], values, addresses, trieModifications)
+	updateStateAndPrepareWitness("ExtensionDeletedTwoKeyBytesSel2", ks[:], values, addresses, trieModifications)
 }
 
 func TestExtensionInFirstStorageLevel(t *testing.T) {
@@ -1117,7 +1117,7 @@ func TestExtensionInFirstStorageLevel(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	UpdateStateAndGenProof("ExtensionInFirstStorageLevel", ks[:], values, addresses, trieModifications)
+	updateStateAndPrepareWitness("ExtensionInFirstStorageLevel", ks[:], values, addresses, trieModifications)
 }
 
 func TestExtensionInFirstStorageLevelOneKeyByte(t *testing.T) {
@@ -1150,7 +1150,7 @@ func TestExtensionInFirstStorageLevelOneKeyByte(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	GenerateProof("ExtensionInFirstStorageLevelOneKeyByte", trieModifications, statedb)
+	PrepareWitness("ExtensionInFirstStorageLevelOneKeyByte", trieModifications, statedb)
 }
 
 func TestExtensionAddedInFirstStorageLevelOneKeyByte(t *testing.T) {
@@ -1180,7 +1180,7 @@ func TestExtensionAddedInFirstStorageLevelOneKeyByte(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	GenerateProof("ExtensionAddedInFirstStorageLevelOneKeyByte", trieModifications, statedb)
+	PrepareWitness("ExtensionAddedInFirstStorageLevelOneKeyByte", trieModifications, statedb)
 }
 
 func TestExtensionInFirstStorageLevelTwoKeyBytes(t *testing.T) {
@@ -1211,7 +1211,7 @@ func TestExtensionInFirstStorageLevelTwoKeyBytes(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	GenerateProof("ExtensionInFirstStorageLevelTwoKeyBytes", trieModifications, statedb)
+	PrepareWitness("ExtensionInFirstStorageLevelTwoKeyBytes", trieModifications, statedb)
 }
 
 func TestExtensionAddedInFirstStorageLevelTwoKeyBytes(t *testing.T) {
@@ -1242,7 +1242,7 @@ func TestExtensionAddedInFirstStorageLevelTwoKeyBytes(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	GenerateProof("ExtensionAddedInFirstStorageLevelTwoKeyBytes", trieModifications, statedb)
+	PrepareWitness("ExtensionAddedInFirstStorageLevelTwoKeyBytes", trieModifications, statedb)
 }
 
 func TestExtensionThreeKeyBytesSel2(t *testing.T) {
@@ -1275,7 +1275,7 @@ func TestExtensionThreeKeyBytesSel2(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	GenerateProof("ExtensionThreeKeyBytesSel2", trieModifications, statedb)
+	PrepareWitness("ExtensionThreeKeyBytesSel2", trieModifications, statedb)
 }
 
 func TestExtensionAddedThreeKeyBytesSel2(t *testing.T) {
@@ -1306,7 +1306,7 @@ func TestExtensionAddedThreeKeyBytesSel2(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	GenerateProof("ExtensionAddedThreeKeyBytesSel2", trieModifications, statedb)
+	PrepareWitness("ExtensionAddedThreeKeyBytesSel2", trieModifications, statedb)
 }
 
 func TestExtensionDeletedThreeKeyBytesSel2(t *testing.T) {
@@ -1339,7 +1339,7 @@ func TestExtensionDeletedThreeKeyBytesSel2(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	GenerateProof("ExtensionDeletedThreeKeyBytesSel2", trieModifications, statedb)
+	PrepareWitness("ExtensionDeletedThreeKeyBytesSel2", trieModifications, statedb)
 }
 
 func TestExtensionThreeKeyBytes(t *testing.T) {
@@ -1382,7 +1382,7 @@ func TestExtensionThreeKeyBytes(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	GenerateProof("ExtensionThreeKeyBytes", trieModifications, statedb)
+	PrepareWitness("ExtensionThreeKeyBytes", trieModifications, statedb)
 }
 
 func TestOnlyLeafInStorageProof(t *testing.T) {
@@ -1421,7 +1421,7 @@ func TestOnlyLeafInStorageProof(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	GenerateProof("OnlyLeafInStorageProof", trieModifications, statedb)
+	PrepareWitness("OnlyLeafInStorageProof", trieModifications, statedb)
 }
 
 func TestStorageLeafInFirstLevelAfterPlaceholder(t *testing.T) {
@@ -1463,7 +1463,7 @@ func TestStorageLeafInFirstLevelAfterPlaceholder(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	GenerateProof("StorageLeafInFirstLevelAfterPlaceholder", trieModifications, statedb)
+	PrepareWitness("StorageLeafInFirstLevelAfterPlaceholder", trieModifications, statedb)
 }
 
 func TestLeafAddedToEmptyTrie(t *testing.T) {
@@ -1505,7 +1505,7 @@ func TestLeafAddedToEmptyTrie(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	GenerateProof("LeafAddedToEmptyTrie", trieModifications, statedb)
+	PrepareWitness("LeafAddedToEmptyTrie", trieModifications, statedb)
 }
 
 func TestDeleteToEmptyTrie(t *testing.T) {
@@ -1544,7 +1544,7 @@ func TestDeleteToEmptyTrie(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	GenerateProof("DeleteToEmptyTrie", trieModifications, statedb)
+	PrepareWitness("DeleteToEmptyTrie", trieModifications, statedb)
 }
 
 func TestUpdateTwoModifications(t *testing.T) {
@@ -1577,7 +1577,7 @@ func TestUpdateTwoModifications(t *testing.T) {
 
 	trieModifications := []TrieModification{trieMod1, trieMod2}
 
-	UpdateStateAndGenProof("UpdateTwoModifications", ks[:], values, addresses, trieModifications)
+	updateStateAndPrepareWitness("UpdateTwoModifications", ks[:], values, addresses, trieModifications)
 }
 
 func TestNonceModCShort(t *testing.T) {
@@ -1595,7 +1595,7 @@ func TestNonceModCShort(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	GenerateProof("NonceModCShort", trieModifications, statedb)
+	PrepareWitness("NonceModCShort", trieModifications, statedb)
 }
 
 func TestNonceModCLong(t *testing.T) {
@@ -1613,7 +1613,7 @@ func TestNonceModCLong(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	GenerateProof("NonceModCLong", trieModifications, statedb)
+	PrepareWitness("NonceModCLong", trieModifications, statedb)
 }
 
 func TestBalanceModCShort(t *testing.T) {
@@ -1631,7 +1631,7 @@ func TestBalanceModCShort(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	GenerateProof("BalanceModCShort", trieModifications, statedb)
+	PrepareWitness("BalanceModCShort", trieModifications, statedb)
 }
 
 func TestBalanceModCLong(t *testing.T) {
@@ -1649,7 +1649,7 @@ func TestBalanceModCLong(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	GenerateProof("BalanceModCLong", trieModifications, statedb)
+	PrepareWitness("BalanceModCLong", trieModifications, statedb)
 }
 
 func TestAddAccount(t *testing.T) {
@@ -1668,7 +1668,7 @@ func TestAddAccount(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	GenerateProof("AddAccount", trieModifications, statedb)
+	PrepareWitness("AddAccount", trieModifications, statedb)
 }
 
 func TestDeleteAccount(t *testing.T) {
@@ -1688,7 +1688,7 @@ func TestDeleteAccount(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	GenerateProof("DeleteAccount", trieModifications, statedb)
+	PrepareWitness("DeleteAccount", trieModifications, statedb)
 }
 
 func TestImplicitlyCreateAccountWithNonce(t *testing.T) {
@@ -1711,7 +1711,7 @@ func TestImplicitlyCreateAccountWithNonce(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	GenerateProof("ImplicitlyCreateAccountWithNonce", trieModifications, statedb)
+	PrepareWitness("ImplicitlyCreateAccountWithNonce", trieModifications, statedb)
 }
 
 func TestImplicitlyCreateAccountWithBalance(t *testing.T) {
@@ -1730,7 +1730,7 @@ func TestImplicitlyCreateAccountWithBalance(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	GenerateProof("ImplicitlyCreateAccountWithBalance", trieModifications, statedb)
+	PrepareWitness("ImplicitlyCreateAccountWithBalance", trieModifications, statedb)
 }
 
 func TestImplicitlyCreateAccountWithCodeHash(t *testing.T) {
@@ -1750,7 +1750,7 @@ func TestImplicitlyCreateAccountWithCodeHash(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	GenerateProof("ImplicitlyCreateAccountWithCodeHash", trieModifications, statedb)
+	PrepareWitness("ImplicitlyCreateAccountWithCodeHash", trieModifications, statedb)
 }
 
 func TestAccountAddPlaceholderBranch(t *testing.T) {
@@ -1772,7 +1772,7 @@ func TestAccountAddPlaceholderBranch(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	GenerateProof("AccountAddPlaceholderBranch", trieModifications, statedb)
+	PrepareWitness("AccountAddPlaceholderBranch", trieModifications, statedb)
 }
 
 func TestAccountDeletePlaceholderBranch(t *testing.T) {
@@ -1794,7 +1794,7 @@ func TestAccountDeletePlaceholderBranch(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	GenerateProof("AccountDeletePlaceholderBranch", trieModifications, statedb)
+	PrepareWitness("AccountDeletePlaceholderBranch", trieModifications, statedb)
 }
 
 func TestAccountAddPlaceholderExtension(t *testing.T) {
@@ -1816,7 +1816,7 @@ func TestAccountAddPlaceholderExtension(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	GenerateProof("AccountAddPlaceholderExtension", trieModifications, statedb)
+	PrepareWitness("AccountAddPlaceholderExtension", trieModifications, statedb)
 }
 
 func TestAccountDeletePlaceholderExtension(t *testing.T) {
@@ -1838,7 +1838,7 @@ func TestAccountDeletePlaceholderExtension(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	GenerateProof("AccountDeletePlaceholderExtension", trieModifications, statedb)
+	PrepareWitness("AccountDeletePlaceholderExtension", trieModifications, statedb)
 }
 
 // Branch has nil at the specified address.
@@ -1859,7 +1859,7 @@ func TestNonExistingAccountNilObject(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	GenerateProof("NonExistingAccountNilObject", trieModifications, statedb)
+	PrepareWitness("NonExistingAccountNilObject", trieModifications, statedb)
 }
 
 // Branch has a leaf at the specified address (not really at the specified address, but at the one
@@ -1883,7 +1883,7 @@ func TestNonExistingAccount(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	GenerateProof("NonExistingAccount", trieModifications, statedb)
+	PrepareWitness("NonExistingAccount", trieModifications, statedb)
 }
 
 // Account proof after placeholder branch deeper in the trie (branch placeholder not in the
@@ -1906,7 +1906,7 @@ func TestAccountBranchPlaceholderDeeper(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	GenerateProofSpecial("AccountBranchPlaceholderDeeper", trieModifications, statedb, 0)
+	PrepareWitnessSpecial("AccountBranchPlaceholderDeeper", trieModifications, statedb, 0)
 }
 
 func TestLeafInLastLevel(t *testing.T) {
@@ -1978,7 +1978,7 @@ func TestLeafInLastLevel(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	GenerateProof("LeafInLastLevel", trieModifications, statedb)
+	PrepareWitness("LeafInLastLevel", trieModifications, statedb)
 
 	oracle.PreventHashingInSecureTrie = false
 }
@@ -2020,7 +2020,7 @@ func TestLeafWithOneNibble(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	GenerateProof("LeafWithOneNibble", trieModifications, statedb)
+	PrepareWitness("LeafWithOneNibble", trieModifications, statedb)
 
 	oracle.PreventHashingInSecureTrie = false
 }
@@ -2074,7 +2074,7 @@ func TestLeafWithMoreNibbles(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	GenerateProof("LeafWithMoreNibbles", trieModifications, statedb)
+	PrepareWitness("LeafWithMoreNibbles", trieModifications, statedb)
 
 	oracle.PreventHashingInSecureTrie = false
 }
@@ -2315,7 +2315,7 @@ func TestBranchAfterExtNode(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	GenerateProof("BranchAfterExtNode", trieModifications, statedb)
+	PrepareWitness("BranchAfterExtNode", trieModifications, statedb)
 
 	oracle.PreventHashingInSecureTrie = false
 }
@@ -2347,7 +2347,7 @@ func TestNonExistingStorage(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	UpdateStateAndGenProof("NonExistingStorage", ks[:], values, addresses, trieModifications)
+	updateStateAndPrepareWitness("NonExistingStorage", ks[:], values, addresses, trieModifications)
 }
 
 func TestNonExistingStorageLong(t *testing.T) {
@@ -2372,7 +2372,7 @@ func TestNonExistingStorageLong(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	UpdateStateAndGenProof("NonExistingStorageLong", ks[:], values, addresses, trieModifications)
+	updateStateAndPrepareWitness("NonExistingStorageLong", ks[:], values, addresses, trieModifications)
 }
 
 func TestNonExistingStorageNil(t *testing.T) {
@@ -2403,5 +2403,5 @@ func TestNonExistingStorageNil(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	UpdateStateAndGenProof("NonExistingStorageNil", ks[:], values, addresses, trieModifications)
+	updateStateAndPrepareWitness("NonExistingStorageNil", ks[:], values, addresses, trieModifications)
 }

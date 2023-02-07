@@ -153,10 +153,10 @@ func GetParallelProofs(nodeUrl string, blockNum int, trieModifications []TrieMod
 		// statedb.GetState(addr, keys[i])
 	}
 
-	return getParallelProofs(trieModifications, statedb, 0)
+	return obtainTwoProofsAndConvertToWitness(trieModifications, statedb, 0)
 }
 
-func prepareAccountProof(i int, tMod TrieModification, tModsLen int, statedb *state.StateDB, specialTest byte) ([][]byte, [][]byte) {
+func obtainAccountProofAndConvertToWitness(i int, tMod TrieModification, tModsLen int, statedb *state.StateDB, specialTest byte) ([][]byte, [][]byte) {
 	statedb.IntermediateRoot(false)
 
 	addr := tMod.Address
@@ -228,14 +228,16 @@ func prepareAccountProof(i int, tMod TrieModification, tModsLen int, statedb *st
 	}
 	
 	rowsState, toBeHashedAcc, _ :=
-		prepareWitness(statedb, addr, accountProof, accountProof1, aExtNibbles1, aExtNibbles2, accountAddr, aNode, true, tMod.Type == NonExistingAccount, false, isShorterProofLastLeaf)
+		convertProofToWitness(statedb, addr, accountProof, accountProof1, aExtNibbles1, aExtNibbles2, accountAddr, aNode, true, tMod.Type == NonExistingAccount, false, isShorterProofLastLeaf)
 
 	proof := finalizeProof(i, rowsState, addrh, sRoot, cRoot, startRoot, finalRoot, tMod.Type)
 
 	return proof, toBeHashedAcc
 }
 
-func getParallelProofs(trieModifications []TrieModification, statedb *state.StateDB, specialTest byte) [][]byte {
+// obtainTwoProofsAndConvertToWitness obtains GetProof proof before and after the modification. It then
+// converts the two proofs into an MPT circuit witness.
+func obtainTwoProofsAndConvertToWitness(trieModifications []TrieModification, statedb *state.StateDB, specialTest byte) [][]byte {
 	statedb.IntermediateRoot(false)
 	allProofs := [][]byte{}
 	toBeHashed := [][]byte{}	
@@ -312,9 +314,9 @@ func getParallelProofs(trieModifications []TrieModification, statedb *state.Stat
 			}
 			
 			rowsState, toBeHashedAcc, _ :=
-				prepareWitness(statedb, addr, accountProof, accountProof1, aExtNibbles1, aExtNibbles2, accountAddr, aNode, true, tMod.Type == NonExistingAccount, false, aIsLastLeaf)
+				convertProofToWitness(statedb, addr, accountProof, accountProof1, aExtNibbles1, aExtNibbles2, accountAddr, aNode, true, tMod.Type == NonExistingAccount, false, aIsLastLeaf)
 			rowsStorage, toBeHashedStorage, _ :=
-				prepareWitness(statedb, addr, storageProof, storageProof1, extNibbles1, extNibbles2, keyHashed, node, false, false, tMod.Type == NonExistingStorage, isLastLeaf)
+				convertProofToWitness(statedb, addr, storageProof, storageProof1, extNibbles1, extNibbles2, keyHashed, node, false, false, tMod.Type == NonExistingStorage, isLastLeaf)
 			rowsState = append(rowsState, rowsStorage...)
 	
 			proof := finalizeProof(i, rowsState, addrh, sRoot, cRoot, startRoot, finalRoot, tMod.Type)
@@ -325,7 +327,7 @@ func getParallelProofs(trieModifications []TrieModification, statedb *state.Stat
 			toBeHashed = append(toBeHashed, toBeHashedAcc...)
 			toBeHashed = append(toBeHashed, toBeHashedStorage...)
 		} else {
-			proof, toBeHashedAcc := prepareAccountProof(i, tMod, len(trieModifications), statedb, specialTest)
+			proof, toBeHashedAcc := obtainAccountProofAndConvertToWitness(i, tMod, len(trieModifications), statedb, specialTest)
 			allProofs = append(allProofs, proof...)
 			toBeHashed = append(toBeHashed, toBeHashedAcc...)
 		}
@@ -335,8 +337,8 @@ func getParallelProofs(trieModifications []TrieModification, statedb *state.Stat
 	return allProofs
 }
 
-func GenerateProof(testName string, trieModifications []TrieModification, statedb *state.StateDB) {
-	proof := getParallelProofs(trieModifications, statedb, 0)
+func PrepareWitness(testName string, trieModifications []TrieModification, statedb *state.StateDB) {
+	proof := obtainTwoProofsAndConvertToWitness(trieModifications, statedb, 0)
 
 	w := MatrixToJson(proof)
 	fmt.Println(w)
@@ -350,8 +352,8 @@ func GenerateProof(testName string, trieModifications []TrieModification, stated
     fmt.Printf("wrote %d bytes\n", n3)
 }
 
-func GenerateProofSpecial(testName string, trieModifications []TrieModification, statedb *state.StateDB, specialTest byte) {
-	proof := getParallelProofs(trieModifications, statedb, specialTest)
+func PrepareWitnessSpecial(testName string, trieModifications []TrieModification, statedb *state.StateDB, specialTest byte) {
+	proof := obtainTwoProofsAndConvertToWitness(trieModifications, statedb, specialTest)
 
 	w := MatrixToJson(proof)
 	fmt.Println(w)
@@ -365,7 +367,10 @@ func GenerateProofSpecial(testName string, trieModifications []TrieModification,
     fmt.Printf("wrote %d bytes\n", n3)
 }
 
-func UpdateStateAndGenProof(testName string, keys, values []common.Hash, addresses []common.Address,
+// updateStateAndPrepareWitness updates the state according to the specified keys and values and then
+// prepares a witness for the proof before given modifications and after.
+// TODO: could be used the functions above instead
+func updateStateAndPrepareWitness(testName string, keys, values []common.Hash, addresses []common.Address,
 		trieModifications []TrieModification) {
 	blockNum := 13284469
 	blockNumberParent := big.NewInt(int64(blockNum))
@@ -380,7 +385,7 @@ func UpdateStateAndGenProof(testName string, keys, values []common.Hash, address
 		statedb.SetState(addresses[i], keys[i], values[i])
 	}
 	
-	proof := getParallelProofs(trieModifications, statedb, 0)
+	proof := obtainTwoProofsAndConvertToWitness(trieModifications, statedb, 0)
 
 	w := MatrixToJson(proof)
 	fmt.Println(w)
@@ -394,10 +399,10 @@ func UpdateStateAndGenProof(testName string, keys, values []common.Hash, address
     fmt.Printf("wrote %d bytes\n", n3)
 }
 
-// prepareWitness takes two GetProof proofs (before and after single modification) and prepares
+// convertProofToWitness takes two GetProof proofs (before and after single modification) and prepares
 // a witness for the MPT circuit. Alongside, it prepares the byte streams that need to be hashed
 // and inserted into Keccak lookup table.
-func prepareWitness(statedb *state.StateDB, addr common.Address, proof1, proof2, extNibblesS, extNibblesC [][]byte, key []byte, neighbourNode []byte,
+func convertProofToWitness(statedb *state.StateDB, addr common.Address, proof1, proof2, extNibblesS, extNibblesC [][]byte, key []byte, neighbourNode []byte,
 		isAccountProof, nonExistingAccountProof, nonExistingStorageProof, isShorterProofLastLeaf bool) ([][]byte, [][]byte, bool) {
 	rows := make([][]byte, 0)
 	toBeHashed := make([][]byte, 0)

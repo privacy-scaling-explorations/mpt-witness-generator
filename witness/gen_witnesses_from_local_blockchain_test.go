@@ -29,7 +29,7 @@ func TestNonExistingAccountNilObjectInFirstLevel(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	GenerateProof("NonExistingAccountNilObjectInFirstLevel", trieModifications, statedb)
+	PrepareWitness("NonExistingAccountNilObjectInFirstLevel", trieModifications, statedb)
 
 	oracle.NodeUrl = oracle.RemoteUrl
 }
@@ -55,7 +55,7 @@ func TestNonExistingAccountInFirstLevel(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	GenerateProofSpecial("NonExistingAccountInFirstLevel", trieModifications, statedb, 4)
+	PrepareWitnessSpecial("NonExistingAccountInFirstLevel", trieModifications, statedb, 4)
 
 	oracle.NodeUrl = oracle.RemoteUrl
 }
@@ -79,7 +79,7 @@ func TestNonExistingAccountAfterFirstLevel(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	GenerateProof("NonExistingAccountAfterFirstLevel", trieModifications, statedb)
+	PrepareWitness("NonExistingAccountAfterFirstLevel", trieModifications, statedb)
 
 	oracle.NodeUrl = oracle.RemoteUrl
 }
@@ -105,7 +105,7 @@ func TestAccountAfterFirstLevel(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	GenerateProof("AccountAfterFirstLevel", trieModifications, statedb)
+	PrepareWitness("AccountAfterFirstLevel", trieModifications, statedb)
 
 	oracle.NodeUrl = oracle.RemoteUrl
 }
@@ -131,7 +131,7 @@ func TestAccountInFirstLevel(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	GenerateProofSpecial("AccountInFirstLevel", trieModifications, statedb, 1)
+	PrepareWitnessSpecial("AccountInFirstLevel", trieModifications, statedb, 1)
 
 	oracle.NodeUrl = oracle.RemoteUrl
 }
@@ -177,7 +177,7 @@ func TestAccountExtensionInFirstLevel(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	GenerateProofSpecial("AccountExtensionInFirstLevel", trieModifications, statedb, 5)
+	PrepareWitnessSpecial("AccountExtensionInFirstLevel", trieModifications, statedb, 5)
 
 	oracle.NodeUrl = oracle.RemoteUrl
 }
@@ -202,7 +202,7 @@ func TestAccountBranchPlaceholder(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	GenerateProof("AccountBranchPlaceholder", trieModifications, statedb)
+	PrepareWitness("AccountBranchPlaceholder", trieModifications, statedb)
 
 	oracle.NodeUrl = oracle.RemoteUrl
 }
@@ -266,7 +266,7 @@ func TestAccountBranchPlaceholderInFirstLevel(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	GenerateProofSpecial("AccountBranchPlaceholderInFirstLevel", trieModifications, statedb, 3) // don't use the same number as in the test above
+	PrepareWitnessSpecial("AccountBranchPlaceholderInFirstLevel", trieModifications, statedb, 3) // don't use the same number as in the test above
 
 	oracle.NodeUrl = oracle.RemoteUrl
 }
@@ -292,7 +292,7 @@ func TestStorageInFirstAccountInFirstLevel(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	GenerateProofSpecial("StorageInFirstAccountInFirstLevel", trieModifications, statedb, 1)
+	PrepareWitnessSpecial("StorageInFirstAccountInFirstLevel", trieModifications, statedb, 1)
 
 	oracle.NodeUrl = oracle.RemoteUrl
 }
@@ -339,7 +339,7 @@ func TestExtensionTwoNibblesInEvenLevel(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	GenerateProof("AccountExtensionTwoNibblesInEvenLevel", trieModifications, statedb)
+	PrepareWitness("AccountExtensionTwoNibblesInEvenLevel", trieModifications, statedb)
 
 	oracle.NodeUrl = oracle.RemoteUrl
 }
@@ -386,7 +386,7 @@ func TestExtensionThreeNibblesInEvenLevel(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	GenerateProof("AccountExtensionThreeNibblesInEvenLevel", trieModifications, statedb)
+	PrepareWitness("AccountExtensionThreeNibblesInEvenLevel", trieModifications, statedb)
 
 	oracle.NodeUrl = oracle.RemoteUrl
 }
@@ -433,7 +433,7 @@ func TestExtensionThreeNibblesInOddLevel(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	GenerateProof("AccountExtensionThreeNibblesInOddLevel", trieModifications, statedb)
+	PrepareWitness("AccountExtensionThreeNibblesInOddLevel", trieModifications, statedb)
 
 	oracle.NodeUrl = oracle.RemoteUrl
 }
@@ -462,7 +462,7 @@ func TestStorageInFirstLevelNonExisting(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	GenerateProof("StorageInFirstLevelNonExisting", trieModifications, statedb)
+	PrepareWitness("StorageInFirstLevelNonExisting", trieModifications, statedb)
 
 	oracle.NodeUrl = oracle.RemoteUrl
 }
@@ -492,7 +492,7 @@ func TestStorageInFirstLevelNonExistingLong(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	GenerateProof("StorageInFirstLevelNonExistingLong", trieModifications, statedb)
+	PrepareWitness("StorageInFirstLevelNonExistingLong", trieModifications, statedb)
 
 	oracle.NodeUrl = oracle.RemoteUrl
 }
@@ -530,7 +530,7 @@ func ExtNodeInserted(key1, key2, key3 common.Hash, testName string) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	GenerateProof(testName, trieModifications, statedb)
+	PrepareWitness(testName, trieModifications, statedb)
 
 	oracle.PreventHashingInSecureTrie = false
 }
@@ -568,7 +568,7 @@ func ExtNodeDeleted(key1, key2, key3 common.Hash, testName string) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	GenerateProof(testName, trieModifications, statedb)
+	PrepareWitness(testName, trieModifications, statedb)
 
 	oracle.PreventHashingInSecureTrie = false
 }
@@ -702,7 +702,7 @@ func TestExtNodeInsertedBefore4After1(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	GenerateProof("ExtNodeInsertedBefore4After1", trieModifications, statedb)
+	PrepareWitness("ExtNodeInsertedBefore4After1", trieModifications, statedb)
 
 	oracle.PreventHashingInSecureTrie = false
 }
@@ -753,7 +753,7 @@ func TestExtNodeDeletedBefore4After1(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	GenerateProof("ExtNodeDeletedBefore4After1", trieModifications, statedb)
+	PrepareWitness("ExtNodeDeletedBefore4After1", trieModifications, statedb)
 
 	oracle.PreventHashingInSecureTrie = false
 }
