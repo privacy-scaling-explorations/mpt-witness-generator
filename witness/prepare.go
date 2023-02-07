@@ -91,46 +91,7 @@ func prepareWitness(statedb *state.StateDB, addr common.Address, proof1, proof2,
 				bRows = append(bRows, extensionRowS)
 				bRows = append(bRows, extensionRowC)
 
-				// Set isExtension to 1 in branch init.
-				bRows[0][isExtensionPos] = 1
-
-				if len(proof1[i-1]) > 56 { // 56 because there is 1 byte for length
-					bRows[0][isSExtLongerThan55Pos] = 1
-				}
-				if len(proof2[i-1]) > 56 {
-					bRows[0][isCExtLongerThan55Pos] = 1
-				}
-
-				if len(proof1[i-1]) < 32 {
-					bRows[0][isExtNodeSNonHashedPos] = 1
-				}
-				if len(proof2[i-1]) < 32 {
-					bRows[0][isExtNodeCNonHashedPos] = 1
-				}
-
-				keyLen := getExtensionNodeKeyLen(proof1[i-1])
-				// Set whether key extension nibbles are of even or odd length.
-				if keyLen == 1 {
-					if branchC16 == 1 {
-						bRows[0][isExtShortC16Pos] = 1
-					} else {
-						bRows[0][isExtShortC1Pos] = 1
-					}
-				} else {
-					if proof1[i-1][2] == 0 {
-						if branchC16 == 1 {
-							bRows[0][isExtLongEvenC16Pos] = 1
-						} else {
-							bRows[0][isExtLongEvenC1Pos] = 1
-						}
-					} else {
-						if branchC16 == 1 {
-							bRows[0][isExtLongOddC16Pos] = 1
-						} else {
-							bRows[0][isExtLongOddC1Pos] = 1
-						}
-					}
-				}
+				setExtensionNodeSelectors(&bRows, proof1[i-1], proof2[i-1], branchC16, branchC1)
 
 				// adding extension nodes for hashing:
 				addForHashing(proof1[i-1], &toBeHashed)
@@ -143,20 +104,6 @@ func prepareWitness(statedb *state.StateDB, addr common.Address, proof1, proof2,
 			rows = append(rows, bRows...)
 			addForHashing(proof1[i], &toBeHashed)
 			addForHashing(proof2[i], &toBeHashed)
-
-			// check the two branches
-			if extensionNodeInd == 0 {
-				for k := 1; k < 17; k++ {
-					if k-1 == int(key[i]) {
-						continue
-					}
-					for j := 0; j < branchNodeRLPLen+32; j++ {
-						if bRows[k][j] != bRows[k][branch2start+j] {
-							panic("witness not properly generated")
-						}
-					}
-				}
-			}
 
 			extensionRowS = nil
 			extensionRowC = nil
