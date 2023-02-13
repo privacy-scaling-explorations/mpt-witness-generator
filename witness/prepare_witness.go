@@ -1,14 +1,10 @@
 package witness
 
 import (
-	"fmt"
-	"log"
 	"math/big"
-	"os"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/miha-stopar/mpt/oracle"
 	"github.com/miha-stopar/mpt/state"
 	"github.com/miha-stopar/mpt/trie"
@@ -115,18 +111,6 @@ type TrieModification struct {
 	CodeHash []byte
 }
 
-// isBranch takes GetProof element and returns whether the element is a branch.
-func isBranch(proofEl []byte) bool {
-	elems, _, err := rlp.SplitList(proofEl)
-	check(err)
-	c, err1 := rlp.CountValues(elems)
-	check(err1)
-	if c != 2 && c != 17 {
-		log.Fatal("Proof element is neither leaf or branch")
-	}
-	return c == 17
-}
-
 // addForHashing takes the stream of bytes and append a byte to it that marks this stream
 // to be hashed and put into keccak lookup table that is to be used by MPT circuit.
 func addForHashing(toBeHashed []byte, toBeHashedCollection *[][]byte) {
@@ -136,7 +120,7 @@ func addForHashing(toBeHashed []byte, toBeHashedCollection *[][]byte) {
 	*toBeHashedCollection = append(*toBeHashedCollection, forHashing)
 }
 
-func GetParallelProofs(nodeUrl string, blockNum int, trieModifications []TrieModification) [][]byte {
+func GetWitness(nodeUrl string, blockNum int, trieModifications []TrieModification) [][]byte {
 	blockNumberParent := big.NewInt(int64(blockNum))
 	oracle.NodeUrl = nodeUrl
 	blockHeaderParent := oracle.PrefetchBlock(blockNumberParent, true, nil)
@@ -235,8 +219,10 @@ func obtainAccountProofAndConvertToWitness(i int, tMod TrieModification, tModsLe
 	return proof, toBeHashedAcc
 }
 
-// obtainTwoProofsAndConvertToWitness obtains GetProof proof before and after the modification. It then
-// converts the two proofs into an MPT circuit witness.
+// obtainTwoProofsAndConvertToWitness obtains the GetProof proof before and after the modification for each
+// of the modification. It then converts the two proofs into an MPT circuit witness. Witness is thus
+// prepared for each of the modifications and the witnesses are chained together - the final root of
+// the previous witness is the same as the start root of the current witness.
 func obtainTwoProofsAndConvertToWitness(trieModifications []TrieModification, statedb *state.StateDB, specialTest byte) [][]byte {
 	statedb.IntermediateRoot(false)
 	allProofs := [][]byte{}
@@ -337,39 +323,28 @@ func obtainTwoProofsAndConvertToWitness(trieModifications []TrieModification, st
 	return allProofs
 }
 
-func PrepareWitness(testName string, trieModifications []TrieModification, statedb *state.StateDB) {
+// prepareWitness obtains the GetProof proof before and after the modification for each
+// of the modification. It then converts the two proofs into an MPT circuit witness for each of
+// the modifications and stores it into a file.
+func prepareWitness(testName string, trieModifications []TrieModification, statedb *state.StateDB) {
 	proof := obtainTwoProofsAndConvertToWitness(trieModifications, statedb, 0)
-
-	w := MatrixToJson(proof)
-	fmt.Println(w)
-
-	name := testName + ".json"
-	f, err := os.Create("../generated_witnesses/" + name)
-    check(err)
-	defer f.Close()
-	n3, err := f.WriteString(w)
-    check(err)
-    fmt.Printf("wrote %d bytes\n", n3)
+	storeWitness(testName, proof)
 }
 
-func PrepareWitnessSpecial(testName string, trieModifications []TrieModification, statedb *state.StateDB, specialTest byte) {
+// prepareWitnessSpecial obtains the GetProof proof before and after the modification for each
+// of the modification. It then converts the two proofs into an MPT circuit witness for each of
+// the modifications and stores it into a file. It is named special as the flag specialTest
+// instructs the function obtainTwoProofsAndConvertToWitness to prepare special trie states, like moving
+// the account leaf in the first trie level.
+func prepareWitnessSpecial(testName string, trieModifications []TrieModification, statedb *state.StateDB, specialTest byte) {
 	proof := obtainTwoProofsAndConvertToWitness(trieModifications, statedb, specialTest)
-
-	w := MatrixToJson(proof)
-	fmt.Println(w)
-
-	name := testName + ".json"
-	f, err := os.Create("../generated_witnesses/" + name)
-    check(err)
-	defer f.Close()
-	n3, err := f.WriteString(w)
-    check(err)
-    fmt.Printf("wrote %d bytes\n", n3)
+	storeWitness(testName, proof)
 }
 
 // updateStateAndPrepareWitness updates the state according to the specified keys and values and then
 // prepares a witness for the proof before given modifications and after.
-// TODO: could be used the functions above instead
+// This function is used when some specific trie state needs to be prepared before the actual modifications
+// take place and for which the witness is needed.
 func updateStateAndPrepareWitness(testName string, keys, values []common.Hash, addresses []common.Address,
 		trieModifications []TrieModification) {
 	blockNum := 13284469
@@ -384,24 +359,13 @@ func updateStateAndPrepareWitness(testName string, keys, values []common.Hash, a
 	for i := 0; i < len(keys); i++ {
 		statedb.SetState(addresses[i], keys[i], values[i])
 	}
-	
-	proof := obtainTwoProofsAndConvertToWitness(trieModifications, statedb, 0)
 
-	w := MatrixToJson(proof)
-	fmt.Println(w)
-
-	name := testName + ".json"
-	f, err := os.Create("../generated_witnesses/" + name)
-    check(err)
-	defer f.Close()
-	n3, err := f.WriteString(w)
-    check(err)
-    fmt.Printf("wrote %d bytes\n", n3)
+	prepareWitness(testName, trieModifications, statedb)
 }
 
-// convertProofToWitness takes two GetProof proofs (before and after single modification) and prepares
+// convertProofToWitness takes two GetProof proofs (before and after a single modification) and prepares
 // a witness for the MPT circuit. Alongside, it prepares the byte streams that need to be hashed
-// and inserted into Keccak lookup table.
+// and inserted into the Keccak lookup table.
 func convertProofToWitness(statedb *state.StateDB, addr common.Address, proof1, proof2, extNibblesS, extNibblesC [][]byte, key []byte, neighbourNode []byte,
 		isAccountProof, nonExistingAccountProof, nonExistingStorageProof, isShorterProofLastLeaf bool) ([][]byte, [][]byte, bool) {
 	rows := make([][]byte, 0)

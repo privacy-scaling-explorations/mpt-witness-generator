@@ -1,9 +1,24 @@
 package witness
 
 import (
+	"log"
+
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/miha-stopar/mpt/state"
 )
+
+// isBranch takes GetProof element and returns whether the element is a branch.
+func isBranch(proofEl []byte) bool {
+	elems, _, err := rlp.SplitList(proofEl)
+	check(err)
+	c, err1 := rlp.CountValues(elems)
+	check(err1)
+	if c != 2 && c != 17 {
+		log.Fatal("Proof element is neither leaf or branch")
+	}
+	return c == 17
+}
 
 // prepareBranchWitness takes the rows that are to be filled with branch data and it takes
 // a branch as returned by GetProof. There are 19 rows for a branch and prepareBranchWitness

@@ -1,6 +1,6 @@
 # Merkle Patricia Trie witness generator
 
-This project aims to prepare witness generator for Merkle Patricial Trie circuit which is part of
+This project aims to prepare witness generator for Merkle Patricia Trie circuit which is part of
 [zkevm-circuits](https://github.com/appliedzkp/zkevm-circuits).
 
 It's based on [geth](https://github.com/ethereum/go-ethereum) and it adds MPT circuit required

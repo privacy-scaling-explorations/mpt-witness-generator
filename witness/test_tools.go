@@ -7,8 +7,8 @@ import (
 	"github.com/miha-stopar/mpt/trie"
 )
 
-// For generating special tests - it moves account from second level to first level (key stored in a leaf
-// gets longer).
+// moveAccountFromSecondToFirstLevel moves an account from the second level to the first level (key stored in a leaf
+// gets longer). The function is used to enable tests with an account being in the first trie level.
 func moveAccountFromSecondToFirstLevel(firstNibble byte, account []byte) []byte {
 	newAccount := make([]byte, len(account)+1) 
 	newAccount[0] = account[0]
@@ -28,7 +28,7 @@ func moveAccountFromSecondToFirstLevel(firstNibble byte, account []byte) []byte 
 	return newAccount
 }
 
-// For generating special tests - it moves account from third level to second level (key stored in a leaf
+// moveAccountFromThirdToSecondLevel moves the account from the third level to the second level (key stored in a leaf
 // gets longer).
 func moveAccountFromThirdToSecondLevel(addrh []byte, account []byte) []byte {
 	// account = [248, 105, 160, 32, 77, 78,...]
@@ -70,7 +70,7 @@ func modifyAccountSpecialTest1(addrh []byte, accountProof1Last []byte) ([][]byte
 	return accountProof, accountProof1, sRoot, cRoot
 }
 
-// modifyAccountProofSpecialTests modifies S and C account proofs to serve for special tests - like putting
+// modifyAccountProofSpecialTests modifies S and C account proofs to serve for special tests - like moving
 // the account leaf in the first trie level.
 func modifyAccountProofSpecialTests(addrh, accountAddr []byte, sRoot, cRoot common.Hash, accountProof, accountProof1 [][]byte, aNeighbourNode2 []byte, specialTest byte) ([]byte, []byte, [][]byte, [][]byte, common.Hash, common.Hash) {
 	if (specialTest == 1) {

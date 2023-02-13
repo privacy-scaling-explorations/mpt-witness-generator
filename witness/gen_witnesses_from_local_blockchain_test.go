@@ -29,7 +29,7 @@ func TestNonExistingAccountNilObjectInFirstLevel(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	PrepareWitness("NonExistingAccountNilObjectInFirstLevel", trieModifications, statedb)
+	prepareWitness("NonExistingAccountNilObjectInFirstLevel", trieModifications, statedb)
 
 	oracle.NodeUrl = oracle.RemoteUrl
 }
@@ -55,7 +55,7 @@ func TestNonExistingAccountInFirstLevel(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	PrepareWitnessSpecial("NonExistingAccountInFirstLevel", trieModifications, statedb, 4)
+	prepareWitnessSpecial("NonExistingAccountInFirstLevel", trieModifications, statedb, 4)
 
 	oracle.NodeUrl = oracle.RemoteUrl
 }
@@ -79,7 +79,7 @@ func TestNonExistingAccountAfterFirstLevel(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	PrepareWitness("NonExistingAccountAfterFirstLevel", trieModifications, statedb)
+	prepareWitness("NonExistingAccountAfterFirstLevel", trieModifications, statedb)
 
 	oracle.NodeUrl = oracle.RemoteUrl
 }
@@ -105,7 +105,7 @@ func TestAccountAfterFirstLevel(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	PrepareWitness("AccountAfterFirstLevel", trieModifications, statedb)
+	prepareWitness("AccountAfterFirstLevel", trieModifications, statedb)
 
 	oracle.NodeUrl = oracle.RemoteUrl
 }
@@ -131,7 +131,7 @@ func TestAccountInFirstLevel(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	PrepareWitnessSpecial("AccountInFirstLevel", trieModifications, statedb, 1)
+	prepareWitnessSpecial("AccountInFirstLevel", trieModifications, statedb, 1)
 
 	oracle.NodeUrl = oracle.RemoteUrl
 }
@@ -177,7 +177,7 @@ func TestAccountExtensionInFirstLevel(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	PrepareWitnessSpecial("AccountExtensionInFirstLevel", trieModifications, statedb, 5)
+	prepareWitnessSpecial("AccountExtensionInFirstLevel", trieModifications, statedb, 5)
 
 	oracle.NodeUrl = oracle.RemoteUrl
 }
@@ -202,7 +202,7 @@ func TestAccountBranchPlaceholder(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	PrepareWitness("AccountBranchPlaceholder", trieModifications, statedb)
+	prepareWitness("AccountBranchPlaceholder", trieModifications, statedb)
 
 	oracle.NodeUrl = oracle.RemoteUrl
 }
@@ -266,7 +266,7 @@ func TestAccountBranchPlaceholderInFirstLevel(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	PrepareWitnessSpecial("AccountBranchPlaceholderInFirstLevel", trieModifications, statedb, 3) // don't use the same number as in the test above
+	prepareWitnessSpecial("AccountBranchPlaceholderInFirstLevel", trieModifications, statedb, 3) // don't use the same number as in the test above
 
 	oracle.NodeUrl = oracle.RemoteUrl
 }
@@ -292,7 +292,7 @@ func TestStorageInFirstAccountInFirstLevel(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	PrepareWitnessSpecial("StorageInFirstAccountInFirstLevel", trieModifications, statedb, 1)
+	prepareWitnessSpecial("StorageInFirstAccountInFirstLevel", trieModifications, statedb, 1)
 
 	oracle.NodeUrl = oracle.RemoteUrl
 }
@@ -339,7 +339,7 @@ func TestExtensionTwoNibblesInEvenLevel(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	PrepareWitness("AccountExtensionTwoNibblesInEvenLevel", trieModifications, statedb)
+	prepareWitness("AccountExtensionTwoNibblesInEvenLevel", trieModifications, statedb)
 
 	oracle.NodeUrl = oracle.RemoteUrl
 }
@@ -386,7 +386,7 @@ func TestExtensionThreeNibblesInEvenLevel(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	PrepareWitness("AccountExtensionThreeNibblesInEvenLevel", trieModifications, statedb)
+	prepareWitness("AccountExtensionThreeNibblesInEvenLevel", trieModifications, statedb)
 
 	oracle.NodeUrl = oracle.RemoteUrl
 }
@@ -433,7 +433,7 @@ func TestExtensionThreeNibblesInOddLevel(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	PrepareWitness("AccountExtensionThreeNibblesInOddLevel", trieModifications, statedb)
+	prepareWitness("AccountExtensionThreeNibblesInOddLevel", trieModifications, statedb)
 
 	oracle.NodeUrl = oracle.RemoteUrl
 }
@@ -462,7 +462,7 @@ func TestStorageInFirstLevelNonExisting(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	PrepareWitness("StorageInFirstLevelNonExisting", trieModifications, statedb)
+	prepareWitness("StorageInFirstLevelNonExisting", trieModifications, statedb)
 
 	oracle.NodeUrl = oracle.RemoteUrl
 }
@@ -492,7 +492,7 @@ func TestStorageInFirstLevelNonExistingLong(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	PrepareWitness("StorageInFirstLevelNonExistingLong", trieModifications, statedb)
+	prepareWitness("StorageInFirstLevelNonExistingLong", trieModifications, statedb)
 
 	oracle.NodeUrl = oracle.RemoteUrl
 }
@@ -530,7 +530,7 @@ func ExtNodeInserted(key1, key2, key3 common.Hash, testName string) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	PrepareWitness(testName, trieModifications, statedb)
+	prepareWitness(testName, trieModifications, statedb)
 
 	oracle.PreventHashingInSecureTrie = false
 }
@@ -568,7 +568,7 @@ func ExtNodeDeleted(key1, key2, key3 common.Hash, testName string) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	PrepareWitness(testName, trieModifications, statedb)
+	prepareWitness(testName, trieModifications, statedb)
 
 	oracle.PreventHashingInSecureTrie = false
 }
@@ -702,7 +702,7 @@ func TestExtNodeInsertedBefore4After1(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	PrepareWitness("ExtNodeInsertedBefore4After1", trieModifications, statedb)
+	prepareWitness("ExtNodeInsertedBefore4After1", trieModifications, statedb)
 
 	oracle.PreventHashingInSecureTrie = false
 }
@@ -753,7 +753,7 @@ func TestExtNodeDeletedBefore4After1(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	PrepareWitness("ExtNodeDeletedBefore4After1", trieModifications, statedb)
+	prepareWitness("ExtNodeDeletedBefore4After1", trieModifications, statedb)
 
 	oracle.PreventHashingInSecureTrie = false
 }

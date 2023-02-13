@@ -68,7 +68,7 @@ typedef struct { void *data; GoInt len; GoInt cap; } GoSlice;
 extern "C" {
 #endif
 
-extern char* GetParallelProofs(char* proofConf);
+extern char* GetWitness(char* proofConf);
 
 #ifdef __cplusplus
 }
