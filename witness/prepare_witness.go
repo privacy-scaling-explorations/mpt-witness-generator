@@ -1,6 +1,7 @@
 package witness
 
 import (
+	"fmt"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -120,6 +121,7 @@ func addForHashing(toBeHashed []byte, toBeHashedCollection *[][]byte) {
 	*toBeHashedCollection = append(*toBeHashedCollection, forHashing)
 }
 
+// GetWitness is to be used by external programs to generate the witness. 
 func GetWitness(nodeUrl string, blockNum int, trieModifications []TrieModification) [][]byte {
 	blockNumberParent := big.NewInt(int64(blockNum))
 	oracle.NodeUrl = nodeUrl
@@ -296,13 +298,23 @@ func obtainTwoProofsAndConvertToWitness(trieModifications []TrieModification, st
 				if len(accountProof1) != 2 {
 					panic("account should be in the second level (one branch above it)")
 				}
-				accountProof, accountProof1, sRoot, cRoot = modifyAccountSpecialTest1(addrh, accountProof1[len(accountProof1)-1])
+				accountProof, accountProof1, sRoot, cRoot = modifyAccountSpecialEmptyTrie(addrh, accountProof1[len(accountProof1)-1])
 			}
 			
 			rowsState, toBeHashedAcc, _ :=
 				convertProofToWitness(statedb, addr, accountProof, accountProof1, aExtNibbles1, aExtNibbles2, accountAddr, aNode, true, tMod.Type == NonExistingAccount, false, aIsLastLeaf)
 			rowsStorage, toBeHashedStorage, _ :=
 				convertProofToWitness(statedb, addr, storageProof, storageProof1, extNibbles1, extNibbles2, keyHashed, node, false, false, tMod.Type == NonExistingStorage, isLastLeaf)
+
+			/*
+			fmt.Println(storageProof[0])
+			fmt.Println(storageProof[1])
+			*/
+
+			for i := 0; i < len(rowsStorage); i++ {
+				fmt.Println(rowsStorage[i])
+			}
+
 			rowsState = append(rowsState, rowsStorage...)
 	
 			proof := finalizeProof(i, rowsState, addrh, sRoot, cRoot, startRoot, finalRoot, tMod.Type)

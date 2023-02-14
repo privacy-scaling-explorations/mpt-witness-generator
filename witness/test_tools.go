@@ -42,7 +42,9 @@ func moveAccountFromThirdToSecondLevel(addrh []byte, account []byte) []byte {
 	return newAccount
 }
 
-func modifyAccountSpecialTest1(addrh []byte, accountProof1Last []byte) ([][]byte, [][]byte, common.Hash, common.Hash) {	
+// modifyAccountSpecialEmptyTrie prepares an account leaf in the first trie level for C proof and
+// a placeholder leaf in S proof.
+func modifyAccountSpecialEmptyTrie(addrh []byte, accountProof1Last []byte) ([][]byte, [][]byte, common.Hash, common.Hash) {	
 	firstNibble := addrh[0] / 16
 	newAccount := moveAccountFromSecondToFirstLevel(firstNibble, accountProof1Last)
 
@@ -54,7 +56,7 @@ func modifyAccountSpecialTest1(addrh []byte, accountProof1Last []byte) ([][]byte
 	accountProof1 := make([][]byte, 1)
 	accountProof1[0] = newAccount1
 
-	// storage leaf in S proof is a placeholder, thus newAccount needs to have an empty trie hash
+	// leaf in S proof is a placeholder, thus newAccount needs to have an empty trie hash
 	// for the root:
 	emptyTrieHash := []byte{86, 232, 31, 23, 27, 204, 85, 166, 255, 131, 69, 230, 146, 192, 248, 110, 91, 72, 224, 27, 153, 108, 173, 192, 1, 98, 47, 181, 227, 99, 180, 33}
 	rootStart := len(newAccount) - 64 - 1;

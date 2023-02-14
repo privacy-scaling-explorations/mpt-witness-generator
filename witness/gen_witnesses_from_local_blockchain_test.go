@@ -110,7 +110,7 @@ func TestAccountAfterFirstLevel(t *testing.T) {
 	oracle.NodeUrl = oracle.RemoteUrl
 }
 
-// Account leaf in first level. No storage proof.
+// Account leaf in first level in C proof, placeholder leaf in S proof. No storage proof.
 func TestAccountInFirstLevel(t *testing.T) {
 	// geth --dev --http --ipcpath ~/Library/Ethereum/geth.ipc
 	oracle.NodeUrl = oracle.LocalUrl
