@@ -514,14 +514,35 @@ func addAccountLeafAfterBranchPlaceholder(rows *[][]byte, proof1, proof2, leafRo
 	}
 }
 
+// getLeafKeyLen returns the leaf key length given the key index (how many key nibbles have
+// been used in the branches / extension nodes above the leaf).
+func getLeafKeyLen(keyIndex int) int {
+	return int(math.Floor(float64(64-keyIndex) / float64(2))) + 1
+}
+
+// setStorageLeafKeyRLP sets the RLP byte that encodes key length of the storage leaf
+// to correspond to the number of keys used in the branches / extension nodes above the placeholder leaf.
+func setStorageLeafKeyRLP(leaf *[]byte, key []byte, keyIndex int) {
+	isEven := keyIndex % 2 == 0 
+	remainingNibbles := key[keyIndex:]
+	keyLen := getLeafKeyLen(keyIndex)
+	(*leaf)[1] = byte(keyLen) + 128
+	if isEven {
+		(*leaf)[2] = 32
+	} else {
+		(*leaf)[2] = remainingNibbles[0] + 48
+	}
+}
+
+// prepareStorageLeafPlaceholderRows prepares storage leaf placeholder rows for the cases when
+// both proofs only have branches / extension nodes and no leaves (for example non existing leaf proof).
 func prepareStorageLeafPlaceholderRows(key []byte, keyIndex int, nonExistingStorageProof bool) [][]byte {
 	var rows [][]byte
 
 	leaf := make([]byte, rowLen)
-	// Just some values to avoid assignment errors:
-	leaf[0] = 228
-	leaf[1] = 130
-	leaf[2] = 51
+	setStorageLeafKeyRLP(&leaf, key, keyIndex)
+	keyLen := getLeafKeyLen(keyIndex)
+	leaf[0] = 192 + 1 + byte(keyLen) + 1
 
 	leafRows, _ := prepareStorageLeafRows(leaf, 2, false)
 	rows = append(rows, leafRows...)
@@ -533,16 +554,8 @@ func prepareStorageLeafPlaceholderRows(key []byte, keyIndex int, nonExistingStor
 
 	if nonExistingStorageProof {
 		leaf := prepareEmptyNonExistingStorageRow()
-
-		isEven := keyIndex % 2 == 0 
-		keyLen := int(math.Floor(float64(64-keyIndex) / float64(2))) + 1
-		remainingNibbles := key[keyIndex:]
-		leaf[1] = byte(keyLen) + 128
-		if isEven {
-			leaf[2] = 32
-		} else {
-			leaf[2] = remainingNibbles[0] + 48
-		}
+		setStorageLeafKeyRLP(&leaf, key, keyIndex)
+		// leaf[0] is not set here, because it is used for a flag whether it is a wrong leaf or not
 
 		rows = append(rows, leaf)	
 	} else {
@@ -553,6 +566,8 @@ func prepareStorageLeafPlaceholderRows(key []byte, keyIndex int, nonExistingStor
 	return rows
 }
 
+// prepareAccountLeafPlaceholderRows prepares account leaf placeholder rows for the cases when
+// both proofs only have branches / extension nodes and no leaves (for example non existing leaf proof).
 func prepareAccountLeafPlaceholderRows(key []byte, keyIndex int, nonExistingAccountProof bool) [][]byte {
 	isEven := keyIndex % 2 == 0 
 	keyLen := int(math.Floor(float64(64-keyIndex) / float64(2))) + 1
