@@ -344,8 +344,8 @@ func prepareDriftedLeafPlaceholder(isAccount bool) [][]byte {
 	return [][]byte{driftedLeaf}
 }
 
-// addLeafAndPlaceholder adds to the rows a leaf and its placeholder counterpart
-// (used when one of the proofs have one branch more than the other).
+// addLeafAndPlaceholder adds a leaf and its placeholder counterpart to the rows
+// (used when one of the proofs does not have a leaf).
 func addLeafAndPlaceholder(rows *[][]byte, proof1, proof2 [][]byte, key []byte, nonExistingAccountProof, isAccountProof bool, toBeHashed *[][]byte) {
 	len1 := len(proof1)
 	len2 := len(proof2)
@@ -374,6 +374,8 @@ func addLeafAndPlaceholder(rows *[][]byte, proof1, proof2 [][]byte, key []byte, 
 	} else {
 		var leafRows [][]byte
 		var leafForHashing []byte
+
+		// Prepare S leaf rows:
 		if len1 > len2 {
 			leafRows, leafForHashing = prepareStorageLeafRows(proof1[len1-1], 2, false)
 		} else {
@@ -383,7 +385,7 @@ func addLeafAndPlaceholder(rows *[][]byte, proof1, proof2 [][]byte, key []byte, 
 		*rows = append(*rows, leafRows...)
 		*toBeHashed = append(*toBeHashed, leafForHashing)
 
-		// No leaf means value is 0, set valueIsZero = true:
+		// Prepare C leaf rows:
 		if len1 > len2 {
 			leafRows, _ = prepareStorageLeafRows(proof1[len1-1], 3, true)
 		} else {
@@ -513,7 +515,7 @@ func addAccountLeafAfterBranchPlaceholder(rows *[][]byte, proof1, proof2, leafRo
 }
 
 func prepareStorageLeafPlaceholderRows(key []byte, keyIndex int, nonExistingStorageProof bool) [][]byte {
-	rows := make([][]byte, storageLeafRows)
+	var rows [][]byte
 
 	leaf := make([]byte, rowLen)
 	// Just some values to avoid assignment errors:
