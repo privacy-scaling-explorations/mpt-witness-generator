@@ -30,8 +30,8 @@ func TestTransactions(t *testing.T) {
 		txs[i] = signedTx
 	}
 
-	hasher := trie.NewStackTrie(nil)
+	stackTrie := types.UpdateStackTrie(types.Transactions(txs), trie.NewStackTrie(nil))
 
-	fmt.Println(hasher)
+	fmt.Println(stackTrie)
 }
 
