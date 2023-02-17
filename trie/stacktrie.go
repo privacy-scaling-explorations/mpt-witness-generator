@@ -423,7 +423,7 @@ func (st *StackTrie) hash() {
 			Key []byte
 			Val Node
 		}{
-			Key: hexToCompact(st.key),
+			Key: HexToCompact(st.key),
 			Val: valuenode,
 		}
 		if err := rlp.Encode(&h.tmp, n); err != nil {

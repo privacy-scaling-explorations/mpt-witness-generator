@@ -79,7 +79,7 @@ func GenPossibleShortNodePreimage(preimages map[common.Hash][]byte) {
 		if node, ok := node.(*ShortNode); ok {
 			for i := len(node.Key) - 1; i > 0; i-- {
 				n := ShortNode{
-					Key: hexToCompact(node.Key[i:]),
+					Key: HexToCompact(node.Key[i:]),
 					Val: node.Val,
 				}
 				buf := new(bytes.Buffer)

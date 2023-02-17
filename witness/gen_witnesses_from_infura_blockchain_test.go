@@ -35,7 +35,7 @@ func TestUpdateOneLevel(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	UpdateStateAndGenProof("UpdateOneLevel", ks[:], values, []common.Address{addr, addr}, trieModifications)
+	updateStateAndPrepareWitness("UpdateOneLevel", ks[:], values, []common.Address{addr, addr}, trieModifications)
 }
 
 func TestUpdateOneLevel1(t *testing.T) {
@@ -57,7 +57,7 @@ func TestUpdateOneLevel1(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	UpdateStateAndGenProof("UpdateOneLevel1", ks[:], values, []common.Address{addr, addr}, trieModifications)
+	updateStateAndPrepareWitness("UpdateOneLevel1", ks[:], values, []common.Address{addr, addr}, trieModifications)
 }
 
 func TestUpdateOneLevelBigVal(t *testing.T) {
@@ -87,7 +87,7 @@ func TestUpdateOneLevelBigVal(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	UpdateStateAndGenProof("UpdateOneLevelBigVal", ks[:], values, []common.Address{addr, addr}, trieModifications)
+	updateStateAndPrepareWitness("UpdateOneLevelBigVal", ks[:], values, []common.Address{addr, addr}, trieModifications)
 }
 
 func TestUpdateTwoLevels(t *testing.T) {
@@ -119,7 +119,7 @@ func TestUpdateTwoLevels(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	UpdateStateAndGenProof("UpdateTwoLevels", ks[:], values, []common.Address{addr, addr, addr}, trieModifications)
+	updateStateAndPrepareWitness("UpdateTwoLevels", ks[:], values, []common.Address{addr, addr, addr}, trieModifications)
 }
 
 func TestUpdateTwoLevelsBigVal(t *testing.T) {
@@ -152,7 +152,7 @@ func TestUpdateTwoLevelsBigVal(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 	
-	UpdateStateAndGenProof("UpdateTwoLevelsBigVal", ks[:], values, []common.Address{addr, addr, addr}, trieModifications)
+	updateStateAndPrepareWitness("UpdateTwoLevelsBigVal", ks[:], values, []common.Address{addr, addr, addr}, trieModifications)
 }
 
 func TestUpdateThreeLevels(t *testing.T) {
@@ -207,7 +207,7 @@ func TestUpdateThreeLevels(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	UpdateStateAndGenProof("UpdateThreeLevels", ks[:], values, addresses, trieModifications)
+	updateStateAndPrepareWitness("UpdateThreeLevels", ks[:], values, addresses, trieModifications)
 }
 
 func TestFromNilToValue(t *testing.T) {
@@ -247,7 +247,7 @@ func TestFromNilToValue(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	UpdateStateAndGenProof("FromNilToValue", ks[:], values, addresses, trieModifications) 
+	updateStateAndPrepareWitness("FromNilToValue", ks[:], values, addresses, trieModifications) 
 }
 
 func TestDelete(t *testing.T) {
@@ -279,7 +279,7 @@ func TestDelete(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	UpdateStateAndGenProof("Delete", ks[:], values, addresses, trieModifications)
+	updateStateAndPrepareWitness("Delete", ks[:], values, addresses, trieModifications)
 }
 
 func TestUpdateOneLevelEvenAddress(t *testing.T) {
@@ -307,7 +307,7 @@ func TestUpdateOneLevelEvenAddress(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	UpdateStateAndGenProof("UpdateOneLevelEvenAddress", ks[:], values, addresses, trieModifications)
+	updateStateAndPrepareWitness("UpdateOneLevelEvenAddress", ks[:], values, addresses, trieModifications)
 }
 
 func TestAddBranch(t *testing.T) {
@@ -341,7 +341,7 @@ func TestAddBranch(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	UpdateStateAndGenProof("AddBranch", ks[:], values, addresses, trieModifications)
+	updateStateAndPrepareWitness("AddBranch", ks[:], values, addresses, trieModifications)
 }
 
 func TestAddBranchLong(t *testing.T) {
@@ -378,7 +378,7 @@ func TestAddBranchLong(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	UpdateStateAndGenProof("AddBranchLong", ks[:], values, addresses, trieModifications)
+	updateStateAndPrepareWitness("AddBranchLong", ks[:], values, addresses, trieModifications)
 }
 
 func TestDeleteBranch(t *testing.T) {
@@ -416,7 +416,7 @@ func TestDeleteBranch(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	UpdateStateAndGenProof("DeleteBranch", ks[:], values, addresses, trieModifications)
+	updateStateAndPrepareWitness("DeleteBranch", ks[:], values, addresses, trieModifications)
 }
 
 func TestDeleteBranchLong(t *testing.T) {
@@ -457,7 +457,7 @@ func TestDeleteBranchLong(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	UpdateStateAndGenProof("DeleteBranchLong", ks[:], values, addresses, trieModifications)
+	updateStateAndPrepareWitness("DeleteBranchLong", ks[:], values, addresses, trieModifications)
 }
 
 func TestAddBranchTwoLevels(t *testing.T) {
@@ -506,7 +506,7 @@ func TestAddBranchTwoLevels(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	UpdateStateAndGenProof("AddBranchTwoLevels", ks[:], values, addresses, trieModifications)
+	updateStateAndPrepareWitness("AddBranchTwoLevels", ks[:], values, addresses, trieModifications)
 }
 
 func TestAddBranchTwoLevelsLong(t *testing.T) {
@@ -550,7 +550,7 @@ func TestAddBranchTwoLevelsLong(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	UpdateStateAndGenProof("AddBranchTwoLevelsLong", ks[:], values, addresses, trieModifications)
+	updateStateAndPrepareWitness("AddBranchTwoLevelsLong", ks[:], values, addresses, trieModifications)
 }
 
 func TestDeleteBranchTwoLevels(t *testing.T) {
@@ -589,7 +589,7 @@ func TestDeleteBranchTwoLevels(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	UpdateStateAndGenProof("DeleteBranchTwoLevels", ks[:], values, addresses, trieModifications)
+	updateStateAndPrepareWitness("DeleteBranchTwoLevels", ks[:], values, addresses, trieModifications)
 }
 
 func TestDeleteBranchTwoLevelsLong(t *testing.T) {
@@ -630,7 +630,7 @@ func TestDeleteBranchTwoLevelsLong(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	UpdateStateAndGenProof("DeleteBranchTwoLevelsLong", ks[:], values, addresses, trieModifications)
+	updateStateAndPrepareWitness("DeleteBranchTwoLevelsLong", ks[:], values, addresses, trieModifications)
 }
 
 func TestExtensionOneKeyByteSel1(t *testing.T) {
@@ -686,7 +686,7 @@ func TestExtensionOneKeyByteSel1(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	UpdateStateAndGenProof("ExtensionOneKeyByteSel1", ks[:], values, addresses, trieModifications)
+	updateStateAndPrepareWitness("ExtensionOneKeyByteSel1", ks[:], values, addresses, trieModifications)
 }
 
 func TestExtensionAddedOneKeyByteSel1(t *testing.T) {
@@ -725,7 +725,7 @@ func TestExtensionAddedOneKeyByteSel1(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	UpdateStateAndGenProof("ExtensionAddedOneKeyByteSel1", ks[:], values, addresses, trieModifications)
+	updateStateAndPrepareWitness("ExtensionAddedOneKeyByteSel1", ks[:], values, addresses, trieModifications)
 }
 
 func TestExtensionDeletedOneKeyByteSel1(t *testing.T) {
@@ -765,7 +765,7 @@ func TestExtensionDeletedOneKeyByteSel1(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	UpdateStateAndGenProof("ExtensionDeletedOneKeyByteSel1", ks[:], values, addresses, trieModifications)
+	updateStateAndPrepareWitness("ExtensionDeletedOneKeyByteSel1", ks[:], values, addresses, trieModifications)
 }
 
 func TestExtensionOneKeyByteSel2(t *testing.T) {
@@ -798,7 +798,7 @@ func TestExtensionOneKeyByteSel2(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	UpdateStateAndGenProof("ExtensionOneKeyByteSel2", ks[:], values, addresses, trieModifications)
+	updateStateAndPrepareWitness("ExtensionOneKeyByteSel2", ks[:], values, addresses, trieModifications)
 }
 
 func TestExtensionAddedOneKeyByteSel2(t *testing.T) {
@@ -835,7 +835,7 @@ func TestExtensionAddedOneKeyByteSel2(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	UpdateStateAndGenProof("ExtensionAddedOneKeyByteSel2", ks[:], values, addresses, trieModifications)
+	updateStateAndPrepareWitness("ExtensionAddedOneKeyByteSel2", ks[:], values, addresses, trieModifications)
 }
 
 func TestExtensionDeletedOneKeyByteSel2(t *testing.T) {
@@ -869,7 +869,7 @@ func TestExtensionDeletedOneKeyByteSel2(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	UpdateStateAndGenProof("ExtensionDeletedOneKeyByteSel2", ks[:], values, addresses, trieModifications) 
+	updateStateAndPrepareWitness("ExtensionDeletedOneKeyByteSel2", ks[:], values, addresses, trieModifications) 
 }
 
 func TestExtensionTwoKeyBytesSel1(t *testing.T) {
@@ -909,7 +909,7 @@ func TestExtensionTwoKeyBytesSel1(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	UpdateStateAndGenProof("ExtensionTwoKeyBytesSel1", ks[:], values, addresses, trieModifications)
+	updateStateAndPrepareWitness("ExtensionTwoKeyBytesSel1", ks[:], values, addresses, trieModifications)
 }
 
 func TestExtensionAddedTwoKeyBytesSel1(t *testing.T) {
@@ -947,7 +947,7 @@ func TestExtensionAddedTwoKeyBytesSel1(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	UpdateStateAndGenProof("ExtensionAddedTwoKeyBytesSel1", ks[:], values, addresses, trieModifications)
+	updateStateAndPrepareWitness("ExtensionAddedTwoKeyBytesSel1", ks[:], values, addresses, trieModifications)
 }
 
 func TestExtensionDeletedTwoKeyBytesSel1(t *testing.T) {
@@ -982,7 +982,7 @@ func TestExtensionDeletedTwoKeyBytesSel1(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	UpdateStateAndGenProof("ExtensionDeletedTwoKeyBytesSel1", ks[:], values, addresses, trieModifications)
+	updateStateAndPrepareWitness("ExtensionDeletedTwoKeyBytesSel1", ks[:], values, addresses, trieModifications)
 }
 
 func TestExtensionTwoKeyBytesSel2(t *testing.T) {
@@ -1015,7 +1015,7 @@ func TestExtensionTwoKeyBytesSel2(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	UpdateStateAndGenProof("ExtensionTwoKeyBytesSel2", ks[:], values, addresses, trieModifications)
+	updateStateAndPrepareWitness("ExtensionTwoKeyBytesSel2", ks[:], values, addresses, trieModifications)
 }
 
 func TestExtensionAddedTwoKeyBytesSel2(t *testing.T) {
@@ -1052,7 +1052,7 @@ func TestExtensionAddedTwoKeyBytesSel2(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	UpdateStateAndGenProof("ExtensionAddedTwoKeyBytesSel2", ks[:], values, addresses, trieModifications)
+	updateStateAndPrepareWitness("ExtensionAddedTwoKeyBytesSel2", ks[:], values, addresses, trieModifications)
 }
 
 func TestExtensionDeletedTwoKeyBytesSel2(t *testing.T) {
@@ -1086,7 +1086,7 @@ func TestExtensionDeletedTwoKeyBytesSel2(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	UpdateStateAndGenProof("ExtensionDeletedTwoKeyBytesSel2", ks[:], values, addresses, trieModifications)
+	updateStateAndPrepareWitness("ExtensionDeletedTwoKeyBytesSel2", ks[:], values, addresses, trieModifications)
 }
 
 func TestExtensionInFirstStorageLevel(t *testing.T) {
@@ -1117,7 +1117,7 @@ func TestExtensionInFirstStorageLevel(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	UpdateStateAndGenProof("ExtensionInFirstStorageLevel", ks[:], values, addresses, trieModifications)
+	updateStateAndPrepareWitness("ExtensionInFirstStorageLevel", ks[:], values, addresses, trieModifications)
 }
 
 func TestExtensionInFirstStorageLevelOneKeyByte(t *testing.T) {
@@ -1150,7 +1150,7 @@ func TestExtensionInFirstStorageLevelOneKeyByte(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	GenerateProof("ExtensionInFirstStorageLevelOneKeyByte", trieModifications, statedb)
+	prepareWitness("ExtensionInFirstStorageLevelOneKeyByte", trieModifications, statedb)
 }
 
 func TestExtensionAddedInFirstStorageLevelOneKeyByte(t *testing.T) {
@@ -1180,7 +1180,7 @@ func TestExtensionAddedInFirstStorageLevelOneKeyByte(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	GenerateProof("ExtensionAddedInFirstStorageLevelOneKeyByte", trieModifications, statedb)
+	prepareWitness("ExtensionAddedInFirstStorageLevelOneKeyByte", trieModifications, statedb)
 }
 
 func TestExtensionInFirstStorageLevelTwoKeyBytes(t *testing.T) {
@@ -1211,7 +1211,7 @@ func TestExtensionInFirstStorageLevelTwoKeyBytes(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	GenerateProof("ExtensionInFirstStorageLevelTwoKeyBytes", trieModifications, statedb)
+	prepareWitness("ExtensionInFirstStorageLevelTwoKeyBytes", trieModifications, statedb)
 }
 
 func TestExtensionAddedInFirstStorageLevelTwoKeyBytes(t *testing.T) {
@@ -1242,7 +1242,7 @@ func TestExtensionAddedInFirstStorageLevelTwoKeyBytes(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	GenerateProof("ExtensionAddedInFirstStorageLevelTwoKeyBytes", trieModifications, statedb)
+	prepareWitness("ExtensionAddedInFirstStorageLevelTwoKeyBytes", trieModifications, statedb)
 }
 
 func TestExtensionThreeKeyBytesSel2(t *testing.T) {
@@ -1275,7 +1275,7 @@ func TestExtensionThreeKeyBytesSel2(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	GenerateProof("ExtensionThreeKeyBytesSel2", trieModifications, statedb)
+	prepareWitness("ExtensionThreeKeyBytesSel2", trieModifications, statedb)
 }
 
 func TestExtensionAddedThreeKeyBytesSel2(t *testing.T) {
@@ -1306,7 +1306,7 @@ func TestExtensionAddedThreeKeyBytesSel2(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	GenerateProof("ExtensionAddedThreeKeyBytesSel2", trieModifications, statedb)
+	prepareWitness("ExtensionAddedThreeKeyBytesSel2", trieModifications, statedb)
 }
 
 func TestExtensionDeletedThreeKeyBytesSel2(t *testing.T) {
@@ -1339,7 +1339,7 @@ func TestExtensionDeletedThreeKeyBytesSel2(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	GenerateProof("ExtensionDeletedThreeKeyBytesSel2", trieModifications, statedb)
+	prepareWitness("ExtensionDeletedThreeKeyBytesSel2", trieModifications, statedb)
 }
 
 func TestExtensionThreeKeyBytes(t *testing.T) {
@@ -1382,7 +1382,7 @@ func TestExtensionThreeKeyBytes(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	GenerateProof("ExtensionThreeKeyBytes", trieModifications, statedb)
+	prepareWitness("ExtensionThreeKeyBytes", trieModifications, statedb)
 }
 
 func TestOnlyLeafInStorageProof(t *testing.T) {
@@ -1399,7 +1399,7 @@ func TestOnlyLeafInStorageProof(t *testing.T) {
 	// statedb.IntermediateRoot(false)
 	statedb.CreateAccount(addr)
 
-	accountProof, _, _, err := statedb.GetProof(addr)
+	accountProof, _, _, _, err := statedb.GetProof(addr)
 	fmt.Println(len(accountProof))
 	check(err)	
 
@@ -1409,7 +1409,7 @@ func TestOnlyLeafInStorageProof(t *testing.T) {
 	statedb.SetState(addr, key2, val1)
 	statedb.IntermediateRoot(false)
 
-	// storageProof, _, _, err := statedb.GetStorageProof(addr, key2)
+	// storageProof, _, _, _, err := statedb.GetStorageProof(addr, key2)
 	// check(err)
 
 	val := common.BigToHash(big.NewInt(int64(17)))
@@ -1421,7 +1421,7 @@ func TestOnlyLeafInStorageProof(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	GenerateProof("OnlyLeafInStorageProof", trieModifications, statedb)
+	prepareWitness("OnlyLeafInStorageProof", trieModifications, statedb)
 }
 
 func TestStorageLeafInFirstLevelAfterPlaceholder(t *testing.T) {
@@ -1438,7 +1438,7 @@ func TestStorageLeafInFirstLevelAfterPlaceholder(t *testing.T) {
 	// statedb.IntermediateRoot(false)
 	statedb.CreateAccount(addr)
 
-	accountProof, _, _, err := statedb.GetProof(addr)
+	accountProof, _, _, _, err := statedb.GetProof(addr)
 	fmt.Println(len(accountProof))
 	check(err)	
 
@@ -1448,7 +1448,7 @@ func TestStorageLeafInFirstLevelAfterPlaceholder(t *testing.T) {
 	statedb.SetState(addr, key1, val1)
 	statedb.IntermediateRoot(false)
 
-	// storageProof, _, _, err := statedb.GetStorageProof(addr, key2)
+	// storageProof, _, _, _, err := statedb.GetStorageProof(addr, key2)
 	// check(err)
 
 	h2 := fmt.Sprintf("0x2111%d", 0)
@@ -1463,7 +1463,7 @@ func TestStorageLeafInFirstLevelAfterPlaceholder(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	GenerateProof("StorageLeafInFirstLevelAfterPlaceholder", trieModifications, statedb)
+	prepareWitness("StorageLeafInFirstLevelAfterPlaceholder", trieModifications, statedb)
 }
 
 func TestLeafAddedToEmptyTrie(t *testing.T) {
@@ -1480,7 +1480,7 @@ func TestLeafAddedToEmptyTrie(t *testing.T) {
 	// statedb.IntermediateRoot(false)
 	statedb.CreateAccount(addr)
 
-	accountProof, _, _, err := statedb.GetProof(addr)
+	accountProof, _, _, _, err := statedb.GetProof(addr)
 	fmt.Println(len(accountProof))
 	check(err)
 
@@ -1493,7 +1493,7 @@ func TestLeafAddedToEmptyTrie(t *testing.T) {
 	// statedb.SetState(addr, key2, val1)
 	statedb.IntermediateRoot(false)
 
-	// storageProof, _, _, err := statedb.GetStorageProof(addr, key2)
+	// storageProof, _, _, _, err := statedb.GetStorageProof(addr, key2)
 	// check(err)
 
 	val := common.BigToHash(big.NewInt(int64(17)))
@@ -1505,7 +1505,7 @@ func TestLeafAddedToEmptyTrie(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	GenerateProof("LeafAddedToEmptyTrie", trieModifications, statedb)
+	prepareWitness("LeafAddedToEmptyTrie", trieModifications, statedb)
 }
 
 func TestDeleteToEmptyTrie(t *testing.T) {
@@ -1522,7 +1522,7 @@ func TestDeleteToEmptyTrie(t *testing.T) {
 	// statedb.IntermediateRoot(false)
 	statedb.CreateAccount(addr)
 
-	accountProof, _, _, err := statedb.GetProof(addr)
+	accountProof, _, _, _, err := statedb.GetProof(addr)
 	fmt.Println(len(accountProof))
 	check(err)
 
@@ -1532,7 +1532,7 @@ func TestDeleteToEmptyTrie(t *testing.T) {
 	statedb.SetState(addr, key2, val1)
 	statedb.IntermediateRoot(false)
 
-	// storageProof, _, _, err := statedb.GetStorageProof(addr, key2)
+	// storageProof, _, _, _, err := statedb.GetStorageProof(addr, key2)
 	// check(err)
 
 	val := common.Hash{} // empty value deletes the key
@@ -1544,105 +1544,8 @@ func TestDeleteToEmptyTrie(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	GenerateProof("DeleteToEmptyTrie", trieModifications, statedb)
+	prepareWitness("DeleteToEmptyTrie", trieModifications, statedb)
 }
-
-/*
-func TestFoo(t *testing.T) {
-	ks := [...]common.Hash{common.HexToHash("0x12"), common.HexToHash("0x21")}
-	var values []common.Hash
-	for i := 0; i < len(ks); i++ {
-		values = append(values, common.BigToHash(big.NewInt(int64(i + 1)))) // don't put 0 value because otherwise nothing will be set (if 0 is prev value), see state_object.go line 279
-	}
-	addr := common.HexToAddress("0x4E5B2e1dc63F6b91cb6Cd759936495434C7e972F")
-	var addresses []common.Address
-	for i := 0; i < len(ks); i++ {
-		addresses = append(addresses, addr)
-	}
-
-	nodeUrl := "https://mainnet.infura.io/v3/9aa3d95b3bc440fa88ea12eaa4456161"
-	blockNum := 14359865
-
-	GetProof(nodeUrl, blockNum, ks[:], values, addresses)
-}
-*/
-
-/*
-func TestFindAccount(t *testing.T) {
-	blockNum := 0
-	blockNumberParent := big.NewInt(int64(blockNum))
-	blockHeaderParent := oracle.PrefetchBlock(blockNumberParent, true, nil)
-	database := state.NewDatabase(blockHeaderParent)
-	statedb, _ := state.New(blockHeaderParent.Root, database, nil)
-	
-	for i := 14000; i < 17000; i++ {
-		h := fmt.Sprintf("0x%d", i)
-		addr := common.HexToAddress(h)
-		// statedb.IntermediateRoot(false)
-		// statedb.CreateAccount(addr)
-
-		if statedb.GetCode(addr) == nil {
-			continue
-		}
-		accountProof, _, _, err := statedb.GetProof(addr)
-		fmt.Println(len(accountProof))
-		check(err)
-		fmt.Println(len(accountProof))
-		if len(accountProof) < 2 {
-			fmt.Println(len(accountProof))
-			fmt.Println("asdfsadf")
-		}
-
-		for i := 0; i < 1000; i++ {
-			h := fmt.Sprintf("0x2111d%d", i)
-			key2 := common.HexToHash(h)
-			val1 := common.BigToHash(big.NewInt(int64(1)))
-			statedb.SetState(addr, key2, val1)
-			statedb.IntermediateRoot(false)
-
-			storageProof, _, _, err := statedb.GetStorageProof(addr, key2)
-			check(err)
-			fmt.Println(len(storageProof))
-
-			v := common.Hash{} // empty value deletes the key
-			statedb.SetState(addr, key2, v)
-			statedb.IntermediateRoot(false)
-		}
-	}
-}
-*/
-
-/*
-func TestExtensionThreeBytesSel2(t *testing.T) {
-	// still searching for the right values
-	a := 0
-	h := fmt.Sprintf("0xf8a%d", a)
-	ks := []common.Hash{common.HexToHash(h)}
-	for i := 0; i < 1000; i++ {
-		a += 1
-		h := fmt.Sprintf("0xf8a%d", a)
-		ks = append(ks, common.HexToHash(h))
-	}
-	
-	var values []common.Hash
-	for i := 0; i < len(ks); i++ {
-		values = append(values, common.BigToHash(big.NewInt(int64(i + 1)))) // don't put 0 value because otherwise nothing will be set (if 0 is prev value), see state_object.go line 279
-	}
-
-	toBeModified := common.HexToHash("0xfa935")
-	addr := common.HexToAddress("0x75fbef2150818c32b36c57957226df4e24eb81c9")
-	val := common.BigToHash(big.NewInt(int64(17)))
-	trieMod := TrieModification{
-    	Type: StorageMod,
-		Key: toBeModified,
-		Value: val,
-		Address: addr,
-	}
-	trieModifications := []TrieModification{trieMod}
-
-	UpdateStateAndGenProof("ExtensionThreeBytesSel2", ks[:], values, addresses, trieModifications)
-}
-*/
 
 func TestUpdateTwoModifications(t *testing.T) {
 	ks := [...]common.Hash{common.HexToHash("0x12"), common.HexToHash("0x21")}
@@ -1674,33 +1577,8 @@ func TestUpdateTwoModifications(t *testing.T) {
 
 	trieModifications := []TrieModification{trieMod1, trieMod2}
 
-	UpdateStateAndGenProof("UpdateTwoModifications", ks[:], values, addresses, trieModifications)
+	updateStateAndPrepareWitness("UpdateTwoModifications", ks[:], values, addresses, trieModifications)
 }
-
-/*
-func TestFindAccountWithPlaceholderBranch(t *testing.T) {
-	blockNum := 13284469
-	blockNumberParent := big.NewInt(int64(blockNum))
-	blockHeaderParent := oracle.PrefetchBlock(blockNumberParent, true, nil)
-	database := state.NewDatabase(blockHeaderParent)
-	statedb, _ := state.New(blockHeaderParent.Root, database, nil)
-	
-	for i := 0; i < 100; i++ {
-		h := fmt.Sprintf("0x%d", i)
-		addr := common.HexToAddress(h)
-		oracle.PrefetchAccount(statedb.Db.BlockNumber, addr, nil)
-
-		accountProof, _, _, _ := statedb.GetProof(addr)
-		statedb.CreateAccount(addr)
-		statedb.IntermediateRoot(false)
-		accountProof1, _, _, _ := statedb.GetProof(addr)
-
-		if len(accountProof1) == len(accountProof) + 1 {
-			fmt.Println("a;lskdfja;slkdfj")
-		}
-	}
-}
-*/
 
 func TestNonceModCShort(t *testing.T) {
 	blockNum := 14766377
@@ -1717,7 +1595,7 @@ func TestNonceModCShort(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	GenerateProof("NonceModCShort", trieModifications, statedb)
+	prepareWitness("NonceModCShort", trieModifications, statedb)
 }
 
 func TestNonceModCLong(t *testing.T) {
@@ -1735,7 +1613,7 @@ func TestNonceModCLong(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	GenerateProof("NonceModCLong", trieModifications, statedb)
+	prepareWitness("NonceModCLong", trieModifications, statedb)
 }
 
 func TestBalanceModCShort(t *testing.T) {
@@ -1753,7 +1631,7 @@ func TestBalanceModCShort(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	GenerateProof("BalanceModCShort", trieModifications, statedb)
+	prepareWitness("BalanceModCShort", trieModifications, statedb)
 }
 
 func TestBalanceModCLong(t *testing.T) {
@@ -1771,7 +1649,7 @@ func TestBalanceModCLong(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	GenerateProof("BalanceModCLong", trieModifications, statedb)
+	prepareWitness("BalanceModCLong", trieModifications, statedb)
 }
 
 func TestAddAccount(t *testing.T) {
@@ -1790,7 +1668,7 @@ func TestAddAccount(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	GenerateProof("AddAccount", trieModifications, statedb)
+	prepareWitness("AddAccount", trieModifications, statedb)
 }
 
 func TestDeleteAccount(t *testing.T) {
@@ -1810,10 +1688,14 @@ func TestDeleteAccount(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	GenerateProof("DeleteAccount", trieModifications, statedb)
+	prepareWitness("DeleteAccount", trieModifications, statedb)
 }
 
 func TestImplicitlyCreateAccountWithNonce(t *testing.T) {
+	// When there is a change in an account that does not exist, a placeholder account leaf is added
+	// as a witness. The last branch contains information about the leaf at `modified_node` being just
+	// a placeholder and the circuit ensures that when the leaf is a placeholder, the branch (last branch)
+	// children at `modified_node` is nil.
 	blockNum := 1
 	blockNumberParent := big.NewInt(int64(blockNum))
 	blockHeaderParent := oracle.PrefetchBlock(blockNumberParent, true, nil)
@@ -1829,7 +1711,7 @@ func TestImplicitlyCreateAccountWithNonce(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	GenerateProof("ImplicitlyCreateAccountWithNonce", trieModifications, statedb)
+	prepareWitness("ImplicitlyCreateAccountWithNonce", trieModifications, statedb)
 }
 
 func TestImplicitlyCreateAccountWithBalance(t *testing.T) {
@@ -1843,12 +1725,32 @@ func TestImplicitlyCreateAccountWithBalance(t *testing.T) {
 
 	trieMod := TrieModification{
     	Type: BalanceMod,
-		Nonce: 142,
+		Balance: big.NewInt(7),
 		Address: addr,
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	GenerateProof("ImplicitlyCreateAccountWithBalance", trieModifications, statedb)
+	prepareWitness("ImplicitlyCreateAccountWithBalance", trieModifications, statedb)
+}
+
+func TestImplicitlyCreateAccountWithCodeHash(t *testing.T) {
+	blockNum := 1
+	blockNumberParent := big.NewInt(int64(blockNum))
+	blockHeaderParent := oracle.PrefetchBlock(blockNumberParent, true, nil)
+	database := state.NewDatabase(blockHeaderParent)
+	statedb, _ := state.New(blockHeaderParent.Root, database, nil)
+	
+	addr := common.HexToAddress("0xaabccf12580138bc2bbceeeaa111df4e42ab81ab")
+	codeHash := []byte{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}
+
+	trieMod := TrieModification{
+    	Type: BalanceMod,
+		CodeHash: codeHash,
+		Address: addr,
+	}
+	trieModifications := []TrieModification{trieMod}
+
+	prepareWitness("ImplicitlyCreateAccountWithCodeHash", trieModifications, statedb)
 }
 
 func TestAccountAddPlaceholderBranch(t *testing.T) {
@@ -1870,7 +1772,7 @@ func TestAccountAddPlaceholderBranch(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	GenerateProof("AccountAddPlaceholderBranch", trieModifications, statedb)
+	prepareWitness("AccountAddPlaceholderBranch", trieModifications, statedb)
 }
 
 func TestAccountDeletePlaceholderBranch(t *testing.T) {
@@ -1892,7 +1794,7 @@ func TestAccountDeletePlaceholderBranch(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	GenerateProof("AccountDeletePlaceholderBranch", trieModifications, statedb)
+	prepareWitness("AccountDeletePlaceholderBranch", trieModifications, statedb)
 }
 
 func TestAccountAddPlaceholderExtension(t *testing.T) {
@@ -1914,7 +1816,7 @@ func TestAccountAddPlaceholderExtension(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	GenerateProof("AccountAddPlaceholderExtension", trieModifications, statedb)
+	prepareWitness("AccountAddPlaceholderExtension", trieModifications, statedb)
 }
 
 func TestAccountDeletePlaceholderExtension(t *testing.T) {
@@ -1936,7 +1838,7 @@ func TestAccountDeletePlaceholderExtension(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	GenerateProof("AccountDeletePlaceholderExtension", trieModifications, statedb)
+	prepareWitness("AccountDeletePlaceholderExtension", trieModifications, statedb)
 }
 
 // Branch has nil at the specified address.
@@ -1957,7 +1859,7 @@ func TestNonExistingAccountNilObject(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	GenerateProof("NonExistingAccountNilObject", trieModifications, statedb)
+	prepareWitness("NonExistingAccountNilObject", trieModifications, statedb)
 }
 
 // Branch has a leaf at the specified address (not really at the specified address, but at the one
@@ -1981,268 +1883,7 @@ func TestNonExistingAccount(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	GenerateProof("NonExistingAccount", trieModifications, statedb)
-}
-
-func TestNonExistingAccountNilObjectInFirstLevel(t *testing.T) {
-	// geth --dev --http --ipcpath ~/Library/Ethereum/geth.ipc
-	oracle.NodeUrl = oracle.LocalUrl
-	blockNum := 0
-	blockNumberParent := big.NewInt(int64(blockNum))
-	blockHeaderParent := oracle.PrefetchBlock(blockNumberParent, true, nil)
-	database := state.NewDatabase(blockHeaderParent)
-	statedb, _ := state.New(blockHeaderParent.Root, database, nil)
-
-	i := 21
-	h := fmt.Sprintf("0x%d", i)
-	addr := common.HexToAddress(h)
-
-	trieMod := TrieModification{
-		Address: addr,
-    	Type: NonExistingAccount,
-	}
-	trieModifications := []TrieModification{trieMod}
-
-	GenerateProof("NonExistingAccountNilObjectInFirstLevel", trieModifications, statedb)
-
-	oracle.NodeUrl = oracle.RemoteUrl
-}
-
-func TestNonExistingAccountInFirstLevel(t *testing.T) {
-	// Only one element in the trie - the account with "wrong" address.
-	// geth --dev --http --ipcpath ~/Library/Ethereum/geth.ipc
-	oracle.NodeUrl = oracle.LocalUrl
-	blockNum := 0
-	blockNumberParent := big.NewInt(int64(blockNum))
-	blockHeaderParent := oracle.PrefetchBlock(blockNumberParent, true, nil)
-	database := state.NewDatabase(blockHeaderParent)
-	statedb, _ := state.New(blockHeaderParent.Root, database, nil)
-
-	i := 10
-	h := fmt.Sprintf("0x%d", i)
-	addr := common.HexToAddress(h)
-
-	trieMod := TrieModification{
-    	Type: NonExistingAccount,
-		Balance: big.NewInt(23),
-		Address: addr,
-	}
-	trieModifications := []TrieModification{trieMod}
-
-	GenerateProofSpecial("NonExistingAccountInFirstLevel", trieModifications, statedb, 4)
-
-	oracle.NodeUrl = oracle.RemoteUrl
-}
-
-func TestNonExistingAccountAfterFirstLevel(t *testing.T) {
-	// geth --dev --http --ipcpath ~/Library/Ethereum/geth.ipc
-	oracle.NodeUrl = oracle.LocalUrl
-	blockNum := 0
-	blockNumberParent := big.NewInt(int64(blockNum))
-	blockHeaderParent := oracle.PrefetchBlock(blockNumberParent, true, nil)
-	database := state.NewDatabase(blockHeaderParent)
-	statedb, _ := state.New(blockHeaderParent.Root, database, nil)
-
-	i := 22
-	h := fmt.Sprintf("0x%d", i)
-	addr := common.HexToAddress(h)
-
-	trieMod := TrieModification{
-		Address: addr,
-    	Type: NonExistingAccount,
-	}
-	trieModifications := []TrieModification{trieMod}
-
-	GenerateProof("NonExistingAccountAfterFirstLevel", trieModifications, statedb)
-
-	oracle.NodeUrl = oracle.RemoteUrl
-}
-
-// Account leaf after one branch. No storage proof.
-func TestAccountAfterFirstLevel(t *testing.T) {
-	// geth --dev --http --ipcpath ~/Library/Ethereum/geth.ipc
-	oracle.NodeUrl = oracle.LocalUrl
-	blockNum := 0
-	blockNumberParent := big.NewInt(int64(blockNum))
-	blockHeaderParent := oracle.PrefetchBlock(blockNumberParent, true, nil)
-	database := state.NewDatabase(blockHeaderParent)
-	statedb, _ := state.New(blockHeaderParent.Root, database, nil)
-
-	i := 21
-	h := fmt.Sprintf("0x%d", i)
-	addr := common.HexToAddress(h)
-
-	trieMod := TrieModification{
-    	Type: BalanceMod,
-		Balance: big.NewInt(23),
-		Address: addr,
-	}
-	trieModifications := []TrieModification{trieMod}
-
-	GenerateProof("AccountAfterFirstLevel", trieModifications, statedb)
-
-	oracle.NodeUrl = oracle.RemoteUrl
-}
-
-// Account leaf in first level. No storage proof.
-func TestAccountInFirstLevel(t *testing.T) {
-	// geth --dev --http --ipcpath ~/Library/Ethereum/geth.ipc
-	oracle.NodeUrl = oracle.LocalUrl
-	blockNum := 0
-	blockNumberParent := big.NewInt(int64(blockNum))
-	blockHeaderParent := oracle.PrefetchBlock(blockNumberParent, true, nil)
-	database := state.NewDatabase(blockHeaderParent)
-	statedb, _ := state.New(blockHeaderParent.Root, database, nil)
-
-	i := 21
-	h := fmt.Sprintf("0x%d", i)
-	addr := common.HexToAddress(h)
-
-	trieMod := TrieModification{
-    	Type: NonceMod,
-		Balance: big.NewInt(23),
-		Address: addr,
-	}
-	trieModifications := []TrieModification{trieMod}
-
-	GenerateProofSpecial("AccountInFirstLevel", trieModifications, statedb, 1)
-
-	oracle.NodeUrl = oracle.RemoteUrl
-}
-
-func TestAccountExtensionInFirstLevel(t *testing.T) {
-	// geth --dev --http --ipcpath ~/Library/Ethereum/geth.ipc
-	oracle.NodeUrl = oracle.LocalUrl
-	blockNum := 0
-	blockNumberParent := big.NewInt(int64(blockNum))
-	blockHeaderParent := oracle.PrefetchBlock(blockNumberParent, true, nil)
-	database := state.NewDatabase(blockHeaderParent)
-	statedb, _ := state.New(blockHeaderParent.Root, database, nil)
-
-	h := fmt.Sprintf("0xa21%d", 0)
-	addr := common.HexToAddress(h)
-	found := false
-	for i := 0; i < 100000; i++ {
-		h := fmt.Sprintf("0xa21%d", i)
-		addr = common.HexToAddress(h)
-
-		statedb.CreateAccount(addr)
-		statedb.IntermediateRoot(false)
-
-		oracle.PrefetchAccount(statedb.Db.BlockNumber, addr, nil)
-		proof1, _, _, err := statedb.GetProof(addr)
-		check(err)
-
-		for j := 0; j < len(proof1) - 1; j++ {
-			if proof1[j][0] < 248 { // searching extension node
-				found = true
-			} 
-		}	
-
-		if found {
-			break
-		}
-	}
-
-	trieMod := TrieModification{
-    	Type: NonceMod,
-		Balance: big.NewInt(23),
-		Address: addr,
-	}
-	trieModifications := []TrieModification{trieMod}
-
-	GenerateProofSpecial("AccountExtensionInFirstLevel", trieModifications, statedb, 5)
-
-	oracle.NodeUrl = oracle.RemoteUrl
-}
-
-func TestAccountBranchPlaceholder(t *testing.T) {
-	// geth --dev --http --ipcpath ~/Library/Ethereum/geth.ipc
-	oracle.NodeUrl = oracle.LocalUrl
-	blockNum := 0
-	blockNumberParent := big.NewInt(int64(blockNum))
-	blockHeaderParent := oracle.PrefetchBlock(blockNumberParent, true, nil)
-	database := state.NewDatabase(blockHeaderParent)
-	statedb, _ := state.New(blockHeaderParent.Root, database, nil)
-
-	h := fmt.Sprintf("0xab%d", 0)
-	addr := common.HexToAddress(h)
-	// Implicitly create account such that the account from the first level will be
-	// replaced by a branch.
-	trieMod := TrieModification{
-    	Type: NonceMod,
-		Balance: big.NewInt(23),
-		Address: addr,
-	}
-	trieModifications := []TrieModification{trieMod}
-
-	GenerateProofSpecial("AccountBranchPlaceholder", trieModifications, statedb, 2) // don't use the same number as in the test below ("*PlaceholderInFirstLevel")
-
-	oracle.NodeUrl = oracle.RemoteUrl
-}
-
-func TestAccountBranchPlaceholderInFirstLevel(t *testing.T) {
-	// geth --dev --http --ipcpath ~/Library/Ethereum/geth.ipc
-	oracle.NodeUrl = oracle.LocalUrl
-	blockNum := 0
-	blockNumberParent := big.NewInt(int64(blockNum))
-	blockHeaderParent := oracle.PrefetchBlock(blockNumberParent, true, nil)
-	database := state.NewDatabase(blockHeaderParent)
-	statedb, _ := state.New(blockHeaderParent.Root, database, nil)
-
-	/*
-	for i := 0; i < 100000; i++ {
-		h := fmt.Sprintf("0xa21%d", i)
-		addr := common.HexToAddress(h)
-
-		oracle.PrefetchAccount(statedb.Db.BlockNumber, addr, nil)
-		proof1, _, _, err := statedb.GetProof(addr)
-		check(err)
-
-		statedb.CreateAccount(addr)
-		statedb.IntermediateRoot(false)
-
-		// addrHash1 := crypto.Keccak256Hash(addr.Bytes())
-		// addrHash1[31] = (addrHash1[31] + 1) % 255 // just some change
-
-		// oracle.PrefetchAccount(statedb.Db.BlockNumber, addr1, nil)
-		// proof11, _, _, err := statedb.GetProofByHash(common.BytesToHash(addrHash1.Bytes()))
-
-		statedb.CreateAccount(addr)
-		statedb.IntermediateRoot(false)
-
-		proof2, _, _, err := statedb.GetProof(addr)
-		check(err)
-		if len(proof1) + 1 == len(proof2) && len(proof1) == 1 {
-			elems, _, err := rlp.SplitList(proof1[len(proof1)-1])
-			if err != nil {
-				fmt.Println("decode error", err)
-			}
-			switch c, _ := rlp.CountValues(elems); c {
-			case 2:
-				fmt.Println("2")
-			case 17:
-			default:
-				fmt.Println("invalid number of list elements")
-			}
-		}
-	}
-	*/
-
-	h := fmt.Sprintf("0xab%d", 0)
-	addr := common.HexToAddress(h)
-	// Implicitly create account such that the account from the first level will be
-	// replaced by a branch.
-	trieMod := TrieModification{
-    	Type: BalanceMod,
-		Balance: big.NewInt(23),
-		Address: addr,
-	}
-	trieModifications := []TrieModification{trieMod}
-
-	GenerateProofSpecial("AccountBranchPlaceholderInFirstLevel", trieModifications, statedb, 3) // don't use the same number as in the test above
-
-	oracle.NodeUrl = oracle.RemoteUrl
+	prepareWitness("NonExistingAccount", trieModifications, statedb)
 }
 
 // Account proof after placeholder branch deeper in the trie (branch placeholder not in the
@@ -2265,174 +1906,7 @@ func TestAccountBranchPlaceholderDeeper(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	GenerateProofSpecial("AccountBranchPlaceholderDeeper", trieModifications, statedb, 0)
-}
-
-func TestStorageInFirstAccountInFirstLevel(t *testing.T) {
-	// geth --dev --http --ipcpath ~/Library/Ethereum/geth.ipc
-	oracle.NodeUrl = oracle.LocalUrl
-	blockNum := 0
-	blockNumberParent := big.NewInt(int64(blockNum))
-	blockHeaderParent := oracle.PrefetchBlock(blockNumberParent, true, nil)
-	database := state.NewDatabase(blockHeaderParent)
-	statedb, _ := state.New(blockHeaderParent.Root, database, nil)
-
-	i := 21
-	h := fmt.Sprintf("0x%d", i)
-	addr := common.HexToAddress(h)
-
-	trieMod := TrieModification{
-    	Type: StorageMod,
-		Key: common.HexToHash("0x12"),
-		Value: common.BigToHash(big.NewInt(int64(17))),
-		Address: addr,
-	}
-	trieModifications := []TrieModification{trieMod}
-
-	GenerateProofSpecial("StorageInFirstAccountInFirstLevel", trieModifications, statedb, 1)
-
-	oracle.NodeUrl = oracle.RemoteUrl
-}
-
-func TestExtensionTwoNibblesInEvenLevel(t *testing.T) {
-	// geth --dev --http --ipcpath ~/Library/Ethereum/geth.ipc
-	oracle.NodeUrl = oracle.LocalUrl
-	blockNum := 0
-	blockNumberParent := big.NewInt(int64(blockNum))
-	blockHeaderParent := oracle.PrefetchBlock(blockNumberParent, true, nil)
-	database := state.NewDatabase(blockHeaderParent)
-	statedb, _ := state.New(blockHeaderParent.Root, database, nil)
-
-	h := fmt.Sprintf("0xa21%d", 0)
-	addr := common.HexToAddress(h)
-	found := false
-	for i := 0; i < 100000; i++ {
-		h := fmt.Sprintf("0xa21%d", i)
-		addr = common.HexToAddress(h)
-
-		statedb.CreateAccount(addr)
-		statedb.IntermediateRoot(false)
-
-		oracle.PrefetchAccount(statedb.Db.BlockNumber, addr, nil)
-		proof1, _, _, err := statedb.GetProof(addr)
-		check(err)
-
-		for j := 0; j < len(proof1) - 1; j++ {
-			if proof1[j][0] == 228 && proof1[j][1] == 130 && j % 2 == 0 {
-				fmt.Println(proof1[j])
-				found = true
-			} 
-		}	
-
-		if found {
-			break
-		}
-	}
-
-	trieMod := TrieModification{
-    	Type: NonceMod,
-		Nonce: 33,
-		Address: addr,
-	}
-	trieModifications := []TrieModification{trieMod}
-
-	GenerateProof("AccountExtensionTwoNibblesInEvenLevel", trieModifications, statedb)
-
-	oracle.NodeUrl = oracle.RemoteUrl
-}
-
-func TestExtensionThreeNibblesInEvenLevel(t *testing.T) {
-	// geth --dev --http --ipcpath ~/Library/Ethereum/geth.ipc
-	oracle.NodeUrl = oracle.LocalUrl
-	blockNum := 0
-	blockNumberParent := big.NewInt(int64(blockNum))
-	blockHeaderParent := oracle.PrefetchBlock(blockNumberParent, true, nil)
-	database := state.NewDatabase(blockHeaderParent)
-	statedb, _ := state.New(blockHeaderParent.Root, database, nil)
-
-	h := fmt.Sprintf("0xa21%d", 0)
-	addr := common.HexToAddress(h)
-	found := false
-	for i := 0; i < 100000; i++ {
-		h := fmt.Sprintf("0xa21%d", i)
-		addr = common.HexToAddress(h)
-
-		statedb.CreateAccount(addr)
-		statedb.IntermediateRoot(false)
-
-		oracle.PrefetchAccount(statedb.Db.BlockNumber, addr, nil)
-		proof1, _, _, err := statedb.GetProof(addr)
-		check(err)
-
-		for j := 0; j < len(proof1) - 1; j++ {
-			if proof1[j][0] == 228 && proof1[j][1] == 130 && j % 2 == 1 {
-				fmt.Println(proof1[j])
-				found = true
-			} 
-		}	
-
-		if found {
-			break
-		}
-	}
-
-	trieMod := TrieModification{
-    	Type: NonceMod,
-		Nonce: 33,
-		Address: addr,
-	}
-	trieModifications := []TrieModification{trieMod}
-
-	GenerateProof("AccountExtensionThreeNibblesInEvenLevel", trieModifications, statedb)
-
-	oracle.NodeUrl = oracle.RemoteUrl
-}
-
-func TestExtensionThreeNibblesInOddLevel(t *testing.T) {
-	// geth --dev --http --ipcpath ~/Library/Ethereum/geth.ipc
-	oracle.NodeUrl = oracle.LocalUrl
-	blockNum := 0
-	blockNumberParent := big.NewInt(int64(blockNum))
-	blockHeaderParent := oracle.PrefetchBlock(blockNumberParent, true, nil)
-	database := state.NewDatabase(blockHeaderParent)
-	statedb, _ := state.New(blockHeaderParent.Root, database, nil)
-
-	h := fmt.Sprintf("0xa21%d", 0)
-	addr := common.HexToAddress(h)
-	found := false
-	for i := 0; i < 100000; i++ {
-		h := fmt.Sprintf("0xa21%d", i)
-		addr = common.HexToAddress(h)
-
-		statedb.CreateAccount(addr)
-		statedb.IntermediateRoot(false)
-
-		oracle.PrefetchAccount(statedb.Db.BlockNumber, addr, nil)
-		proof1, _, _, err := statedb.GetProof(addr)
-		check(err)
-
-		for j := 0; j < len(proof1) - 1; j++ {
-			if proof1[j][0] == 228 && proof1[j][1] == 130 && proof1[j][2] != 0 && j % 2 == 0 {
-				fmt.Println(proof1[j])
-				found = true
-			} 
-		}	
-
-		if found {
-			break
-		}
-	}
-
-	trieMod := TrieModification{
-    	Type: NonceMod,
-		Nonce: 33,
-		Address: addr,
-	}
-	trieModifications := []TrieModification{trieMod}
-
-	GenerateProof("AccountExtensionThreeNibblesInOddLevel", trieModifications, statedb)
-
-	oracle.NodeUrl = oracle.RemoteUrl
+	prepareWitnessSpecial("AccountBranchPlaceholderDeeper", trieModifications, statedb, 0)
 }
 
 func TestLeafInLastLevel(t *testing.T) {
@@ -2490,7 +1964,7 @@ func TestLeafInLastLevel(t *testing.T) {
 	key2 = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,3]
 	*/
 
-	storageProof, _, _, err := statedb.GetStorageProof(addr, key1)
+	storageProof, _, _, _, err := statedb.GetStorageProof(addr, key1)
 	check(err)
 
 	fmt.Println(storageProof[0])
@@ -2504,74 +1978,10 @@ func TestLeafInLastLevel(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	GenerateProof("LeafInLastLevel", trieModifications, statedb)
+	prepareWitness("LeafInLastLevel", trieModifications, statedb)
 
 	oracle.PreventHashingInSecureTrie = false
 }
-
-/*
-	This makes the extension node longer than 55 bytes, so the first byte goes from 247 to 248.
-
-	storageProof[0]
-		[]uint8 len: 68, cap: 68, [248,66,160,16,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,160,172,62,32,109,202,28,158,228,207,196,4,119,200,12,209,177,23,17,228,25,192,126,235,26,91,197,92,194,...+4 more]
-	storageProof[1]
-		[]uint8 len: 83, cap: 83, [248,81,128,160,64,191,43,139,208,5,23,167,184,169,229,253,72,166,37,182,61,14,94,42,159,36,76,149,223,67,72,199,7,140,114,162,128,160,64,191,43,139,208,5,23,167,184,169,229,253,72,166,37,182,61,14,94,42,159,36,76,149,223,67,...+1...
-	storageProof[2]
-		[]uint8 len: 36, cap: 36, [227,32,161,160,187,239,170,18,88,1,56,188,38,60,149,117,120,38,223,78,36,235,129,201,170,170,170,170,170,170,170,170,170,170,170,170]
-
-	storageProof1[0]
-		[]uint8 len: 68, cap: 68, [248,66,160,16,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,160,104,147,154,48,225,9,124,91,65,60,63,202,4,255,242,29,212,241,132,56,213,231,51,133,235,124,255,172,...+4 more]
-	storageProof1[1]
-		[]uint8 len: 52, cap: 52, [243,128,194,32,17,128,160,64,191,43,139,208,5,23,167,184,169,229,253,72,166,37,182,61,14,94,42,159,36,76,149,223,67,72,199,7,140,114,162,128,128,128,128,128,128,128,128,128,128,128,128,128]
-	storageProof1[2]
-		[]uint8 len: 3, cap: 3, [194,32,17]
-*/
-/* TODO: extension nodes longer than 55 bytes yet to be implemented in the circuit (but the probability
-that they appear is very low).
-func TestLongExt(t *testing.T) {
-	blockNum := 0
-	blockNumberParent := big.NewInt(int64(blockNum))
-	blockHeaderParent := oracle.PrefetchBlock(blockNumberParent, true, nil)
-	database := state.NewDatabase(blockHeaderParent)
-	statedb, _ := state.New(blockHeaderParent.Root, database, nil)
-	addr := common.HexToAddress("0x50efbf12580138bc623c95757286df4e24eb81c9")
-
-	statedb.DisableLoadingRemoteAccounts()
-	
-	statedb.CreateAccount(addr)
-
-	oracle.PreventHashingInSecureTrie = true
-
-	key1 := common.HexToHash("0x1")
-	
-	v1 := common.FromHex("0xbbefaa12580138bc263c95757826df4e24eb81c9aaaaaaaaaaaaaaaaaaaaaaaa")
-	val1 := common.BytesToHash(v1)
-
-	statedb.SetState(addr, key1, val1)
-
-	key2 := common.HexToHash("0x3")
-	statedb.SetState(addr, key2, val1)
-	statedb.IntermediateRoot(false)
-
-	storageProof, _, _, err := statedb.GetStorageProof(addr, key1)
-	check(err)
-
-	fmt.Println(storageProof[0])
-
-	val := common.BigToHash(big.NewInt(int64(17)))
-	trieMod := TrieModification{
-    	Type: StorageMod,
-		Key: key1,
-		Value: val,
-		Address: addr,
-	}
-	trieModifications := []TrieModification{trieMod}
-
-	GenerateProof("LongExt", trieModifications, statedb)
-
-	oracle.PreventHashingInSecureTrie = false
-}
-*/
 
 func TestLeafWithOneNibble(t *testing.T) {
 	blockNum := 0
@@ -2596,7 +2006,7 @@ func TestLeafWithOneNibble(t *testing.T) {
 	statedb.SetState(addr, key2, val1)
 	statedb.IntermediateRoot(false)
 
-	storageProof, _, _, err := statedb.GetStorageProof(addr, key1)
+	storageProof, _, _, _, err := statedb.GetStorageProof(addr, key1)
 	check(err)
 
 	fmt.Println(storageProof[0])
@@ -2610,7 +2020,7 @@ func TestLeafWithOneNibble(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	GenerateProof("LeafWithOneNibble", trieModifications, statedb)
+	prepareWitness("LeafWithOneNibble", trieModifications, statedb)
 
 	oracle.PreventHashingInSecureTrie = false
 }
@@ -2650,7 +2060,7 @@ func TestLeafWithMoreNibbles(t *testing.T) {
 	statedb.SetState(addr, key2, val1)
 	statedb.IntermediateRoot(false)
 
-	storageProof, _, _, err := statedb.GetStorageProof(addr, key1)
+	storageProof, _, _, _, err := statedb.GetStorageProof(addr, key1)
 	check(err)
 
 	fmt.Println(storageProof[0])
@@ -2664,7 +2074,7 @@ func TestLeafWithMoreNibbles(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	GenerateProof("LeafWithMoreNibbles", trieModifications, statedb)
+	prepareWitness("LeafWithMoreNibbles", trieModifications, statedb)
 
 	oracle.PreventHashingInSecureTrie = false
 }
@@ -2859,8 +2269,7 @@ func TestNonHashedExtensionNodeInBranchTwoNibbles(t *testing.T) {
 }
 */
 
-func TestExtNodeReplaceWithBranch(t *testing.T) {
-	// Replace extension node with branch
+func TestBranchAfterExtNode(t *testing.T) {
 	blockNum := 0
 	blockNumberParent := big.NewInt(int64(blockNum))
 	blockHeaderParent := oracle.PrefetchBlock(blockNumberParent, true, nil)
@@ -2874,8 +2283,8 @@ func TestExtNodeReplaceWithBranch(t *testing.T) {
 
 	oracle.PreventHashingInSecureTrie = true // to store the unchanged key
 
-	key1Hex := "0x1" 
-	key2Hex := "0x2" 
+	key1Hex := "0x1000000000000000000000000" 
+	key2Hex := "0x2000000000000000000000000" 
 	key1 := common.HexToHash(key1Hex)
 	key2 := common.HexToHash(key2Hex)
 
@@ -2888,14 +2297,13 @@ func TestExtNodeReplaceWithBranch(t *testing.T) {
 	statedb.SetState(addr, key2, val2)
 	fmt.Println(key2)
 
-	// Uncomment if you want to make sure key1 and key2 are stored in the trie before key3 is stored
-	// statedb.IntermediateRoot(false)
+	statedb.IntermediateRoot(false)
 
 	key1Hex += "1"
 	key3 := common.HexToHash(key1Hex)
 	statedb.SetState(addr, key3, val2)
 	fmt.Println(key3)
-	
+
 	statedb.IntermediateRoot(false)
 
 	val := common.BigToHash(big.NewInt(int64(17)))
@@ -2907,57 +2315,10 @@ func TestExtNodeReplaceWithBranch(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	GenerateProof("ExtNodeReplaceWithBranch", trieModifications, statedb)
+	prepareWitness("BranchAfterExtNode", trieModifications, statedb)
 
 	oracle.PreventHashingInSecureTrie = false
 }
-
-/*
-// Extension node going from [247,...] to [248,...].
-func TestExtNodeDiffLength(t *testing.T) {
-	blockNum := 0
-	blockNumberParent := big.NewInt(int64(blockNum))
-	blockHeaderParent := oracle.PrefetchBlock(blockNumberParent, true, nil)
-	database := state.NewDatabase(blockHeaderParent)
-	statedb, _ := state.New(blockHeaderParent.Root, database, nil)
-	addr := common.HexToAddress("0x50efbf12580138bc623c95757286df4e24eb81c9")
-
-	statedb.DisableLoadingRemoteAccounts()
-	
-	statedb.CreateAccount(addr)
-
-	oracle.PreventHashingInSecureTrie = true // to store the unchanged key
-
-	key1 := common.HexToHash("0x10")
-	val1 := common.BigToHash(big.NewInt(int64(1)))
-
-	statedb.SetState(addr, key1, val1)
-
-	key2 := common.HexToHash("0x30")
-	statedb.SetState(addr, key2, val1)
-	statedb.IntermediateRoot(false)
-
-	storageProof, _, _, err := statedb.GetStorageProof(addr, key1)
-	check(err)
-
-	fmt.Println(storageProof[0])
-
-	// make the value long to have different kind of RLP in C proof
-	v1 := common.FromHex("0xbbefaa12580138bc263c95757826df4e24eb81c9aaaaaaaaaaaaaaaaaaaaaaaa")
-	val := common.BytesToHash(v1)
-	trieMod := TrieModification{
-    	Type: StorageMod,
-		Key: key1,
-		Value: val,
-		Address: addr,
-	}
-	trieModifications := []TrieModification{trieMod}
-
-	GenerateProof("ExtNodeDiffLength", trieModifications, statedb)
-
-	oracle.PreventHashingInSecureTrie = false
-}
-*/
 
 func TestNonExistingStorage(t *testing.T) {
 	ks := [...]common.Hash{common.HexToHash("0x11"), common.HexToHash("0x12")}
@@ -2986,7 +2347,7 @@ func TestNonExistingStorage(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	UpdateStateAndGenProof("NonExistingStorage", ks[:], values, addresses, trieModifications)
+	updateStateAndPrepareWitness("NonExistingStorage", ks[:], values, addresses, trieModifications)
 }
 
 func TestNonExistingStorageLong(t *testing.T) {
@@ -3011,66 +2372,7 @@ func TestNonExistingStorageLong(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	UpdateStateAndGenProof("NonExistingStorageLong", ks[:], values, addresses, trieModifications)
-}
-
-func TestStorageInFirstLevelNonExisting(t *testing.T) {
-	// geth --dev --http --ipcpath ~/Library/Ethereum/geth.ipc
-	oracle.NodeUrl = oracle.LocalUrl
-	blockNum := 0
-	blockNumberParent := big.NewInt(int64(blockNum))
-	blockHeaderParent := oracle.PrefetchBlock(blockNumberParent, true, nil)
-	database := state.NewDatabase(blockHeaderParent)
-	statedb, _ := state.New(blockHeaderParent.Root, database, nil)
-
-	i := 21
-	h := fmt.Sprintf("0x%d", i)
-	addr := common.HexToAddress(h)
-
-	val1 := common.BigToHash(big.NewInt(int64(1)))
-	statedb.SetState(addr, common.HexToHash("0x11"), val1)
-	statedb.IntermediateRoot(false)
-
-	trieMod := TrieModification{
-    	Type: NonExistingStorage,
-		Key: common.HexToHash("0x12"),
-		Address: addr,
-	}
-	trieModifications := []TrieModification{trieMod}
-
-	GenerateProof("StorageInFirstLevelNonExisting", trieModifications, statedb)
-
-	oracle.NodeUrl = oracle.RemoteUrl
-}
-
-func TestStorageInFirstLevelNonExistingLong(t *testing.T) {
-	// geth --dev --http --ipcpath ~/Library/Ethereum/geth.ipc
-	oracle.NodeUrl = oracle.LocalUrl
-	blockNum := 0
-	blockNumberParent := big.NewInt(int64(blockNum))
-	blockHeaderParent := oracle.PrefetchBlock(blockNumberParent, true, nil)
-	database := state.NewDatabase(blockHeaderParent)
-	statedb, _ := state.New(blockHeaderParent.Root, database, nil)
-
-	i := 21
-	h := fmt.Sprintf("0x%d", i)
-	addr := common.HexToAddress(h)
-
-	v1 := common.FromHex("0xbbefaa12580138bc263c95757826df4e24eb81c9aaaaaaaaaaaaaaaaaaaaaaaa")
-	val1 := common.BytesToHash(v1)
-	statedb.SetState(addr, common.HexToHash("0x11"), val1)
-	statedb.IntermediateRoot(false)
-
-	trieMod := TrieModification{
-    	Type: NonExistingStorage,
-		Key: common.HexToHash("0x12"),
-		Address: addr,
-	}
-	trieModifications := []TrieModification{trieMod}
-
-	GenerateProof("StorageInFirstLevelNonExistingLong", trieModifications, statedb)
-
-	oracle.NodeUrl = oracle.RemoteUrl
+	updateStateAndPrepareWitness("NonExistingStorageLong", ks[:], values, addresses, trieModifications)
 }
 
 func TestNonExistingStorageNil(t *testing.T) {
@@ -3101,35 +2403,5 @@ func TestNonExistingStorageNil(t *testing.T) {
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	UpdateStateAndGenProof("NonExistingStorageNil", ks[:], values, addresses, trieModifications)
-}
-
-func TestStorageInFirstLevelNonExistingNil(t *testing.T) {
-	// geth --dev --http --ipcpath ~/Library/Ethereum/geth.ipc
-	oracle.NodeUrl = oracle.LocalUrl
-	blockNum := 0
-	blockNumberParent := big.NewInt(int64(blockNum))
-	blockHeaderParent := oracle.PrefetchBlock(blockNumberParent, true, nil)
-	database := state.NewDatabase(blockHeaderParent)
-	statedb, _ := state.New(blockHeaderParent.Root, database, nil)
-
-	i := 21
-	h := fmt.Sprintf("0x%d", i)
-	addr := common.HexToAddress(h)
-
-	v1 := common.FromHex("0xbbefaa12580138bc263c95757826df4e24eb81c9aaaaaaaaaaaaaaaaaaaaaaaa")
-	val1 := common.BytesToHash(v1)
-	statedb.SetState(addr, common.HexToHash("0x11"), val1)
-	statedb.IntermediateRoot(false)
-
-	trieMod := TrieModification{
-    	Type: NonExistingStorage,
-		Key: common.HexToHash("0x13"),
-		Address: addr,
-	}
-	trieModifications := []TrieModification{trieMod}
-
-	GenerateProof("StorageInFirstLevelNonExistingNil", trieModifications, statedb)
-
-	oracle.NodeUrl = oracle.RemoteUrl
+	updateStateAndPrepareWitness("NonExistingStorageNil", ks[:], values, addresses, trieModifications)
 }
