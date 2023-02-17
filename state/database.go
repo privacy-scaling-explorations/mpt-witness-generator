@@ -7,8 +7,8 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethdb"
-	"github.com/miha-stopar/mpt/oracle"
-	"github.com/miha-stopar/mpt/trie"
+	"github.com/privacy-scaling-explorations/mpt-witness-generator/oracle"
+	"github.com/privacy-scaling-explorations/mpt-witness-generator/trie"
 )
 
 // TODO: add oracle calls here

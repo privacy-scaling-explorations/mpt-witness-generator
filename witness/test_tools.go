@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/miha-stopar/mpt/trie"
+	"github.com/privacy-scaling-explorations/mpt-witness-generator/trie"
 )
 
 // moveAccountFromSecondToFirstLevel moves an account from the second level to the first level (key stored in a leaf

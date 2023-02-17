@@ -6,8 +6,8 @@ import (
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/miha-stopar/mpt/oracle"
-	"github.com/miha-stopar/mpt/state"
+	"github.com/privacy-scaling-explorations/mpt-witness-generator/oracle"
+	"github.com/privacy-scaling-explorations/mpt-witness-generator/state"
 )
 
 func TestUpdateOneLevel(t *testing.T) {

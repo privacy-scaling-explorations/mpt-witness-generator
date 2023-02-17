@@ -6,9 +6,9 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/miha-stopar/mpt/oracle"
-	"github.com/miha-stopar/mpt/state"
-	"github.com/miha-stopar/mpt/trie"
+	"github.com/privacy-scaling-explorations/mpt-witness-generator/oracle"
+	"github.com/privacy-scaling-explorations/mpt-witness-generator/state"
+	"github.com/privacy-scaling-explorations/mpt-witness-generator/trie"
 )
 
 const branchNodeRLPLen = 2 // we have two positions for RLP meta data

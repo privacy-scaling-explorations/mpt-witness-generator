@@ -5,7 +5,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/rlp"
-	"github.com/miha-stopar/mpt/state"
+	"github.com/privacy-scaling-explorations/mpt-witness-generator/state"
 )
 
 // isBranch takes GetProof element and returns whether the element is a branch.

@@ -32,8 +32,8 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/metrics"
 	"github.com/ethereum/go-ethereum/rlp"
-	"github.com/miha-stopar/mpt/oracle"
-	"github.com/miha-stopar/mpt/trie"
+	"github.com/privacy-scaling-explorations/mpt-witness-generator/oracle"
+	"github.com/privacy-scaling-explorations/mpt-witness-generator/trie"
 )
 
 // for includes we don't have

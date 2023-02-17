@@ -2,8 +2,8 @@ package witness
 
 import (
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/miha-stopar/mpt/state"
-	"github.com/miha-stopar/mpt/trie"
+	"github.com/privacy-scaling-explorations/mpt-witness-generator/state"
+	"github.com/privacy-scaling-explorations/mpt-witness-generator/trie"
 )
 
 // addModifiedExtNode adds rows for a modified extension node before and after modification.

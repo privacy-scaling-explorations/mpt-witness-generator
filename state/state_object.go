@@ -27,7 +27,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/metrics"
 	"github.com/ethereum/go-ethereum/rlp"
-	"github.com/miha-stopar/mpt/oracle"
+	"github.com/privacy-scaling-explorations/mpt-witness-generator/oracle"
 )
 
 var emptyCodeHash = crypto.Keccak256(nil)

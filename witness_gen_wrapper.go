@@ -6,7 +6,7 @@ import (
 	"fmt"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/miha-stopar/mpt/witness"
+	"github.com/privacy-scaling-explorations/mpt-witness-generator/witness"
 )
 
 type Config struct {

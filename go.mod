@@ -1,4 +1,4 @@
-module github.com/miha-stopar/mpt
+module github.com/privacy-scaling-explorations/mpt-witness-generator
 
 go 1.16
 
