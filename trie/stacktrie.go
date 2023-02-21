@@ -464,6 +464,7 @@ func (st *StackTrie) hash() {
 	if st.db != nil {
 		// TODO! Is it safe to Put the slice here?
 		// Do all db implementations copy the value provided?
+		fmt.Println("into db:", st.val)
 		st.db.Put(st.val, h.tmp)
 	}
 }
@@ -512,4 +513,25 @@ func (st *StackTrie) Commit() (common.Hash, error) {
 		return common.BytesToHash(ret), nil
 	}
 	return common.BytesToHash(st.val), nil
+}
+
+func (st *StackTrie) Prove(db ethdb.KeyValueReader, key []byte) error {
+	i := 0
+	// var c *StackTrie
+	c := st
+	for i < len(key) {
+		c = c.children[key[i]]
+		c_rlp, error := db.Get(c.val)
+		// TODO: parse RLP, get key, query db with key
+		if error != nil {
+			fmt.Println(error)
+			return error
+		}
+
+		fmt.Println(c_rlp)
+
+		i += 1
+	}
+
+	return nil
 }

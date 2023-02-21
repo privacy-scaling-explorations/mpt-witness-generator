@@ -7,6 +7,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/math"
+	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/privacy-scaling-explorations/mpt-witness-generator/trie"
@@ -30,7 +31,11 @@ func TestTransactions(t *testing.T) {
 		txs[i] = signedTx
 	}
 
-	stackTrie := types.UpdateStackTrie(types.Transactions(txs), trie.NewStackTrie(nil))
+	db := rawdb.NewMemoryDatabase()
+
+	stackTrie := types.UpdateStackTrie(types.Transactions(txs), trie.NewStackTrie(db))
+	k := []byte{0, 1}
+	stackTrie.Prove(db, k)
 
 	fmt.Println(stackTrie)
 }
