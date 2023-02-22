@@ -14,29 +14,44 @@ import (
 	"github.com/privacy-scaling-explorations/mpt-witness-generator/types"
 )
 
-func TestTransactions(t *testing.T) {
-	txs := make([]*types.Transaction, 70)
+func createTransaction(ind int) *types.Transaction {
 	key, _   := crypto.GenerateKey()
 	signer := types.LatestSigner(params.TestChainConfig)
 
-	for i := range txs {
-		amount := math.BigPow(2, int64(i))
-		price := big.NewInt(300000)
-		data := make([]byte, 100)
-		tx := types.NewTransaction(uint64(i), common.Address{}, amount, 123457, price, data)
-		signedTx, err := types.SignTx(tx, signer, key)
-		if err != nil {
-			panic(err)
-		}
-		txs[i] = signedTx
+	amount := math.BigPow(2, int64(ind))
+	price := big.NewInt(300000)
+	data := make([]byte, 100)
+	tx := types.NewTransaction(uint64(ind), common.Address{}, amount, 123457, price, data)
+	signedTx, err := types.SignTx(tx, signer, key)
+	if err != nil {
+		panic(err)
 	}
 
+	return signedTx
+}
+
+func TestTransactions(t *testing.T) {
 	db := rawdb.NewMemoryDatabase()
 
-	stackTrie := types.UpdateStackTrie(types.Transactions(txs), trie.NewStackTrie(db))
-	k := []byte{0, 1}
-	stackTrie.Prove(db, k)
+	tx1 := createTransaction(1)
+	tx2 := createTransaction(2)
+	txs1 := []*types.Transaction{tx1, tx2}
+	stackTrie := types.UpdateStackTrie(types.Transactions(txs1), trie.NewStackTrie(db))
 
-	fmt.Println(stackTrie)
+	k := []byte{0, 3}
+	proof1, err := stackTrie.Prove(db, k)
+	check(err)
+
+	tx3 := createTransaction(3)
+	txs2 := []*types.Transaction{tx3}
+	stackTrie = types.UpdateStackTrie(types.Transactions(txs2), stackTrie)
+
+	k = []byte{0, 3}
+	proof2, err := stackTrie.Prove(db, k)
+	check(err)
+
+	fmt.Println(proof1)
+	fmt.Println("===")
+	fmt.Println(proof2)
 }
 

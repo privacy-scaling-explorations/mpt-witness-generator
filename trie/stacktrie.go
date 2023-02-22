@@ -515,23 +515,83 @@ func (st *StackTrie) Commit() (common.Hash, error) {
 	return common.BytesToHash(st.val), nil
 }
 
-func (st *StackTrie) Prove(db ethdb.KeyValueReader, key []byte) error {
+func (st *StackTrie) getKeyFromBranchRLP(branch []byte, ind byte) []byte {
+	start := 2 // when branch[0] == 248
+	if branch[0] == 249 {
+		start = 3
+	}
+	
 	i := 0
-	// var c *StackTrie
-	c := st
-	for i < len(key) {
-		c = c.children[key[i]]
-		c_rlp, error := db.Get(c.val)
-		// TODO: parse RLP, get key, query db with key
-		if error != nil {
-			fmt.Println(error)
-			return error
+	insideInd := -1
+	cInd := byte(0)
+	for {
+		if (start + i == len(branch) - 1) { // -1 because of the last 128 (branch value)
+			return []byte{0}
 		}
+		b := branch[start+i]
+		if insideInd == -1 && b == 128 {
+			if cInd == ind {
+				return []byte{128}
+			} else {
+				cInd += 1
+			}
+		} else if insideInd == -1 && b != 128 {
+			if b == 160 {
+				if cInd == ind {
+					return branch[start + i + 1: start + i + 1 + 32]
+				}
+				insideInd = 32
+			} else {
+				// non-hashed node
+				if cInd == ind {
+					return branch[start + i + 1: start + i + 1 + int(b) - 192]
+				}
+				insideInd = int(b) - 192
+			}
+			cInd += 1
+		} else {
+			if insideInd == 1 {
+				insideInd = -1
+			} else {
+				insideInd--
+			}
+		}	
 
-		fmt.Println(c_rlp)
+		i++
+	}
+}
 
-		i += 1
+func (st *StackTrie) Prove(db ethdb.KeyValueReader, key []byte) ([][]byte, error) {
+	i := 0
+	c := st.children[key[i]]
+	c_rlp, error := db.Get(c.val)
+	if error != nil {
+		fmt.Println(error)
+		return nil, error
+	}
+	fmt.Println(c_rlp)
+
+	var proof [][]byte
+	proof = append(proof, c_rlp)
+
+	if st.nodeType != hashedNode {
+		return proof, nil
 	}
 
-	return nil
+	for i < len(key) {
+		i += 1
+		k := st.getKeyFromBranchRLP(c_rlp, key[i])
+		fmt.Println(k)
+		
+		c_rlp, error = db.Get(k)
+		if error != nil {
+			fmt.Println(error)
+			return nil, error
+		}
+		fmt.Println(c_rlp)
+		proof = append(proof, c_rlp)
+		
+	}
+
+	return proof, nil
 }

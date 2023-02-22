@@ -65,7 +65,7 @@ type TrieHasher interface {
 	Reset()
 	Update([]byte, []byte)
 	Hash() common.Hash
-	Prove(ethdb.KeyValueReader, []byte) error
+	Prove(ethdb.KeyValueReader, []byte) ([][]byte, error)
 }
 
 // DerivableList is the input to DeriveSha.
