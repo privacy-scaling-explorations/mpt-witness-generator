@@ -28,6 +28,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/log"
+	"github.com/privacy-scaling-explorations/mpt-witness-generator/types"
 
 	//"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rlp"
@@ -561,9 +562,86 @@ func (st *StackTrie) getKeyFromBranchRLP(branch []byte, ind byte) []byte {
 	}
 }
 
-func (st *StackTrie) Prove(db ethdb.KeyValueReader, key []byte) ([][]byte, error) {
+type StackProof struct {
+	proofS       [][]byte
+	proofC       [][]byte
+}
+
+func (st *StackTrie) UpdateAndGetProof(db ethdb.KeyValueReader, indexBuf, value []byte) (StackProof, error) {
+	proofS, err := st.GetProof(db, indexBuf)
+	if err != nil {
+		return StackProof{}, err
+	}
+
+	st.Update(indexBuf, value)
+
+	proofC, err := st.GetProof(db, indexBuf)
+	if err != nil {
+		return StackProof{}, err
+	}
+
+	return StackProof{proofS, proofC}, nil
+}
+
+func (st *StackTrie) UpdateAndGetProofs(db ethdb.KeyValueReader, list types.DerivableList) ([]StackProof, error) {
+	valueBuf := types.EncodeBufferPool.Get().(*bytes.Buffer)
+	defer types.EncodeBufferPool.Put(valueBuf)
+
+	var proofs []StackProof
+
+	// StackTrie requires values to be inserted in increasing hash order, which is not the
+	// order that `list` provides hashes in. This insertion sequence ensures that the
+	// order is correct.
+	var indexBuf []byte
+	for i := 1; i < list.Len() && i <= 0x7f; i++ {
+		indexBuf = rlp.AppendUint64(indexBuf[:0], uint64(i))
+		value := types.EncodeForDerive(list, i, valueBuf)
+
+		proof, err := st.UpdateAndGetProof(db, indexBuf, value)
+		if err != nil {
+			return nil, err
+		}
+
+		proofs = append(proofs, proof)
+	}
+	if list.Len() > 0 {
+		indexBuf = rlp.AppendUint64(indexBuf[:0], 0)
+		value := types.EncodeForDerive(list, 0, valueBuf)
+		// TODO: get proof
+		st.Update(indexBuf, value)
+	}
+	for i := 0x80; i < list.Len(); i++ {
+		indexBuf = rlp.AppendUint64(indexBuf[:0], uint64(i))
+		value := types.EncodeForDerive(list, i, valueBuf)
+		// TODO: get proof
+		st.Update(indexBuf, value)
+	}
+
+	return proofs, nil
+}
+
+func (st *StackTrie) GetProof(db ethdb.KeyValueReader, key []byte) ([][]byte, error) {
+	k := KeybytesToHex(key)
 	i := 0
-	c := st.children[key[i]]
+
+	if st.nodeType == emptyNode {
+		return [][]byte{}, nil
+	}
+
+	if st.nodeType == leafNode {
+		return [][]byte{st.val}, nil
+	}
+
+	var proof [][]byte
+	var c_rlp []byte
+
+	c := st.children[k[i]]
+	if c.nodeType == branchNode {
+		c_rlp = c.children[k[i+1]].val
+		proof = append(proof, c_rlp)
+		return proof, nil
+	}
+
 	c_rlp, error := db.Get(c.val)
 	if error != nil {
 		fmt.Println(error)
@@ -571,16 +649,15 @@ func (st *StackTrie) Prove(db ethdb.KeyValueReader, key []byte) ([][]byte, error
 	}
 	fmt.Println(c_rlp)
 
-	var proof [][]byte
 	proof = append(proof, c_rlp)
 
 	if st.nodeType != hashedNode {
 		return proof, nil
 	}
 
-	for i < len(key) {
+	for i < len(k) {
 		i += 1
-		k := st.getKeyFromBranchRLP(c_rlp, key[i])
+		k := st.getKeyFromBranchRLP(c_rlp, k[i])
 		fmt.Println(k)
 		
 		c_rlp, error = db.Get(k)

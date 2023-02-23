@@ -492,7 +492,7 @@ func convertProofToWitness(statedb *state.StateDB, addr common.Address, proof1, 
 				toBeHashed = append(toBeHashed, leafForHashing...)
 			}
 			
-			isModifiedExtNode, isExtension, numberOfNibbles, branchC16 := addBranchAndPlaceholder(statedb, addr, &rows, proof1, proof2, extNibblesS, extNibblesC,
+			isModifiedExtNode, isExtension, numberOfNibbles, branchC16 := addBranchAndPlaceholder(addr, &rows, proof1, proof2, extNibblesS, extNibblesC,
 				leafRows[0], key, neighbourNode,
 				keyIndex, extensionNodeInd, additionalBranch,
 				isAccountProof, nonExistingAccountProof, isShorterProofLastLeaf, branchC16, branchC1, &toBeHashed)

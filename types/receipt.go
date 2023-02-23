@@ -141,8 +141,8 @@ func (r *Receipt) EncodeRLP(w io.Writer) error {
 	if r.Type == LegacyTxType {
 		return rlp.Encode(w, data)
 	}
-	buf := encodeBufferPool.Get().(*bytes.Buffer)
-	defer encodeBufferPool.Put(buf)
+	buf := EncodeBufferPool.Get().(*bytes.Buffer)
+	defer EncodeBufferPool.Put(buf)
 	buf.Reset()
 	buf.WriteByte(r.Type)
 	if err := rlp.Encode(buf, data); err != nil {

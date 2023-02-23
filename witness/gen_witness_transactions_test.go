@@ -31,27 +31,33 @@ func createTransaction(ind int) *types.Transaction {
 }
 
 func TestTransactions(t *testing.T) {
+	txs := make([]*types.Transaction, 70)
+	key, _   := crypto.GenerateKey()
+	signer := types.LatestSigner(params.TestChainConfig)
+
+	for i := range txs {
+		amount := math.BigPow(2, int64(i))
+		price := big.NewInt(300000)
+		data := make([]byte, 100)
+		tx := types.NewTransaction(uint64(i), common.Address{}, amount, 123457, price, data)
+		signedTx, err := types.SignTx(tx, signer, key)
+		if err != nil {
+			panic(err)
+		}
+		txs[i] = signedTx
+	}
+
 	db := rawdb.NewMemoryDatabase()
+	stackTrie := trie.NewStackTrie(db)
 
-	tx1 := createTransaction(1)
-	tx2 := createTransaction(2)
-	txs1 := []*types.Transaction{tx1, tx2}
-	stackTrie := types.UpdateStackTrie(types.Transactions(txs1), trie.NewStackTrie(db))
+	stackTrie.UpdateAndGetProofs(db, types.Transactions(txs))
 
-	k := []byte{0, 3}
-	proof1, err := stackTrie.Prove(db, k)
-	check(err)
+	/*
+	rowsTransactions, toBeHashedAcc, _ :=
+		convertProofToWitness(statedb, addr, accountProof, accountProof1, aExtNibbles1, aExtNibbles2, accountAddr, aNode, true, tMod.Type == NonExistingAccount, false, isShorterProofLastLeaf)
+	*/
+	
 
-	tx3 := createTransaction(3)
-	txs2 := []*types.Transaction{tx3}
-	stackTrie = types.UpdateStackTrie(types.Transactions(txs2), stackTrie)
-
-	k = []byte{0, 3}
-	proof2, err := stackTrie.Prove(db, k)
-	check(err)
-
-	fmt.Println(proof1)
 	fmt.Println("===")
-	fmt.Println(proof2)
 }
 
