@@ -363,6 +363,39 @@ func (st *StackTrie) insert(key, value []byte) {
 	}
 }
 
+func (st *StackTrie) branchToRLP(reclaim bool) *hasher {
+	if st.nodeType != branchNode {
+		panic("Converting branch to RLP: wrong node")
+	}
+	var nodes [17]Node
+	for i, child := range st.children {
+		if child == nil {
+			nodes[i] = nilValueNode
+			continue
+		}
+		child.hash()
+		if len(child.val) < 32 {
+			nodes[i] = rawNode(child.val)
+		} else {
+			nodes[i] = HashNode(child.val)
+		}
+		if reclaim {
+			st.children[i] = nil // Reclaim mem from subtree
+			returnToPool(child)
+		}
+	}
+	nodes[16] = nilValueNode
+
+	h := NewHasher(false)
+	defer returnHasherToPool(h)
+	h.tmp.Reset()
+	if err := rlp.Encode(&h.tmp, nodes); err != nil {
+		panic(err)
+	}
+
+	return h
+}
+
 // hash() hashes the node 'st' and converts it into 'hashedNode', if possible.
 // Possible outcomes:
 // 1. The rlp-encoded value was >= 32 bytes:
@@ -387,28 +420,7 @@ func (st *StackTrie) hash() {
 
 	switch st.nodeType {
 	case branchNode:
-		var nodes [17]Node
-		for i, child := range st.children {
-			if child == nil {
-				nodes[i] = nilValueNode
-				continue
-			}
-			child.hash()
-			if len(child.val) < 32 {
-				nodes[i] = rawNode(child.val)
-			} else {
-				nodes[i] = HashNode(child.val)
-			}
-			st.children[i] = nil // Reclaim mem from subtree
-			returnToPool(child)
-		}
-		nodes[16] = nilValueNode
-		h = NewHasher(false)
-		defer returnHasherToPool(h)
-		h.tmp.Reset()
-		if err := rlp.Encode(&h.tmp, nodes); err != nil {
-			panic(err)
-		}
+		h = st.branchToRLP(true)
 	case extNode:
 		st.children[0].hash()
 		h = NewHasher(false)
@@ -628,6 +640,14 @@ func (st *StackTrie) GetProof(db ethdb.KeyValueReader, key []byte) ([][]byte, er
 		return [][]byte{}, nil
 	}
 
+	// Note that when root is a leaf, this leaf should be returned even if you ask for a different key (than the key of
+	// of this leaf) - this is how it works in state GetProof and how it should, because this means the second change
+	// of the trie. The first change is going from empty trie to the trie with only a leaf. The second change is going
+	// from a leaf to a branch (or extension node). That means the second change requires a placeholder branch
+	// and when there is a placeholder branch, the circuit checks that there are only two leaves in a branch and one
+	// (the one not just added) is the same as in the S proof. This wouldn't work if we would have a placeholder leaf
+	// in the S proof (another reason is that the S proof with a placeholder leaf would be an empty trie and thus with
+	// a root of an empty trie - which is not the case in S proof).
 	if st.nodeType == leafNode {
 		return [][]byte{st.val}, nil
 	}
@@ -635,8 +655,17 @@ func (st *StackTrie) GetProof(db ethdb.KeyValueReader, key []byte) ([][]byte, er
 	var proof [][]byte
 	var c_rlp []byte
 
-	c := st.children[k[i]]
+	var c *StackTrie
+	if st.nodeType == extNode {
+		c = st.children[0]
+	} else {
+		c = st.children[k[i]]
+	}
+
 	if c.nodeType == branchNode {
+		rlp := c.branchToRLP(false).tmp
+		fmt.Println(rlp)
+
 		c_rlp = c.children[k[i+1]].val
 		proof = append(proof, c_rlp)
 		return proof, nil
