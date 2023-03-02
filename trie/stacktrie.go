@@ -230,6 +230,9 @@ func (st *StackTrie) getDiffIndex(key []byte) int {
 // Helper function to that inserts a (key, value) pair into
 // the trie.
 func (st *StackTrie) insert(key, value []byte) {
+	if key[0] == 1 && key[1] == 0 {
+		fmt.Println("d")
+	}
 	switch st.nodeType {
 	case branchNode: /* Branch */
 		idx := int(key[st.keyOffset])
@@ -237,7 +240,7 @@ func (st *StackTrie) insert(key, value []byte) {
 		for i := idx - 1; i >= 0; i-- {
 			if st.children[i] != nil {
 				if st.children[i].nodeType != hashedNode {
-					st.children[i].hash()
+					st.children[i].hash(true)
 				}
 				break
 			}
@@ -276,7 +279,7 @@ func (st *StackTrie) insert(key, value []byte) {
 			n = st.children[0]
 		}
 		// Convert to hash
-		n.hash()
+		n.hash(true)
 		var p *StackTrie
 		if diffidx == 0 {
 			// the break is on the first byte, so
@@ -343,7 +346,7 @@ func (st *StackTrie) insert(key, value []byte) {
 		// free up some memory.
 		origIdx := st.key[diffidx]
 		p.children[origIdx] = newLeaf(diffidx+1, st.key, st.val, st.db)
-		p.children[origIdx].hash()
+		p.children[origIdx].hash(true)
 
 		newIdx := key[diffidx+st.keyOffset]
 		p.children[newIdx] = newLeaf(p.keyOffset+1, key, value, st.db)
@@ -363,7 +366,7 @@ func (st *StackTrie) insert(key, value []byte) {
 	}
 }
 
-func (st *StackTrie) branchToHasher(reclaim bool) *hasher {
+func (st *StackTrie) branchToHasher(doUpdate bool) *hasher {
 	if st.nodeType != branchNode {
 		panic("Converting branch to RLP: wrong node")
 	}
@@ -373,13 +376,13 @@ func (st *StackTrie) branchToHasher(reclaim bool) *hasher {
 			nodes[i] = nilValueNode
 			continue
 		}
-		child.hash()
+		child.hash(doUpdate)
 		if len(child.val) < 32 {
 			nodes[i] = rawNode(child.val)
 		} else {
 			nodes[i] = HashNode(child.val)
 		}
-		if reclaim {
+		if doUpdate {
 			st.children[i] = nil // Reclaim mem from subtree
 			returnToPool(child)
 		}
@@ -397,11 +400,11 @@ func (st *StackTrie) branchToHasher(reclaim bool) *hasher {
 	return h
 }
 
-func (st *StackTrie) extNodeToHasher(reclaim bool) *hasher {
+func (st *StackTrie) extNodeToHasher(doUpdate bool) *hasher {
 	if st.nodeType != extNode {
 		panic("Converting extension node to RLP: wrong node")
 	}
-	st.children[0].hash()
+	st.children[0].hash(doUpdate)
 	h := NewHasher(false)
 	defer returnHasherToPool(h)
 	h.tmp.Reset()
@@ -421,7 +424,7 @@ func (st *StackTrie) extNodeToHasher(reclaim bool) *hasher {
 	if err := rlp.Encode(&h.tmp, n); err != nil {
 		panic(err)
 	}
-	if reclaim {
+	if doUpdate {
 		returnToPool(st.children[0])
 		st.children[0] = nil // Reclaim mem from subtree
 	}
@@ -442,7 +445,7 @@ func (st *StackTrie) extNodeToHasher(reclaim bool) *hasher {
 // This method will also:
 // set 'st.type' to hashedNode
 // clear 'st.key'
-func (st *StackTrie) hash() {
+func (st *StackTrie) hash(doUpdate bool) {
 	/* Shortcut if node is already hashed */
 	if st.nodeType == hashedNode {
 		return
@@ -454,16 +457,23 @@ func (st *StackTrie) hash() {
 
 	switch st.nodeType {
 	case branchNode:
-		h = st.branchToHasher(true)
+		h = st.branchToHasher(doUpdate)
 	case extNode:
-		h = st.extNodeToHasher(true)
+		h = st.extNodeToHasher(doUpdate)
 	case leafNode:
 		h = NewHasher(false)
 		defer returnHasherToPool(h)
 		h.tmp.Reset()
-		st.key = append(st.key, byte(16))
-		sz := hexToCompactInPlace(st.key)
-		n := [][]byte{st.key[:sz], st.val}
+
+		k := make([]byte, len(st.key))
+		copy(k, st.key)
+		k = append(k, byte(16))
+
+		if doUpdate {
+			st.key = k
+		}
+		sz := hexToCompactInPlace(k)
+		n := [][]byte{k[:sz], st.val}
 		if err := rlp.Encode(&h.tmp, n); err != nil {
 			panic(err)
 		}
@@ -475,8 +485,10 @@ func (st *StackTrie) hash() {
 	default:
 		panic("Invalid node type")
 	}
-	st.key = st.key[:0]
-	st.nodeType = hashedNode
+	if doUpdate {
+		st.key = st.key[:0]
+		st.nodeType = hashedNode
+	}
 	if len(h.tmp) < 32 {
 		st.val = common.CopyBytes(h.tmp)
 		return
@@ -497,7 +509,7 @@ func (st *StackTrie) hash() {
 
 // Hash returns the hash of the current node
 func (st *StackTrie) Hash() (h common.Hash) {
-	st.hash()
+	st.hash(true)
 	if len(st.val) != 32 {
 		// If the node's RLP isn't 32 bytes long, the node will not
 		// be hashed, and instead contain the  rlp-encoding of the
@@ -524,7 +536,7 @@ func (st *StackTrie) Commit() (common.Hash, error) {
 	if st.db == nil {
 		return common.Hash{}, ErrCommitDisabled
 	}
-	st.hash()
+	st.hash(true)
 	if len(st.val) != 32 {
 		// If the node's RLP isn't 32 bytes long, the node will not
 		// be hashed (and committed), and instead contain the  rlp-encoding of the
@@ -639,10 +651,6 @@ func (st *StackTrie) UpdateAndGetProofs(db ethdb.KeyValueReader, list types.Deri
 		indexBuf = rlp.AppendUint64(indexBuf[:0], uint64(i))
 		value := types.EncodeForDerive(list, i, valueBuf)
 		// TODO: get proof
-
-		if i == 256 {
-			fmt.Println(indexBuf)
-		}
 		st.Update(indexBuf, value)
 	}
 
@@ -682,8 +690,12 @@ func (st *StackTrie) GetProof(db ethdb.KeyValueReader, key []byte) ([][]byte, er
 		} else if c.nodeType == branchNode {
 			nodes = append(nodes, c)
 			c = c.children[k[i]]
+			if c == nil {
+				break
+			}
 		} else if c.nodeType == leafNode {
 			nodes = append(nodes, c)
+			break
 		}
 		
 		i += 1
@@ -700,13 +712,18 @@ func (st *StackTrie) GetProof(db ethdb.KeyValueReader, key []byte) ([][]byte, er
 		fmt.Println(node)
 
 		if node.nodeType == leafNode {
-			proof = append(proof, node.val)
+			rlp, error := db.Get(node.val)
+			if error != nil { // TODO: avoid error when RLP
+				proof = append(proof, node.val) // already have RLP
+			} else {
+				proof = append(proof, rlp)
+			}
+			fmt.Println("____")
 		} else if node.nodeType == branchNode || node.nodeType == extNode {
-			node.hash()
+			node.hash(false)
 
 			rlp, error := db.Get(node.val)
 			if error != nil {
-				fmt.Println(error)
 				return nil, error
 			}
 			proof = append(proof, rlp)
@@ -714,7 +731,10 @@ func (st *StackTrie) GetProof(db ethdb.KeyValueReader, key []byte) ([][]byte, er
 
 	}
 
-	fmt.Println(nodes)
+	fmt.Println("----------")
+	for i := 0; i < len(proof); i++ {
+		fmt.Println(proof[i])
+	}
 
 	return proof, nil
 }
