@@ -682,6 +682,7 @@ func (st *StackTrie) GetProof(db ethdb.KeyValueReader, key []byte) ([][]byte, er
 	var nodes []*StackTrie	
 
 	c := st
+	isHashed := false
 
 	for i < len(k) {
 		if c.nodeType == extNode {
@@ -696,9 +697,38 @@ func (st *StackTrie) GetProof(db ethdb.KeyValueReader, key []byte) ([][]byte, er
 		} else if c.nodeType == leafNode {
 			nodes = append(nodes, c)
 			break
-		}
+		} else if c.nodeType == hashedNode {
+			isHashed = true
+			c_rlp, error := db.Get(c.val)
+			if error != nil {
+				fmt.Println(error)
+				panic(error)
+			}
+			fmt.Println(c_rlp)
+
+			proof = append(proof, c_rlp)
+
+			for i < len(k) - 1 {
+				node := st.getNodeFromBranchRLP(c_rlp, k[i])
+				i += 1
+				fmt.Println(node)
+	
+				if len(node) == 1 && node[0] == 128 { // no child at this position
+					break
+				}	
 		
-		i += 1
+				c_rlp, error = db.Get(node)
+				if error != nil {
+					fmt.Println(error)
+					panic(error)
+				}
+				fmt.Println(c_rlp)	
+
+				proof = append(proof, c_rlp)
+			}
+
+			break
+		}
 	}
 
 	// Differently as in the Trie, the StackTrie branch doesn't store children once it is hashed.
@@ -706,29 +736,30 @@ func (st *StackTrie) GetProof(db ethdb.KeyValueReader, key []byte) ([][]byte, er
 	// to them - which is needed in MPT proof, because we need a proof for each modification (after
 	// the first modification, some nodes are hashed and we cannot add children to the hashed node).
 
-	lNodes := len(nodes)
-	for i := lNodes - 1; i >= 0; i-- {
-		node := nodes[i]
-		fmt.Println(node)
+	if !isHashed {
+		lNodes := len(nodes)
+		for i := lNodes - 1; i >= 0; i-- {
+			node := nodes[i]
+			fmt.Println(node)
 
-		if node.nodeType == leafNode {
-			rlp, error := db.Get(node.val)
-			if error != nil { // TODO: avoid error when RLP
-				proof = append(proof, node.val) // already have RLP
-			} else {
+			if node.nodeType == leafNode {
+				rlp, error := db.Get(node.val)
+				if error != nil { // TODO: avoid error when RLP
+					proof = append(proof, node.val) // already have RLP
+				} else {
+					proof = append(proof, rlp)
+				}
+			} else if node.nodeType == branchNode || node.nodeType == extNode {
+				node.hash(false)
+
+				rlp, error := db.Get(node.val)
+				if error != nil {
+					return nil, error
+				}
 				proof = append(proof, rlp)
 			}
-			fmt.Println("____")
-		} else if node.nodeType == branchNode || node.nodeType == extNode {
-			node.hash(false)
 
-			rlp, error := db.Get(node.val)
-			if error != nil {
-				return nil, error
-			}
-			proof = append(proof, rlp)
 		}
-
 	}
 
 	fmt.Println("----------")

@@ -22,7 +22,6 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/rlp"
 	"golang.org/x/crypto/sha3"
 )
@@ -65,7 +64,6 @@ type TrieHasher interface {
 	Reset()
 	Update([]byte, []byte)
 	Hash() common.Hash
-	Prove(ethdb.KeyValueReader, []byte) ([][]byte, error)
 }
 
 // DerivableList is the input to DeriveSha.
