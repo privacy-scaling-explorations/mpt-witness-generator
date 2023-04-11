@@ -1,7 +1,6 @@
 package witness
 
 import (
-	"fmt"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -305,15 +304,6 @@ func obtainTwoProofsAndConvertToWitness(trieModifications []TrieModification, st
 				convertProofToWitness(statedb, addr, accountProof, accountProof1, aExtNibbles1, aExtNibbles2, accountAddr, aNode, true, tMod.Type == NonExistingAccount, false, aIsLastLeaf)
 			rowsStorage, toBeHashedStorage, _ :=
 				convertProofToWitness(statedb, addr, storageProof, storageProof1, extNibbles1, extNibbles2, keyHashed, node, false, false, tMod.Type == NonExistingStorage, isLastLeaf)
-
-			/*
-			fmt.Println(storageProof[0])
-			fmt.Println(storageProof[1])
-			*/
-
-			for i := 0; i < len(rowsStorage); i++ {
-				fmt.Println(rowsStorage[i])
-			}
 
 			rowsState = append(rowsState, rowsStorage...)
 	

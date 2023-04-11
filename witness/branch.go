@@ -27,7 +27,7 @@ func isBranch(proofEl []byte) bool {
 // The branch children are positioned each in its own row.
 func prepareBranchWitness(rows [][]byte, branch []byte, branchStart int, branchRLPOffset int) {
 	rowInd := 1 // start with 1 because rows[0] contains some RLP data
-	colInd := branchNodeRLPLen
+	colInd := branchNodeRLPLen - 1
 
 	i := 0
 	insideInd := -1
@@ -37,16 +37,16 @@ func prepareBranchWitness(rows [][]byte, branch []byte, branchStart int, branchR
 		}
 		b := branch[branchRLPOffset+i]
 		if insideInd == -1 && b == 128 {
-			rows[rowInd][branchStart + branchNodeRLPLen] = b
+			rows[rowInd][branchStart] = b
 			rowInd++
 		} else if insideInd == -1 && b != 128 {
 			if b == 160 {
 				insideInd = 32
-				colInd = branchNodeRLPLen - 1
+				colInd = branchNodeRLPLen - 2
 			} else {
 				// non-hashed node
 				insideInd = int(b) - 192
-				colInd = branchNodeRLPLen
+				colInd = branchNodeRLPLen - 1
 			}
 			rows[rowInd][branchStart + colInd] = b
 		} else {
