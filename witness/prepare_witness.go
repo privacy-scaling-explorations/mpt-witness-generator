@@ -481,9 +481,15 @@ func convertProofToWitness(statedb *state.StateDB, addr common.Address, proof1, 
 				leafRows, leafForHashing = prepareStorageLeaf(proof1[len1-1], key, nonExistingAccountProof)
 				toBeHashed = append(toBeHashed, leafForHashing...)
 			}
+
+			// To compute drifted position:
+			leafRow0 := leafRows[0]
+			if len1 > len2 {
+				leafRow0 = proof2[len2-1]
+			}
 			
 			isModifiedExtNode, isExtension, numberOfNibbles, branchC16 := addBranchAndPlaceholder(addr, &rows, proof1, proof2, extNibblesS, extNibblesC,
-				leafRows[0], key, neighbourNode,
+				leafRow0, key, neighbourNode,
 				keyIndex, extensionNodeInd, additionalBranch,
 				isAccountProof, nonExistingAccountProof, isShorterProofLastLeaf, branchC16, branchC1, &toBeHashed)
 
