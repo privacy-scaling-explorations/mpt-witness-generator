@@ -125,7 +125,12 @@ func prepareNonExistingStorageRow(leafC, keyNibbles []byte, noLeaf bool) []byte 
 
 	offset := 0	
 	nibblesNum := (keyLenC - 1) * 2
-	nonExistingStorageRow[start-1] = leafC[start-1] // length
+
+	nonExistingStorageRow[0] = leafC[0]
+	nonExistingStorageRow[1] = leafC[1]
+	if start == 3 {
+		nonExistingStorageRow[2] = leafC[2]
+	}
 	if keyRowC[start] != 32 { // odd number of nibbles
 		nibblesNum = nibblesNum + 1
 		nonExistingStorageRow[start] = keyNibbles[64 - nibblesNum] + 48 
@@ -137,10 +142,6 @@ func prepareNonExistingStorageRow(leafC, keyNibbles []byte, noLeaf bool) []byte 
 	remainingNibbles := keyNibbles[64 - nibblesNum:64] // exclude the last one as it is not a nibble
 	for i := 0; i < keyLenC-1; i++ {
 		nonExistingStorageRow[start+1+i] = remainingNibbles[2*i + offset] * 16 + remainingNibbles[2*i+1 + offset]
-	}
-
-	if !noLeaf {
-		nonExistingStorageRow[0] = 1 // whether it is wrong leaf
 	}
 
 	return nonExistingStorageRow
@@ -250,10 +251,12 @@ func prepareAccountLeafRows(leafS, leafC, addressNibbles []byte, nonExistingAcco
 	
 	offset := 0	
 	nibblesNum := (keyLenC - 1) * 2
+	nonExistingAccountRow[0] = leafC[0]
+	nonExistingAccountRow[1] = leafC[1]
 	nonExistingAccountRow[2] = leafC[2] // length
 	if keyRowC[3] != 32 { // odd number of nibbles
 		nibblesNum = nibblesNum + 1
-		nonExistingAccountRow[3] = addressNibbles[64 - nibblesNum] + 48 
+		nonExistingAccountRow[3] = addressNibbles[64 - nibblesNum] + 48
 		offset = 1
 	} else {
 		nonExistingAccountRow[3] = 32
@@ -264,11 +267,6 @@ func prepareAccountLeafRows(leafS, leafC, addressNibbles []byte, nonExistingAcco
 		nonExistingAccountRow[4+i] = remainingNibbles[2*i + offset] * 16 + remainingNibbles[2*i+1 + offset]
 	}
 
-	// for non-existing account proof we have leafS = leafC
-	if nonExistingAccountProof && !noLeaf {
-		nonExistingAccountRow[0] = 1 // whether it is wrong leaf
-	}
-	
 	nonceBalanceRowS := make([]byte, rowLen)
 	nonceBalanceRowC := make([]byte, rowLen)
 	storageCodeHashRowS := make([]byte, rowLen)
