@@ -209,11 +209,10 @@ func prepareExtensionRow(witnessRow, proofEl []byte, setKey bool) {
 
 	encodedNodeLen := proofEl[startKey+lenKey]
 	nodeLen := byte(0)
-	start := branch2start+branchNodeRLPLen-1
+	start := branch2start
 	if encodedNodeLen > 192 {
 		// we have a list, that means a non-hashed node
 		nodeLen = encodedNodeLen - 192
-		start = start + 1 // we put all bytes (also length) at the positions where hash is put to be compatible with hashed-node cases
 	} else if encodedNodeLen == 160 {
 		// hashed-node
 		nodeLen = encodedNodeLen - 128
