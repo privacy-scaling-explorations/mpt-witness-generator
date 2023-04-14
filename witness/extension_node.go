@@ -191,10 +191,8 @@ func prepareExtensionRow(witnessRow, proofEl []byte, setKey bool) {
 	  Note that we can't have only one nibble in this case.
 	*/
 
-	if setKey {
-		witnessRow[0] = proofEl[0]
-		witnessRow[1] = proofEl[1]
-	}
+	witnessRow[0] = proofEl[0]
+	witnessRow[1] = proofEl[1]
 
 	lenKey, startKey := getExtensionLenStartKey(proofEl)
 	if startKey == 3 {
