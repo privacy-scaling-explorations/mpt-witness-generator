@@ -104,6 +104,7 @@ func prepareStorageLeafRows(row []byte, typ byte, valueIsZero bool) ([][]byte, [
 func prepareEmptyNonExistingStorageRow() []byte {	
 	// nonExistingStorageRow is used only for proof that nothing is stored at a particular storage key
 	nonExistingStorageRow := make([]byte, rowLen)
+	nonExistingStorageRow[0] = 228
 	nonExistingStorageRow = append(nonExistingStorageRow, 19)
 
 	return nonExistingStorageRow
@@ -333,6 +334,7 @@ func prepareAccountLeafRows(leafS, leafC, addressNibbles []byte, nonExistingAcco
 
 func prepareDriftedLeafPlaceholder(isAccount bool) [][]byte {
 	driftedLeaf := make([]byte, rowLen)
+	driftedLeaf[0] = 248
 	if isAccount {
 		driftedLeaf = append(driftedLeaf, 10)
 	} else {
