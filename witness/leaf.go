@@ -211,7 +211,7 @@ func getStorageRootCodeHashRow(leaf []byte, storageStart int) []byte {
 	}
 	storage := leaf[storageStart : storageStart+32+1]
 	for i := 0; i < 33; i++ {
-		storageCodeHashRow[branchNodeRLPLen-1+i] = storage[i]
+		storageCodeHashRow[i] = storage[i]
 	}
 	codeHashStart := storageStart + int(storageRlpLen) + 1
 	codeHashRlpLen := leaf[codeHashStart] - 128
@@ -220,7 +220,7 @@ func getStorageRootCodeHashRow(leaf []byte, storageStart int) []byte {
 	}
 	codeHash := leaf[codeHashStart : codeHashStart+32+1]
 	for i := 0; i < 33; i++ {
-		storageCodeHashRow[branch2start+1+i] = codeHash[i] // start from c_rlp2
+		storageCodeHashRow[branch2start+i] = codeHash[i]
 	}
 
 	return storageCodeHashRow
@@ -607,10 +607,10 @@ func prepareAccountLeafPlaceholderRows(key []byte, keyIndex int, nonExistingAcco
 	leafRows[4][branch2start + 1] = 68
 	leafRows[4][branch2start + 2] = 128
 	
-	leafRows[5][1] = 160
-	leafRows[5][branch2start + 1] = 160
-	leafRows[6][1] = 160
-	leafRows[6][branch2start + 1] = 160
+	leafRows[5][0] = 160
+	leafRows[5][branch2start] = 160
+	leafRows[6][0] = 160
+	leafRows[6][branch2start] = 160
 
 	pRows := prepareDriftedLeafPlaceholder(true)
 	leafRows = append(leafRows, pRows...)
