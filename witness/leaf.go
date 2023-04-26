@@ -618,32 +618,37 @@ func prepareAccountLeafPlaceholderRows(key []byte, keyIndex int, nonExistingAcco
 	return leafRows
 }
 
-func addLeafRows(rows *[][]byte, leafS, leafC []byte, key []byte, nonExistingAccountProof, nonExistingStorageProof, isAccountProof bool, toBeHashed *[][]byte) {
+func getLeafRows(leafS, leafC []byte, key []byte, nonExistingAccountProof, nonExistingStorageProof, isAccountProof bool) ([][]byte, [][]byte) {
+	var rows [][]byte
+	var toBeHashed [][]byte
+
 	if isAccountProof {
 		leafRows, leafForHashing := prepareAccountLeaf(leafS, leafC, key, nonExistingAccountProof, false)
-		*rows = append(*rows, leafRows...)
-		*toBeHashed = append(*toBeHashed, leafForHashing...)
+		rows = append(rows, leafRows...)
+		toBeHashed = append(toBeHashed, leafForHashing...)
 	} else {
 		leafRows, leafForHashing := prepareStorageLeafRows(leafS, 2, false)
-		*rows = append(*rows, leafRows...)
-		*toBeHashed = append(*toBeHashed, leafForHashing)
+		rows = append(rows, leafRows...)
+		toBeHashed = append(toBeHashed, leafForHashing)
 		leafRows, leafForHashing = prepareStorageLeafRows(leafC, 3, false)
-		*rows = append(*rows, leafRows...)	
-		*toBeHashed = append(*toBeHashed, leafForHashing)
+		rows = append(rows, leafRows...)	
+		toBeHashed = append(toBeHashed, leafForHashing)
 	}
 
 	pRows := prepareDriftedLeafPlaceholder(isAccountProof)
-	*rows = append(*rows, pRows...)	
+	rows = append(rows, pRows...)	
 
 	if !isAccountProof {
 		if nonExistingStorageProof {
-			cKeyRow := (*rows)[len(*rows) - 3]
+			cKeyRow := rows[len(rows) - 3]
 			noLeaf := false
 			nonExistingStorageRow := prepareNonExistingStorageRow(cKeyRow, key, noLeaf)
-			*rows = append(*rows, nonExistingStorageRow)	
+			rows = append(rows, nonExistingStorageRow)	
 		} else {
 			nonExistingStorageRow := prepareEmptyNonExistingStorageRow()
-			*rows = append(*rows, nonExistingStorageRow)	
+			rows = append(rows, nonExistingStorageRow)	
 		}
 	}
+
+	return rows, toBeHashed
 }

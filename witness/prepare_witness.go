@@ -1,6 +1,8 @@
 package witness
 
 import (
+	"encoding/json"
+	"fmt"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -89,6 +91,7 @@ const (
 	// TODO
 )
 
+// TODO: replace with ProofType
 type ModType int64
 const (
 	StorageMod ModType = iota
@@ -109,6 +112,24 @@ type TrieModification struct {
 	Nonce    uint64
 	Balance  *big.Int
 	CodeHash []byte
+}
+
+/*
+type ProofType int64
+const (
+    Disabled ProofType = iota
+    NonceChanged
+    BalanceChanged
+    CodeHashExists
+    AccountDestructed
+    AccountDoesNotExist
+    StorageChanged
+    StorageDoesNotExist
+)
+*/
+
+type MPTNode struct {
+	Rows [][]byte
 }
 
 // addForHashing takes the stream of bytes and append a byte to it that marks this stream
@@ -212,7 +233,7 @@ func obtainAccountProofAndConvertToWitness(i int, tMod TrieModification, tModsLe
 		isShorterProofLastLeaf = isLastLeaf2
 	}
 	
-	rowsState, toBeHashedAcc, _ :=
+	rowsState, toBeHashedAcc, _, _ :=
 		convertProofToWitness(statedb, addr, accountProof, accountProof1, aExtNibbles1, aExtNibbles2, accountAddr, aNode, true, tMod.Type == NonExistingAccount, false, isShorterProofLastLeaf)
 
 	proof := finalizeProof(i, rowsState, addrh, sRoot, cRoot, startRoot, finalRoot, tMod.Type)
@@ -270,6 +291,24 @@ func obtainTwoProofsAndConvertToWitness(trieModifications []TrieModification, st
 			if i == len(trieModifications)-1 {
 				finalRoot = cRoot
 			}
+			
+			s := StartNode {
+				ProofType: "StorageChanged", // TODO
+			}
+			var values [][]byte
+			values = append(values, sRoot.Bytes())
+			values = append(values, cRoot.Bytes())
+			n := Node {
+				Start: &s,
+				Values: values,
+			}
+
+			b, err := json.Marshal(n)
+			if err != nil {
+				fmt.Println(err)
+			}
+			fmt.Println(string(b))
+			// TODO: use n
 
 			accountProof1, aNeighbourNode2, aExtNibbles2, aIsLastLeaf2, err := statedb.GetProof(addr)
 			check(err)
@@ -300,11 +339,16 @@ func obtainTwoProofsAndConvertToWitness(trieModifications []TrieModification, st
 				accountProof, accountProof1, sRoot, cRoot = modifyAccountSpecialEmptyTrie(addrh, accountProof1[len(accountProof1)-1])
 			}
 			
-			rowsState, toBeHashedAcc, _ :=
+			rowsState, toBeHashedAcc, nodesAccount, _ :=
 				convertProofToWitness(statedb, addr, accountProof, accountProof1, aExtNibbles1, aExtNibbles2, accountAddr, aNode, true, tMod.Type == NonExistingAccount, false, aIsLastLeaf)
-			rowsStorage, toBeHashedStorage, _ :=
+			rowsStorage, toBeHashedStorage, nodesStorage, _ :=
 				convertProofToWitness(statedb, addr, storageProof, storageProof1, extNibbles1, extNibbles2, keyHashed, node, false, false, tMod.Type == NonExistingStorage, isLastLeaf)
 
+			fmt.Println("=========")
+			fmt.Println(nodesAccount)
+			fmt.Println("=========")
+			fmt.Println(nodesStorage)
+	
 			rowsState = append(rowsState, rowsStorage...)
 	
 			proof := finalizeProof(i, rowsState, addrh, sRoot, cRoot, startRoot, finalRoot, tMod.Type)
@@ -369,7 +413,7 @@ func updateStateAndPrepareWitness(testName string, keys, values []common.Hash, a
 // a witness for the MPT circuit. Alongside, it prepares the byte streams that need to be hashed
 // and inserted into the Keccak lookup table.
 func convertProofToWitness(statedb *state.StateDB, addr common.Address, proof1, proof2, extNibblesS, extNibblesC [][]byte, key []byte, neighbourNode []byte,
-		isAccountProof, nonExistingAccountProof, nonExistingStorageProof, isShorterProofLastLeaf bool) ([][]byte, [][]byte, bool) {
+		isAccountProof, nonExistingAccountProof, nonExistingStorageProof, isShorterProofLastLeaf bool) ([][]byte, [][]byte, []MPTNode, bool) {
 	rows := make([][]byte, 0)
 	toBeHashed := make([][]byte, 0)
 
@@ -407,6 +451,8 @@ func convertProofToWitness(statedb *state.StateDB, addr common.Address, proof1, 
 	var extensionRowC []byte
 	extensionNodeInd := 0
 
+	var nodes []MPTNode
+
 	branchC16 := byte(0); 
 	branchC1 := byte(1);
 	for i := 0; i < upTo; i++ {
@@ -420,7 +466,14 @@ func convertProofToWitness(statedb *state.StateDB, addr common.Address, proof1, 
 			}
 
 			l := len(proof1)
-			addLeafRows(&rows, proof1[l-1], proof2[l-1], key, nonExistingAccountProof, nonExistingStorageProof, isAccountProof, &toBeHashed)
+			leafRows, leafToBeHashed := getLeafRows(proof1[l-1], proof2[l-1], key, nonExistingAccountProof, nonExistingStorageProof, isAccountProof)
+			rows = append(rows, leafRows...)
+			toBeHashed = append(toBeHashed, leafToBeHashed...)
+
+			node := MPTNode {
+				Rows: rows,
+			}
+			nodes = append(nodes, node)
 		} else {
 			switchC16 := true // If not extension node, switchC16 = true.
 			if extensionRowS != nil {
@@ -525,5 +578,5 @@ func convertProofToWitness(statedb *state.StateDB, addr common.Address, proof1, 
 		}
 	}
 
-	return rows, toBeHashed, extensionNodeInd > 0
+	return rows, toBeHashed, nodes, extensionNodeInd > 0
 }
