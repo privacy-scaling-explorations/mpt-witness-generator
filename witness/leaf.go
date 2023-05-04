@@ -1,6 +1,10 @@
 package witness
 
-import "math"
+import (
+	"math"
+
+	"github.com/ethereum/go-ethereum/common"
+)
 
 func prepareAccountLeaf(leafS, leafC []byte, key []byte, nonExistingAccountProof, noLeaf bool) ([][]byte, [][]byte) {
 	var leafRows [][]byte
@@ -332,6 +336,130 @@ func prepareAccountLeafRows(leafS, leafC, addressNibbles []byte, nonExistingAcco
 	return keyRowS, keyRowC, nonExistingAccountRow, nonceBalanceRowS, nonceBalanceRowC, storageCodeHashRowS, storageCodeHashRowC
 }
 
+func prepareAccountLeafNode(addr common.Address, leafS, leafC, addressNibbles []byte, nonExistingAccountProof, noLeaf bool) Node {	
+	// For non existing account proof there are two cases:
+	// 1. A leaf is returned that is not at the required address (wrong leaf).
+	// 2. A branch is returned as the last element of getProof and
+	//    there is nil object at address position. Placeholder account leaf is added in this case.
+	keyLenS := int(leafS[2]) - 128
+	keyLenC := int(leafC[2]) - 128
+	keyRowS := make([]byte, rowLen)
+	keyRowC := make([]byte, rowLen)
+
+	var listRlpBytes [2][]byte
+	listRlpBytes[0] = make([]byte, 3)
+	listRlpBytes[1] = make([]byte, 3)
+	for i := 0; i < 3; i++ {
+		listRlpBytes[0][i] = leafS[i]
+	}
+	for i := 0; i < 3; i++ {
+		listRlpBytes[1][i] = leafC[i]
+	}
+
+	var valueRlpBytes [2][]byte
+	valueRlpBytes[0] = make([]byte, 3)
+	valueRlpBytes[1] = make([]byte, 3)
+
+
+	// For non existing account proof, keyRowS (=keyRowC in this case) stores the key of
+	// the wrong leaf. We store the key of the required leaf (which doesn't exist)
+	// in nonExistingAccountRow.
+
+	// nonExistingAccountRow is used only for proof that account doesn't exist
+	nonExistingAccountRow := make([]byte, rowLen)
+	nonExistingAccountRow = append(nonExistingAccountRow, 18)
+	
+	offset := 0	
+	nibblesNum := (keyLenC - 1) * 2
+	nonExistingAccountRow[0] = leafC[0]
+	nonExistingAccountRow[1] = leafC[1]
+	nonExistingAccountRow[2] = leafC[2] // length
+	if keyRowC[3] != 32 { // odd number of nibbles
+		nibblesNum = nibblesNum + 1
+		nonExistingAccountRow[3] = addressNibbles[64 - nibblesNum] + 48
+		offset = 1
+	} else {
+		nonExistingAccountRow[3] = 32
+	}
+	// Get the last nibblesNum of address:
+	remainingNibbles := addressNibbles[64 - nibblesNum:64] // exclude the last one as it is not a nibble
+	for i := 0; i < keyLenC-1; i++ {
+		nonExistingAccountRow[4+i] = remainingNibbles[2*i + offset] * 16 + remainingNibbles[2*i+1 + offset]
+	}
+
+	nonceBalanceRowS := make([]byte, rowLen)
+	nonceBalanceRowC := make([]byte, rowLen)
+	storageCodeHashRowS := make([]byte, rowLen)
+	storageCodeHashRowC := make([]byte, rowLen)
+
+	if !noLeaf {
+		rlpStringSecondPartLenS := leafS[3+keyLenS] - 183
+		if rlpStringSecondPartLenS != 1 {
+			panic("Account leaf RLP at this position should be 1 (S)")
+		}
+		rlpStringSecondPartLenC := leafC[3+keyLenC] - 183
+		if rlpStringSecondPartLenC != 1 {
+			panic("Account leaf RLP at this position should be 1 (C)")
+		}
+		rlpStringLenS := leafS[3+keyLenS+1]
+		rlpStringLenC := leafC[3+keyLenC+1]
+
+		// [248,112,157,59,158,160,175,159,65,212,107,23,98,208,38,205,150,63,244,2,185,236,246,95,240,224,191,229,27,102,202,231,184,80,248,78
+		// In this example RLP, there are first 36 bytes of a leaf.
+		// 157 means there are 29 bytes for key (157 - 128).
+		// Positions 32-35: 184, 80, 248, 78.
+		// 184 - 183 = 1 means length of the second part of a string.
+		// 80 means length of a string.
+		// 248 - 247 = 1 means length of the second part of a list.
+		// 78 means length of a list.
+
+		rlpListSecondPartLenS := leafS[3+keyLenS+1+1] - 247
+		if rlpListSecondPartLenS != 1 {
+			panic("Account leaf RLP 1 (S)")
+		}
+		rlpListSecondPartLenC := leafC[3+keyLenC+1+1] - 247
+		if rlpListSecondPartLenC != 1 {
+			panic("Account leaf RLP 1 (C)")
+		}
+
+		rlpListLenS := leafS[3+keyLenS+1+1+1]
+		if rlpStringLenS != rlpListLenS+2 {
+			panic("Account leaf RLP 2 (S)")
+		}
+
+		rlpListLenC := leafC[3+keyLenC+1+1+1]
+		if rlpStringLenC != rlpListLenC+2 {
+			panic("Account leaf RLP 2 (C)")
+		}
+
+		storageStartS := 0
+		storageStartC := 0
+		nonceBalanceRowS, storageStartS = getNonceBalanceRow(leafS, keyLenS)
+		nonceBalanceRowC, storageStartC = getNonceBalanceRow(leafC, keyLenC)
+
+		storageCodeHashRowS = getStorageRootCodeHashRow(leafS, storageStartS)
+		storageCodeHashRowC = getStorageRootCodeHashRow(leafC, storageStartC)
+	} 
+
+	keyRowS = append(keyRowS, 6)
+	keyRowC = append(keyRowC, 4)
+	nonceBalanceRowS = append(nonceBalanceRowS, 7)
+	nonceBalanceRowC = append(nonceBalanceRowC, 8)
+	storageCodeHashRowS = append(storageCodeHashRowS, 9)
+	storageCodeHashRowC = append(storageCodeHashRowC, 11)
+
+	node := Node {
+		// Values: rows,
+	}
+	leaf := AccountNode {
+		Address: addr.Bytes(),
+		ListRlpBytes: listRlpBytes,
+	}
+	node.Account = &leaf
+
+	return node
+}
+
 func prepareDriftedLeafPlaceholder(isAccount bool) [][]byte {
 	driftedLeaf := make([]byte, rowLen)
 	driftedLeaf[0] = 248
@@ -618,37 +746,53 @@ func prepareAccountLeafPlaceholderRows(key []byte, keyIndex int, nonExistingAcco
 	return leafRows
 }
 
-func getLeafRows(leafS, leafC []byte, key []byte, nonExistingAccountProof, nonExistingStorageProof, isAccountProof bool) ([][]byte, [][]byte) {
+func getAccountLeaf(addr common.Address, leafS, leafC []byte, key []byte, nonExistingAccountProof bool) ([][]byte, [][]byte, Node) {
 	var rows [][]byte
 	var toBeHashed [][]byte
 
-	if isAccountProof {
-		leafRows, leafForHashing := prepareAccountLeaf(leafS, leafC, key, nonExistingAccountProof, false)
-		rows = append(rows, leafRows...)
-		toBeHashed = append(toBeHashed, leafForHashing...)
-	} else {
-		leafRows, leafForHashing := prepareStorageLeafRows(leafS, 2, false)
-		rows = append(rows, leafRows...)
-		toBeHashed = append(toBeHashed, leafForHashing)
-		leafRows, leafForHashing = prepareStorageLeafRows(leafC, 3, false)
-		rows = append(rows, leafRows...)	
-		toBeHashed = append(toBeHashed, leafForHashing)
-	}
+	leafRows, leafForHashing := prepareAccountLeaf(leafS, leafC, key, nonExistingAccountProof, false)
+	rows = append(rows, leafRows...)
+	toBeHashed = append(toBeHashed, leafForHashing...)
 
-	pRows := prepareDriftedLeafPlaceholder(isAccountProof)
+	node := prepareAccountLeafNode(addr, leafS, leafC, key, nonExistingAccountProof, false)
+
+	pRows := prepareDriftedLeafPlaceholder(true)
+	rows = append(rows, pRows...)	
+	
+	return rows, toBeHashed, node
+}
+
+func getStorageLeaf(leafS, leafC []byte, key []byte, nonExistingStorageProof bool) ([][]byte, [][]byte, Node) {
+	var rows [][]byte
+	var toBeHashed [][]byte
+
+	leafRows, leafForHashing := prepareStorageLeafRows(leafS, 2, false)
+	rows = append(rows, leafRows...)
+	toBeHashed = append(toBeHashed, leafForHashing)
+	leafRows, leafForHashing = prepareStorageLeafRows(leafC, 3, false)
+	rows = append(rows, leafRows...)	
+	toBeHashed = append(toBeHashed, leafForHashing)
+
+	pRows := prepareDriftedLeafPlaceholder(false)
 	rows = append(rows, pRows...)	
 
-	if !isAccountProof {
-		if nonExistingStorageProof {
-			cKeyRow := rows[len(rows) - 3]
-			noLeaf := false
-			nonExistingStorageRow := prepareNonExistingStorageRow(cKeyRow, key, noLeaf)
-			rows = append(rows, nonExistingStorageRow)	
-		} else {
-			nonExistingStorageRow := prepareEmptyNonExistingStorageRow()
-			rows = append(rows, nonExistingStorageRow)	
-		}
+	if nonExistingStorageProof {
+		cKeyRow := rows[len(rows) - 3]
+		noLeaf := false
+		nonExistingStorageRow := prepareNonExistingStorageRow(cKeyRow, key, noLeaf)
+		rows = append(rows, nonExistingStorageRow)	
+	} else {
+		nonExistingStorageRow := prepareEmptyNonExistingStorageRow()
+		rows = append(rows, nonExistingStorageRow)	
 	}
 
-	return rows, toBeHashed
+	node := Node {
+		Values: rows,
+	}
+	leaf := StorageNode {
+
+	}
+	node.Storage = &leaf
+
+	return rows, toBeHashed, node
 }

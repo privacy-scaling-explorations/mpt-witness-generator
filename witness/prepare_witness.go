@@ -128,10 +128,6 @@ const (
 )
 */
 
-type MPTNode struct {
-	Rows [][]byte
-}
-
 // addForHashing takes the stream of bytes and append a byte to it that marks this stream
 // to be hashed and put into keccak lookup table that is to be used by MPT circuit.
 func addForHashing(toBeHashed []byte, toBeHashedCollection *[][]byte) {
@@ -252,6 +248,8 @@ func obtainTwoProofsAndConvertToWitness(trieModifications []TrieModification, st
 	var startRoot common.Hash
 	var finalRoot common.Hash
 
+	var nodes []Node
+
 	for i := 0; i < len(trieModifications); i++ {
 		tMod := trieModifications[i]
 		if tMod.Type == StorageMod || tMod.Type == NonExistingStorage {
@@ -291,9 +289,14 @@ func obtainTwoProofsAndConvertToWitness(trieModifications []TrieModification, st
 			if i == len(trieModifications)-1 {
 				finalRoot = cRoot
 			}
+
+			proofType := "StorageChanged"
+			if tMod.Type == NonExistingStorage {
+				proofType = "StorageDoesNotExist"
+			}
 			
 			s := StartNode {
-				ProofType: "StorageChanged", // TODO
+				ProofType: proofType,
 			}
 			var values [][]byte
 			values = append(values, sRoot.Bytes())
@@ -309,6 +312,8 @@ func obtainTwoProofsAndConvertToWitness(trieModifications []TrieModification, st
 			}
 			fmt.Println(string(b))
 			// TODO: use n
+
+			nodes = append(nodes, n)
 
 			accountProof1, aNeighbourNode2, aExtNibbles2, aIsLastLeaf2, err := statedb.GetProof(addr)
 			check(err)
@@ -413,7 +418,7 @@ func updateStateAndPrepareWitness(testName string, keys, values []common.Hash, a
 // a witness for the MPT circuit. Alongside, it prepares the byte streams that need to be hashed
 // and inserted into the Keccak lookup table.
 func convertProofToWitness(statedb *state.StateDB, addr common.Address, proof1, proof2, extNibblesS, extNibblesC [][]byte, key []byte, neighbourNode []byte,
-		isAccountProof, nonExistingAccountProof, nonExistingStorageProof, isShorterProofLastLeaf bool) ([][]byte, [][]byte, []MPTNode, bool) {
+		isAccountProof, nonExistingAccountProof, nonExistingStorageProof, isShorterProofLastLeaf bool) ([][]byte, [][]byte, []Node, bool) {
 	rows := make([][]byte, 0)
 	toBeHashed := make([][]byte, 0)
 
@@ -451,7 +456,7 @@ func convertProofToWitness(statedb *state.StateDB, addr common.Address, proof1, 
 	var extensionRowC []byte
 	extensionNodeInd := 0
 
-	var nodes []MPTNode
+	var nodes []Node
 
 	branchC16 := byte(0); 
 	branchC1 := byte(1);
@@ -466,13 +471,17 @@ func convertProofToWitness(statedb *state.StateDB, addr common.Address, proof1, 
 			}
 
 			l := len(proof1)
-			leafRows, leafToBeHashed := getLeafRows(proof1[l-1], proof2[l-1], key, nonExistingAccountProof, nonExistingStorageProof, isAccountProof)
-			rows = append(rows, leafRows...)
-			toBeHashed = append(toBeHashed, leafToBeHashed...)
-
-			node := MPTNode {
-				Rows: rows,
+			var leafRows, leafToBeHashed [][]byte
+			var node Node
+			
+			if isAccountProof {
+				leafRows, leafToBeHashed, node = getAccountLeaf(addr, proof1[l-1], proof2[l-1], key, nonExistingAccountProof)
+			} else {
+				leafRows, leafToBeHashed, node = getStorageLeaf(proof1[l-1], proof2[l-1], key, nonExistingStorageProof)
 			}
+			rows = append(rows, leafRows...)
+			toBeHashed = append(toBeHashed, leafToBeHashed...)	
+
 			nodes = append(nodes, node)
 		} else {
 			switchC16 := true // If not extension node, switchC16 = true.
