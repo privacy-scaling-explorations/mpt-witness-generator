@@ -22,6 +22,7 @@ const counterLen = 4
 
 // rowLen - each branch node has 2 positions for RLP meta data and 32 positions for hash
 const rowLen = branch2start + 2 + 32 + 1 // +1 is for info about what type of row is it
+const valueLen = 34
 const keyPos = 10
 const isBranchSPlaceholderPos = 11
 const isBranchCPlaceholderPos = 12
@@ -89,6 +90,22 @@ const (
 	HashRow
 	AccountLeafKeySRow // 6
 	// TODO
+)
+
+type AccountRowType int64
+const (
+	AccountKeyS AccountRowType = iota
+    AccountKeyC
+    AccountNonceS
+    AccountBalanceS
+    AccountStorageS
+    AccountCodehashS
+    AccountNonceC
+    AccountBalanceC
+    AccountStorageC
+    AccountCodehashC
+    AccountDrifted
+    AccountWrong	
 )
 
 // TODO: replace with ProofType

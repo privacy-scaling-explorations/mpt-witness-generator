@@ -6,6 +6,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 )
 
+// TODO: replace with prepareAccountLeafNode
 func prepareAccountLeaf(leafS, leafC []byte, key []byte, nonExistingAccountProof, noLeaf bool) ([][]byte, [][]byte) {
 	var leafRows [][]byte
 	var leafForHashing [][]byte
@@ -153,6 +154,7 @@ func prepareNonExistingStorageRow(leafC, keyNibbles []byte, noLeaf bool) []byte 
 }
 
 // getNonceBalanceRow takes GetProof account leaf and prepares a row that contains nonce and balance.
+// TODO: replace with getNonceBalanceValue
 func getNonceBalanceRow(leaf []byte, keyLen int) ([]byte, int) {
 	nonceStart := 3 + keyLen + 1 + 1 + 1 + 1
 
@@ -206,7 +208,58 @@ func getNonceBalanceRow(leaf []byte, keyLen int) ([]byte, int) {
 	return nonceBalanceRow, storageStart
 }
 
+func getNonceBalanceValue(leaf []byte, keyLen int) ([]byte, []byte, int) {
+	nonceStart := 3 + keyLen + 1 + 1 + 1 + 1
+
+	var nonceRlpLen byte
+	var balanceStart int
+	var nonce []byte
+
+	// If the first nonce byte is > 128, it means it presents (nonce_len - 128),
+	// if the first nonce byte is <= 128, the actual nonce value is < 128 and is exactly this first byte
+	// (however, when nonce = 0, the actual value that is stored is 128)
+	if leaf[nonceStart] <= 128 {
+		// only one nonce byte
+		nonceRlpLen = 1
+		nonce = leaf[nonceStart : nonceStart+int(nonceRlpLen)]
+		balanceStart = nonceStart + int(nonceRlpLen)
+	} else {
+		nonceRlpLen = leaf[nonceStart] - 128
+		nonce = leaf[nonceStart : nonceStart+int(nonceRlpLen)+1]
+		balanceStart = nonceStart + int(nonceRlpLen) + 1
+	}
+
+	var balanceRlpLen byte
+	var storageStart int
+	if leaf[balanceStart] <= 128 {
+		// only one balance byte
+		balanceRlpLen = 1
+		storageStart = balanceStart + int(balanceRlpLen)
+	} else {
+		balanceRlpLen = leaf[balanceStart] - 128
+		storageStart = balanceStart + int(balanceRlpLen) + 1
+	}
+
+	nonceVal := make([]byte, valueLen)
+	balanceVal := make([]byte, valueLen)
+	for i := 0; i < len(nonce); i++ {
+		nonceVal[i] = nonce[i]
+	}
+	var balance []byte
+	if balanceRlpLen == 1 {
+		balance = leaf[balanceStart : balanceStart+int(balanceRlpLen)]
+	} else {
+		balance = leaf[balanceStart : balanceStart+int(balanceRlpLen)+1]
+	}
+	for i := 0; i < len(balance); i++ {
+		balanceVal[i] = balance[i]
+	}
+
+	return nonceVal, balanceVal, storageStart
+}
+
 // getStorageRootCodeHashRow takes GetProof account leaf and prepares a row that contains storage root and hash root.
+// TODO: replace with getStorageRootCodeHashValue
 func getStorageRootCodeHashRow(leaf []byte, storageStart int) []byte {
 	storageCodeHashRow := make([]byte, rowLen)
 	storageRlpLen := leaf[storageStart] - 128
@@ -228,6 +281,30 @@ func getStorageRootCodeHashRow(leaf []byte, storageStart int) []byte {
 	}
 
 	return storageCodeHashRow
+}
+
+func getStorageRootCodeHashValue(leaf []byte, storageStart int) ([]byte, []byte) {
+	storageRootValue := make([]byte, valueLen)
+	codeHashValue := make([]byte, valueLen)
+	storageRlpLen := leaf[storageStart] - 128
+	if storageRlpLen != 32 {
+		panic("Account leaf RLP 3")
+	}
+	storage := leaf[storageStart : storageStart+32+1]
+	for i := 0; i < 33; i++ {
+		storageRootValue[i] = storage[i]
+	}
+	codeHashStart := storageStart + int(storageRlpLen) + 1
+	codeHashRlpLen := leaf[codeHashStart] - 128
+	if codeHashRlpLen != 32 {
+		panic("Account leaf RLP 4")
+	}
+	codeHash := leaf[codeHashStart : codeHashStart+32+1]
+	for i := 0; i < 33; i++ {
+		codeHashValue[i] = codeHash[i]
+	}
+
+	return storageRootValue, codeHashValue
 }
 
 func prepareAccountLeafRows(leafS, leafC, addressNibbles []byte, nonExistingAccountProof, noLeaf bool) ([]byte, []byte, []byte, []byte, []byte, []byte, []byte) {	
@@ -341,56 +418,74 @@ func prepareAccountLeafNode(addr common.Address, leafS, leafC, addressNibbles []
 	// 1. A leaf is returned that is not at the required address (wrong leaf).
 	// 2. A branch is returned as the last element of getProof and
 	//    there is nil object at address position. Placeholder account leaf is added in this case.
+	values := make([][]byte, 12)
+
 	keyLenS := int(leafS[2]) - 128
 	keyLenC := int(leafC[2]) - 128
-	keyRowS := make([]byte, rowLen)
-	keyRowC := make([]byte, rowLen)
+	keyRowS := make([]byte, valueLen)
+	keyRowC := make([]byte, valueLen)
+
+	for i := 2; i < 3+keyLenS; i++ {
+		keyRowS[i-2] = leafS[i]
+	}
+	for i := 2; i < 3+keyLenC; i++ {
+		keyRowC[i-2] = leafC[i]
+	}
 
 	var listRlpBytes [2][]byte
-	listRlpBytes[0] = make([]byte, 3)
-	listRlpBytes[1] = make([]byte, 3)
-	for i := 0; i < 3; i++ {
+	listRlpBytes[0] = make([]byte, 2)
+	listRlpBytes[1] = make([]byte, 2)
+	for i := 0; i < 2; i++ {
 		listRlpBytes[0][i] = leafS[i]
 	}
-	for i := 0; i < 3; i++ {
+	for i := 0; i < 2; i++ {
 		listRlpBytes[1][i] = leafC[i]
 	}
 
 	var valueRlpBytes [2][]byte
-	valueRlpBytes[0] = make([]byte, 3)
-	valueRlpBytes[1] = make([]byte, 3)
+	valueRlpBytes[0] = make([]byte, 2)
+	valueRlpBytes[1] = make([]byte, 2)
 
+	var valueListRlpBytes [2][]byte
+	valueListRlpBytes[0] = make([]byte, 2)
+	valueListRlpBytes[1] = make([]byte, 2)
+
+	wrongValue := make([]byte, valueLen)
+	wrongRlpBytes := make([]byte, 2)
 
 	// For non existing account proof, keyRowS (=keyRowC in this case) stores the key of
 	// the wrong leaf. We store the key of the required leaf (which doesn't exist)
 	// in nonExistingAccountRow.
 
-	// nonExistingAccountRow is used only for proof that account doesn't exist
-	nonExistingAccountRow := make([]byte, rowLen)
-	nonExistingAccountRow = append(nonExistingAccountRow, 18)
+	// wrongValue is used only for proof that account doesn't exist
 	
 	offset := 0	
 	nibblesNum := (keyLenC - 1) * 2
-	nonExistingAccountRow[0] = leafC[0]
-	nonExistingAccountRow[1] = leafC[1]
-	nonExistingAccountRow[2] = leafC[2] // length
+	wrongRlpBytes[0] = leafC[0]
+	wrongRlpBytes[1] = leafC[1]
+	wrongValue[0] = leafC[2] // length
 	if keyRowC[3] != 32 { // odd number of nibbles
 		nibblesNum = nibblesNum + 1
-		nonExistingAccountRow[3] = addressNibbles[64 - nibblesNum] + 48
+		wrongValue[1] = addressNibbles[64 - nibblesNum] + 48
 		offset = 1
 	} else {
-		nonExistingAccountRow[3] = 32
+		wrongValue[1] = 32
 	}
 	// Get the last nibblesNum of address:
 	remainingNibbles := addressNibbles[64 - nibblesNum:64] // exclude the last one as it is not a nibble
 	for i := 0; i < keyLenC-1; i++ {
-		nonExistingAccountRow[4+i] = remainingNibbles[2*i + offset] * 16 + remainingNibbles[2*i+1 + offset]
+		wrongValue[2+i] = remainingNibbles[2*i + offset] * 16 + remainingNibbles[2*i+1 + offset]
 	}
 
-	nonceBalanceRowS := make([]byte, rowLen)
-	nonceBalanceRowC := make([]byte, rowLen)
-	storageCodeHashRowS := make([]byte, rowLen)
-	storageCodeHashRowC := make([]byte, rowLen)
+	nonceValueS := make([]byte, valueLen)
+	balanceValueS := make([]byte, valueLen)
+	nonceValueC := make([]byte, valueLen)
+	balanceValueC := make([]byte, valueLen)
+
+	storageRootValueS := make([]byte, valueLen)
+	codeHashValueS := make([]byte, valueLen)
+	storageRootValueC := make([]byte, valueLen)
+	codeHashValueC := make([]byte, valueLen)
 
 	if !noLeaf {
 		rlpStringSecondPartLenS := leafS[3+keyLenS] - 183
@@ -434,26 +529,47 @@ func prepareAccountLeafNode(addr common.Address, leafS, leafC, addressNibbles []
 
 		storageStartS := 0
 		storageStartC := 0
-		nonceBalanceRowS, storageStartS = getNonceBalanceRow(leafS, keyLenS)
-		nonceBalanceRowC, storageStartC = getNonceBalanceRow(leafC, keyLenC)
+		nonceValueS, balanceValueS, storageStartS = getNonceBalanceValue(leafS, keyLenS)
+		nonceValueC, balanceValueC, storageStartC = getNonceBalanceValue(leafC, keyLenC)
 
-		storageCodeHashRowS = getStorageRootCodeHashRow(leafS, storageStartS)
-		storageCodeHashRowC = getStorageRootCodeHashRow(leafC, storageStartC)
+		valueRlpBytes[0][0] = leafS[3+keyLenS]
+		valueRlpBytes[0][1] = leafS[3+keyLenS+1]
+
+		valueRlpBytes[1][0] = leafC[3+keyLenS]
+		valueRlpBytes[1][1] = leafC[3+keyLenS+1]
+
+		valueListRlpBytes[0][0] = leafS[3+keyLenS+1+1]
+		valueListRlpBytes[0][1] = leafS[3+keyLenS+1+1+1]
+
+		valueListRlpBytes[1][0] = leafC[3+keyLenS+1+1]
+		valueListRlpBytes[1][1] = leafC[3+keyLenS+1+1+1]
+
+		storageRootValueS, codeHashValueS = getStorageRootCodeHashValue(leafS, storageStartS)
+		storageRootValueC, codeHashValueC = getStorageRootCodeHashValue(leafC, storageStartC)
 	} 
 
-	keyRowS = append(keyRowS, 6)
-	keyRowC = append(keyRowC, 4)
-	nonceBalanceRowS = append(nonceBalanceRowS, 7)
-	nonceBalanceRowC = append(nonceBalanceRowC, 8)
-	storageCodeHashRowS = append(storageCodeHashRowS, 9)
-	storageCodeHashRowC = append(storageCodeHashRowC, 11)
+	values[AccountKeyS] = keyRowS
+	values[AccountKeyC] = keyRowC
+	values[AccountNonceS] = nonceValueS
+	values[AccountBalanceS] = balanceValueS
+	values[AccountStorageS] = storageRootValueS
+	values[AccountCodehashS] = codeHashValueS
+	values[AccountNonceC] = nonceValueC
+	values[AccountBalanceC] = balanceValueC
+	values[AccountStorageC] = storageRootValueC
+	values[AccountCodehashC] = codeHashValueC
+	// TODO: values[AccountDrifted] is to be set in later functions
+	values[AccountWrong] = wrongValue
 
 	node := Node {
-		// Values: rows,
+		Values: values,
 	}
 	leaf := AccountNode {
 		Address: addr.Bytes(),
 		ListRlpBytes: listRlpBytes,
+		ValueRlpBytes: valueRlpBytes,
+		ValueListRlpBytes: valueListRlpBytes,
+		WrongRlpBytes: wrongRlpBytes,
 	}
 	node.Account = &leaf
 
