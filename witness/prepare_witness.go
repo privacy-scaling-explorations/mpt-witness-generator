@@ -1,7 +1,6 @@
 package witness
 
 import (
-	"encoding/json"
 	"fmt"
 	"math/big"
 
@@ -195,6 +194,8 @@ func obtainAccountProofAndConvertToWitness(i int, tMod TrieModification, tModsLe
 	var startRoot common.Hash
 	var finalRoot common.Hash
 
+	var nodes []Node
+
 	sRoot := statedb.GetTrie().Hash()
 	if i == 0 {
 		startRoot = sRoot
@@ -219,6 +220,23 @@ func obtainAccountProofAndConvertToWitness(i int, tMod TrieModification, tModsLe
 	if i == tModsLen-1 {
 		finalRoot = cRoot
 	}
+
+	proofType := "StorageChanged"
+	if tMod.Type == NonExistingStorage {
+		proofType = "StorageDoesNotExist"
+	}
+	
+	s := StartNode {
+		ProofType: proofType,
+	}
+	var values [][]byte
+	values = append(values, sRoot.Bytes())
+	values = append(values, cRoot.Bytes())
+	n := Node {
+		Start: &s,
+		Values: values,
+	}
+	nodes = append(nodes, n)
 
 	accountProof1, aNeighbourNode2, aExtNibbles2, isLastLeaf2, err := statedb.GetProof(addr)
 	check(err)
@@ -246,8 +264,13 @@ func obtainAccountProofAndConvertToWitness(i int, tMod TrieModification, tModsLe
 		isShorterProofLastLeaf = isLastLeaf2
 	}
 	
-	rowsState, toBeHashedAcc, _, _ :=
+	rowsState, toBeHashedAcc, nodesAccount, _ :=
 		convertProofToWitness(statedb, addr, accountProof, accountProof1, aExtNibbles1, aExtNibbles2, accountAddr, aNode, true, tMod.Type == NonExistingAccount, false, isShorterProofLastLeaf)
+	nodes = append(nodes, nodesAccount...)
+
+	storeNodes("foo", nodesAccount)
+
+	fmt.Println("=======================")
 
 	proof := finalizeProof(i, rowsState, addrh, sRoot, cRoot, startRoot, finalRoot, tMod.Type)
 
@@ -322,14 +345,6 @@ func obtainTwoProofsAndConvertToWitness(trieModifications []TrieModification, st
 				Start: &s,
 				Values: values,
 			}
-
-			b, err := json.Marshal(n)
-			if err != nil {
-				fmt.Println(err)
-			}
-			fmt.Println(string(b))
-			// TODO: use n
-
 			nodes = append(nodes, n)
 
 			accountProof1, aNeighbourNode2, aExtNibbles2, aIsLastLeaf2, err := statedb.GetProof(addr)
@@ -363,13 +378,13 @@ func obtainTwoProofsAndConvertToWitness(trieModifications []TrieModification, st
 			
 			rowsState, toBeHashedAcc, nodesAccount, _ :=
 				convertProofToWitness(statedb, addr, accountProof, accountProof1, aExtNibbles1, aExtNibbles2, accountAddr, aNode, true, tMod.Type == NonExistingAccount, false, aIsLastLeaf)
+			nodes = append(nodes, nodesAccount...)
 			rowsStorage, toBeHashedStorage, nodesStorage, _ :=
 				convertProofToWitness(statedb, addr, storageProof, storageProof1, extNibbles1, extNibbles2, keyHashed, node, false, false, tMod.Type == NonExistingStorage, isLastLeaf)
+			nodes = append(nodes, nodesStorage...)
 
 			fmt.Println("=========")
-			fmt.Println(nodesAccount)
-			fmt.Println("=========")
-			fmt.Println(nodesStorage)
+			fmt.Println(nodes)
 	
 			rowsState = append(rowsState, rowsStorage...)
 	

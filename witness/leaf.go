@@ -464,7 +464,7 @@ func prepareAccountLeafNode(addr common.Address, leafS, leafC, addressNibbles []
 	wrongRlpBytes[0] = leafC[0]
 	wrongRlpBytes[1] = leafC[1]
 	wrongValue[0] = leafC[2] // length
-	if keyRowC[3] != 32 { // odd number of nibbles
+	if leafC[3] != 32 { // odd number of nibbles
 		nibblesNum = nibblesNum + 1
 		wrongValue[1] = addressNibbles[64 - nibblesNum] + 48
 		offset = 1
@@ -561,9 +561,6 @@ func prepareAccountLeafNode(addr common.Address, leafS, leafC, addressNibbles []
 	// TODO: values[AccountDrifted] is to be set in later functions
 	values[AccountWrong] = wrongValue
 
-	node := Node {
-		Values: values,
-	}
 	leaf := AccountNode {
 		Address: addr.Bytes(),
 		ListRlpBytes: listRlpBytes,
@@ -571,7 +568,10 @@ func prepareAccountLeafNode(addr common.Address, leafS, leafC, addressNibbles []
 		ValueListRlpBytes: valueListRlpBytes,
 		WrongRlpBytes: wrongRlpBytes,
 	}
-	node.Account = &leaf
+	node := Node {
+		Account: &leaf,
+		Values: values,
+	}
 
 	return node
 }

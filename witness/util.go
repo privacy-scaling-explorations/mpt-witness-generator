@@ -1,6 +1,7 @@
 package witness
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"os"
@@ -49,6 +50,23 @@ func storeWitness(testName string, proof [][]byte) {
     check(err)
 	defer f.Close()
 	n3, err := f.WriteString(w)
+    check(err)
+    fmt.Printf("wrote %d bytes\n", n3)
+}
+
+func storeNodes(testName string, nodes []Node) {
+	name := testName + ".json"
+	f, err := os.Create("../generated_witnesses/" + name)
+    check(err)
+	defer f.Close()
+	b, err := json.Marshal(nodes)
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	fmt.Println(string(b))
+
+	n3, err := f.WriteString(string(b))
     check(err)
     fmt.Printf("wrote %d bytes\n", n3)
 }
