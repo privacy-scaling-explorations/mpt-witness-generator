@@ -39,7 +39,15 @@ type AccountNode struct {
 func base64ToString(bs []byte) string {
     var s string
     if bs == nil {
-        s = "null"
+        f := make([]string, valueLen)
+        s = "["
+        for i := 0; i < len(f); i++ {
+            if i != len(f) - 1 {
+                s += "0, "
+            } else {
+                s += "0]"
+            }
+          }
     } else {
         s = strings.Join(strings.Fields(fmt.Sprintf("%d", bs)), ",")
     }
@@ -70,6 +78,18 @@ type StorageNode struct {
     WrongRlpBytes []byte `json:"wrong_rlp_bytes"`
 }
 
+type JSONableValues [][]byte
+
+func (u JSONableValues) MarshalJSON() ([]byte, error) {
+    var result string
+    if u == nil {
+        result = "null"
+    } else {
+        result = strings.Join(strings.Fields(fmt.Sprintf("%d", u)), ",")
+    }
+    return []byte(result), nil
+}
+
 /*
 Note: using pointers for fields to be null when not set (otherwise the field is set to default value
 when marshalling).
@@ -79,7 +99,7 @@ type Node struct {
     ExtensionBranch *ExtensionBranchNode `json:"extension_branch"`
     Account *AccountNode `json:"account"`
     Storage *StorageNode `json:"storage"`
-    Values[][]byte `json:"values"`
+    Values JSONableValues `json:"values"`
 }
 
 /*

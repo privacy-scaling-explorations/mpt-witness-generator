@@ -559,6 +559,7 @@ func prepareAccountLeafNode(addr common.Address, leafS, leafC, addressNibbles []
 	values[AccountStorageC] = storageRootValueC
 	values[AccountCodehashC] = codeHashValueC
 	// TODO: values[AccountDrifted] is to be set in later functions
+	values[AccountDrifted] = make([]byte, valueLen)
 	values[AccountWrong] = wrongValue
 
 	leaf := AccountNode {

@@ -268,8 +268,8 @@ func obtainAccountProofAndConvertToWitness(i int, tMod TrieModification, tModsLe
 		convertProofToWitness(statedb, addr, accountProof, accountProof1, aExtNibbles1, aExtNibbles2, accountAddr, aNode, true, tMod.Type == NonExistingAccount, false, isShorterProofLastLeaf)
 	nodes = append(nodes, nodesAccount...)
 
-	storeNodes("foo", nodesAccount)
-
+	// only for debugging
+	storeNodes("AccountInFirstLevel", nodes)
 	fmt.Println("=======================")
 
 	proof := finalizeProof(i, rowsState, addrh, sRoot, cRoot, startRoot, finalRoot, tMod.Type)
