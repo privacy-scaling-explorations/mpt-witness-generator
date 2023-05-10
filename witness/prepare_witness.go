@@ -220,24 +220,7 @@ func obtainAccountProofAndConvertToWitness(i int, tMod TrieModification, tModsLe
 	if i == tModsLen-1 {
 		finalRoot = cRoot
 	}
-
-	proofType := "StorageChanged"
-	if tMod.Type == NonExistingStorage {
-		proofType = "StorageDoesNotExist"
-	}
 	
-	s := StartNode {
-		ProofType: proofType,
-	}
-	var values [][]byte
-	values = append(values, sRoot.Bytes())
-	values = append(values, cRoot.Bytes())
-	n := Node {
-		Start: &s,
-		Values: values,
-	}
-	nodes = append(nodes, n)
-
 	accountProof1, aNeighbourNode2, aExtNibbles2, isLastLeaf2, err := statedb.GetProof(addr)
 	check(err)
 
@@ -264,6 +247,35 @@ func obtainAccountProofAndConvertToWitness(i int, tMod TrieModification, tModsLe
 		isShorterProofLastLeaf = isLastLeaf2
 	}
 	
+	// TODO: CodeHashExists
+	proofType := "NonceChanged"
+	if tMod.Type == BalanceMod {
+		proofType = "BalanceChanged"
+	} else if tMod.Type == DeleteAccount {
+		proofType = "AccountDestructed"
+	} else if tMod.Type == NonExistingAccount {
+		proofType = "AccountDoesNotExist"
+	}
+	
+	s := StartNode {
+		ProofType: proofType,
+	}
+	var values [][]byte
+	var values1 []byte
+	var values2 []byte
+	values1 = append(values1, 160)
+	values1 = append(values1, sRoot.Bytes()...)
+	values2 = append(values2, 160)
+	values2 = append(values2, cRoot.Bytes()...)
+
+	values = append(values, values1)
+	values = append(values, values2)
+	n := Node {
+		Start: &s,
+		Values: values,
+	}
+	nodes = append(nodes, n)
+
 	rowsState, toBeHashedAcc, nodesAccount, _ :=
 		convertProofToWitness(statedb, addr, accountProof, accountProof1, aExtNibbles1, aExtNibbles2, accountAddr, aNode, true, tMod.Type == NonExistingAccount, false, isShorterProofLastLeaf)
 	nodes = append(nodes, nodesAccount...)

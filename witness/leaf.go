@@ -569,9 +569,11 @@ func prepareAccountLeafNode(addr common.Address, leafS, leafC, addressNibbles []
 		ValueListRlpBytes: valueListRlpBytes,
 		WrongRlpBytes: wrongRlpBytes,
 	}
+	keccakData := [][]byte{leafS, leafC}
 	node := Node {
 		Account: &leaf,
 		Values: values,
+		KeccakData: keccakData,
 	}
 
 	return node
@@ -874,7 +876,7 @@ func getAccountLeaf(addr common.Address, leafS, leafC []byte, key []byte, nonExi
 	node := prepareAccountLeafNode(addr, leafS, leafC, key, nonExistingAccountProof, false)
 
 	pRows := prepareDriftedLeafPlaceholder(true)
-	rows = append(rows, pRows...)	
+	rows = append(rows, pRows...)
 	
 	return rows, toBeHashed, node
 }

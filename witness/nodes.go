@@ -83,7 +83,7 @@ type JSONableValues [][]byte
 func (u JSONableValues) MarshalJSON() ([]byte, error) {
     var result string
     if u == nil {
-        result = "null"
+        result = "[]"
     } else {
         result = strings.Join(strings.Fields(fmt.Sprintf("%d", u)), ",")
     }
@@ -100,6 +100,7 @@ type Node struct {
     Account *AccountNode `json:"account"`
     Storage *StorageNode `json:"storage"`
     Values JSONableValues `json:"values"`
+    KeccakData JSONableValues `json:"keccak_data"`
 }
 
 /*
