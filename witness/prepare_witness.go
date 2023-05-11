@@ -256,29 +256,14 @@ func obtainAccountProofAndConvertToWitness(i int, tMod TrieModification, tModsLe
 	} else if tMod.Type == NonExistingAccount {
 		proofType = "AccountDoesNotExist"
 	}
-	
-	s := StartNode {
-		ProofType: proofType,
-	}
-	var values [][]byte
-	var values1 []byte
-	var values2 []byte
-	values1 = append(values1, 160)
-	values1 = append(values1, sRoot.Bytes()...)
-	values2 = append(values2, 160)
-	values2 = append(values2, cRoot.Bytes()...)
-
-	values = append(values, values1)
-	values = append(values, values2)
-	n := Node {
-		Start: &s,
-		Values: values,
-	}
-	nodes = append(nodes, n)
+		
+	nodes = append(nodes, GetStartNode(proofType, sRoot, cRoot))
 
 	rowsState, toBeHashedAcc, nodesAccount, _ :=
 		convertProofToWitness(statedb, addr, accountProof, accountProof1, aExtNibbles1, aExtNibbles2, accountAddr, aNode, true, tMod.Type == NonExistingAccount, false, isShorterProofLastLeaf)
 	nodes = append(nodes, nodesAccount...)
+	
+	nodes = append(nodes, GetEndNode())
 
 	// only for debugging
 	storeNodes("AccountInFirstLevel", nodes)

@@ -3,6 +3,8 @@ package witness
 import (
 	"fmt"
 	"strings"
+
+	"github.com/ethereum/go-ethereum/common"
 )
 
 type BranchNode struct {
@@ -101,6 +103,49 @@ type Node struct {
     Storage *StorageNode `json:"storage"`
     Values JSONableValues `json:"values"`
     KeccakData JSONableValues `json:"keccak_data"`
+}
+
+func GetStartNode(proofType string, sRoot, cRoot common.Hash) Node {
+    s := StartNode {
+		ProofType: proofType,
+	}
+	var values [][]byte
+	var values1 []byte
+	var values2 []byte
+	values1 = append(values1, 160)
+	values1 = append(values1, sRoot.Bytes()...)
+	values1 = append(values1, 0)
+	values2 = append(values2, 160)
+	values2 = append(values2, cRoot.Bytes()...)
+	values2 = append(values2, 0)
+
+	values = append(values, values1)
+	values = append(values, values2)
+
+	return Node {
+		Start: &s,
+		Values: values,
+	}
+}
+
+func GetEndNode() Node {
+    e := StartNode {
+		ProofType: "Disabled",
+	}
+	var endValues [][]byte
+	var endValues1 []byte
+	var endValues2 []byte
+	for i := 0; i < valueLen; i++ {
+		endValues1 = append(endValues1, 0)
+		endValues2 = append(endValues2, 0)
+	}
+	endValues = append(endValues, endValues1)
+	endValues = append(endValues, endValues2)
+
+	return Node {
+		Start: &e,
+		Values: endValues,
+	}
 }
 
 /*

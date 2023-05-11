@@ -4,6 +4,7 @@ import (
 	"math"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/crypto"
 )
 
 // TODO: replace with prepareAccountLeafNode
@@ -563,7 +564,7 @@ func prepareAccountLeafNode(addr common.Address, leafS, leafC, addressNibbles []
 	values[AccountWrong] = wrongValue
 
 	leaf := AccountNode {
-		Address: addr.Bytes(),
+		Address: crypto.Keccak256(addr.Bytes()),
 		ListRlpBytes: listRlpBytes,
 		ValueRlpBytes: valueRlpBytes,
 		ValueListRlpBytes: valueListRlpBytes,
