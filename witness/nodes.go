@@ -8,13 +8,27 @@ import (
 )
 
 type BranchNode struct {
-    ModifiedIndex int `json:"modified_index"`
-    DriftedIndex int `json:"drifted_index"`
-    ListRlpBytes [2][]byte `json:"list_rlp_bytes"`
+    ModifiedIndex int
+    DriftedIndex int
+    ListRlpBytes [2][]byte
+}
+
+func (n *BranchNode) MarshalJSON() ([]byte, error) {
+    listRlpBytes1 := base64ToString(n.ListRlpBytes[0]) 
+    listRlpBytes2 := base64ToString(n.ListRlpBytes[1]) 
+    jsonResult := fmt.Sprintf(`{"modified_index": %d, "drifted_index": %d, "list_rlp_bytes":[%s,%s]}`,
+        n.ModifiedIndex, n.DriftedIndex, listRlpBytes1, listRlpBytes2)
+    return []byte(jsonResult), nil
 }
 
 type ExtensionNode struct {
-   ListRlpBytes []byte `json:"list_rlp_bytes"`
+   ListRlpBytes []byte
+}
+
+func (n *ExtensionNode) MarshalJSON() ([]byte, error) {
+    listRlpBytes := base64ToString(n.ListRlpBytes) 
+    jsonResult := fmt.Sprintf(`{"list_rlp_bytes":%s}`, listRlpBytes)
+    return []byte(jsonResult), nil
 }
 
 type StartNode struct {
@@ -147,19 +161,3 @@ func GetEndNode() Node {
 		Values: endValues,
 	}
 }
-
-/*
-s := StartNode {
-	ProofType: "StorageChanged",
-}
-
-n := Node {
-	Start: &s,
-}
-
-b, err := json.Marshal(n)
-if err != nil {
-	fmt.Println(err)
-}
-fmt.Println(string(b))
-*/

@@ -26,7 +26,7 @@ func isBranch(proofEl []byte) bool {
 // S occupies the first 34 columns, C occupies the next 34 columns.
 // The branch children are positioned each in its own row.
 func prepareBranchWitness(rows [][]byte, branch []byte, branchStart int, branchRLPOffset int) {
-	rowInd := 1 // start with 1 because rows[0] contains some RLP data
+	rowInd := 1
 	colInd := branchNodeRLPLen - 1
 
 	i := 0
@@ -198,6 +198,83 @@ func prepareTwoBranches(branch1, branch2 []byte, key, branchC16, branchC1 byte, 
 	prepareBranchWitness(rows, branch2, 2+32, branch2RLPOffset)
 
 	return rows
+}
+
+func prepareBranchNode(branch1, branch2 []byte, key, branchC16, branchC1 byte, isBranchSPlaceholder, isBranchCPlaceholder, isExtension bool) Node {
+
+	extensionNode := ExtensionNode {
+		ListRlpBytes: []byte{},
+	}
+
+	var listRlpBytes [2][]byte
+	branch1RLPOffset := 1
+	branch2RLPOffset := 1
+	listRlpBytes1 := []byte{branch1[0]}
+	listRlpBytes2 := []byte{branch2[0]}
+
+	if branch1[0] == 248 { // two RLP bytes
+		branch1RLPOffset = 2
+	} else if branch1[0] == 249 { // three RLP bytes
+		branch1RLPOffset = 3
+	}
+	
+	if branch2[0] == 248 { // two RLP bytes
+		branch2RLPOffset = 2
+	} else if branch2[0] == 249 { // three RLP bytes
+		branch2RLPOffset = 3
+	}
+
+	if branch1[0] == 248 || branch1[0] == 249 {
+		listRlpBytes1 = append(listRlpBytes1, branch1[1])
+	}
+	if branch2[0] == 248 || branch2[0] == 249 {
+		listRlpBytes2 = append(listRlpBytes2, branch2[1])
+	}
+
+	if branch1[0] == 249 {
+		listRlpBytes1 = append(listRlpBytes1, branch1[2])
+	} 
+	if branch2[0] == 249 {
+		listRlpBytes2 = append(listRlpBytes2, branch2[2])
+	}
+
+	listRlpBytes[0] = listRlpBytes1
+	listRlpBytes[1] = listRlpBytes2
+
+	branchNode := BranchNode {
+		ModifiedIndex: int(key),
+		DriftedIndex: int(key),
+		ListRlpBytes: listRlpBytes,
+	}
+
+	extensionBranch := ExtensionBranchNode {
+		IsExtension: isExtension,
+		IsPlaceholder: [2]bool{isBranchSPlaceholder, isBranchCPlaceholder},
+		Extension: extensionNode,
+		Branch: branchNode,
+	}
+
+	values := make([][]byte, 21)
+	for i := 0; i < len(values); i++ {
+		values[i] = make([]byte, valueLen)
+	}
+	prepareBranchWitness(values, branch1, 0, branch1RLPOffset)
+
+	rows := make([][]byte, 17)
+	for i := 0; i < len(rows); i++ {
+		rows[i] = make([]byte, valueLen)
+	}
+	prepareBranchWitness(rows, branch2, 0, branch2RLPOffset)
+	values[0] = rows[1 + key]
+
+	keccakData := [][]byte{branch1, branch2}
+	node := Node {
+		ExtensionBranch: &extensionBranch,
+		Values: values,
+		KeccakData: keccakData,
+	}
+
+	return node
 }
 
 // prepareParallelBranches takes two branches (named S and C) as returned by GetProof and returns

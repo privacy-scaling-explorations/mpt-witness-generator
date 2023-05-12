@@ -266,7 +266,7 @@ func obtainAccountProofAndConvertToWitness(i int, tMod TrieModification, tModsLe
 	nodes = append(nodes, GetEndNode())
 
 	// only for debugging
-	storeNodes("AccountInFirstLevel", nodes)
+	storeNodes("AccountAfterFirstLevel", nodes)
 	fmt.Println("=======================")
 
 	proof := finalizeProof(i, rowsState, addrh, sRoot, cRoot, startRoot, finalRoot, tMod.Type)
@@ -534,7 +534,12 @@ func convertProofToWitness(statedb *state.StateDB, addr common.Address, proof1, 
 				}
 			}
 
+			// TODO: remove prepareTwoBranches
 			bRows := prepareTwoBranches(proof1[i], proof2[i], key[keyIndex], branchC16, branchC1, false, false)
+
+			bNode := prepareBranchNode(proof1[i], proof2[i], key[keyIndex], branchC16, branchC1, false, false, extensionRowS != nil)
+			nodes = append(nodes, bNode)
+
 			keyIndex += 1
 
 			// extension node rows
