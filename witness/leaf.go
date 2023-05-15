@@ -1,6 +1,7 @@
 package witness
 
 import (
+	"fmt"
 	"math"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -592,9 +593,9 @@ func prepareDriftedLeafPlaceholder(isAccount bool) [][]byte {
 	return [][]byte{driftedLeaf}
 }
 
-// addLeafAndPlaceholder adds a leaf and its placeholder counterpart to the rows
+// prepareLeafAndPlaceholderNode prepares a leaf node and its placeholder counterpart
 // (used when one of the proofs does not have a leaf).
-func addLeafAndPlaceholder(rows *[][]byte, proof1, proof2 [][]byte, key []byte, nonExistingAccountProof, isAccountProof bool, toBeHashed *[][]byte) {
+func prepareLeafAndPlaceholderNode(addr common.Address, proof1, proof2 [][]byte, key []byte, nonExistingAccountProof, isAccountProof bool) Node {
 	len1 := len(proof1)
 	len2 := len(proof2)
 
@@ -613,13 +614,13 @@ func addLeafAndPlaceholder(rows *[][]byte, proof1, proof2 [][]byte, key []byte, 
 
 		// When generating a proof that account doesn't exist, the length of both proofs is the same (doesn't reach
 		// this code).
-		leafRows, leafForHashing := prepareAccountLeaf(leafS, leafC, key, nonExistingAccountProof, false)
-		*rows = append(*rows, leafRows...)
-		*toBeHashed = append(*toBeHashed, leafForHashing...)
-
-		pRows := prepareDriftedLeafPlaceholder(true)
-		*rows = append(*rows, pRows...)
+		return prepareAccountLeafNode(addr, leafS, leafC, key, nonExistingAccountProof, false)
 	} else {
+		// TODO
+		fmt.Println("todo")
+		return Node{}
+
+		/*
 		var leafRows [][]byte
 		var leafForHashing []byte
 
@@ -629,7 +630,7 @@ func addLeafAndPlaceholder(rows *[][]byte, proof1, proof2 [][]byte, key []byte, 
 		} else {
 			leafRows, leafForHashing = prepareStorageLeafRows(proof2[len2-1], 2, true)
 		}
-		
+
 		*rows = append(*rows, leafRows...)
 		*toBeHashed = append(*toBeHashed, leafForHashing)
 
@@ -647,6 +648,7 @@ func addLeafAndPlaceholder(rows *[][]byte, proof1, proof2 [][]byte, key []byte, 
 		// For non existing proof, S and C proofs are the same
 		nonExistingStorageRow := prepareEmptyNonExistingStorageRow()
 		*rows = append(*rows, nonExistingStorageRow)	
+		*/
 	}
 }
 
@@ -866,23 +868,7 @@ func prepareAccountLeafPlaceholderRows(key []byte, keyIndex int, nonExistingAcco
 	return leafRows
 }
 
-func getAccountLeaf(addr common.Address, leafS, leafC []byte, key []byte, nonExistingAccountProof bool) ([][]byte, [][]byte, Node) {
-	var rows [][]byte
-	var toBeHashed [][]byte
-
-	leafRows, leafForHashing := prepareAccountLeaf(leafS, leafC, key, nonExistingAccountProof, false)
-	rows = append(rows, leafRows...)
-	toBeHashed = append(toBeHashed, leafForHashing...)
-
-	node := prepareAccountLeafNode(addr, leafS, leafC, key, nonExistingAccountProof, false)
-
-	pRows := prepareDriftedLeafPlaceholder(true)
-	rows = append(rows, pRows...)
-	
-	return rows, toBeHashed, node
-}
-
-func getStorageLeaf(leafS, leafC []byte, key []byte, nonExistingStorageProof bool) ([][]byte, [][]byte, Node) {
+func prepareStorageLeafNode(leafS, leafC []byte, key []byte, nonExistingStorageProof bool) Node {
 	var rows [][]byte
 	var toBeHashed [][]byte
 
@@ -914,5 +900,5 @@ func getStorageLeaf(leafS, leafC []byte, key []byte, nonExistingStorageProof boo
 	}
 	node.Storage = &leaf
 
-	return rows, toBeHashed, node
+	return node
 }

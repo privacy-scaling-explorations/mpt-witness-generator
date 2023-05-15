@@ -154,7 +154,7 @@ func addForHashing(toBeHashed []byte, toBeHashedCollection *[][]byte) {
 }
 
 // GetWitness is to be used by external programs to generate the witness. 
-func GetWitness(nodeUrl string, blockNum int, trieModifications []TrieModification) [][]byte {
+func GetWitness(nodeUrl string, blockNum int, trieModifications []TrieModification) []Node {
 	blockNumberParent := big.NewInt(int64(blockNum))
 	oracle.NodeUrl = nodeUrl
 	blockHeaderParent := oracle.PrefetchBlock(blockNumberParent, true, nil)
@@ -174,7 +174,7 @@ func GetWitness(nodeUrl string, blockNum int, trieModifications []TrieModificati
 	return obtainTwoProofsAndConvertToWitness(trieModifications, statedb, 0)
 }
 
-func obtainAccountProofAndConvertToWitness(i int, tMod TrieModification, tModsLen int, statedb *state.StateDB, specialTest byte) ([][]byte, [][]byte) {
+func obtainAccountProofAndConvertToWitness(i int, tMod TrieModification, tModsLen int, statedb *state.StateDB, specialTest byte) []Node {
 	statedb.IntermediateRoot(false)
 
 	addr := tMod.Address
@@ -191,15 +191,20 @@ func obtainAccountProofAndConvertToWitness(i int, tMod TrieModification, tModsLe
 	accountProof, aNeighbourNode1, aExtNibbles1, isLastLeaf1, err := statedb.GetProof(addr)
 	check(err)
 
-	var startRoot common.Hash
-	var finalRoot common.Hash
-
 	var nodes []Node
 
+	/*
+	var startRoot common.Hash
+	var finalRoot common.Hash
+	*/
+
 	sRoot := statedb.GetTrie().Hash()
+
+	/*
 	if i == 0 {
 		startRoot = sRoot
 	}
+	*/
 
 	if tMod.Type == NonceMod {
 		statedb.SetNonce(addr, tMod.Nonce)
@@ -217,9 +222,11 @@ func obtainAccountProofAndConvertToWitness(i int, tMod TrieModification, tModsLe
 	statedb.IntermediateRoot(false)
 
 	cRoot := statedb.GetTrie().Hash()
+	/*
 	if i == tModsLen-1 {
 		finalRoot = cRoot
 	}
+	*/
 	
 	accountProof1, aNeighbourNode2, aExtNibbles2, isLastLeaf2, err := statedb.GetProof(addr)
 	check(err)
@@ -259,26 +266,23 @@ func obtainAccountProofAndConvertToWitness(i int, tMod TrieModification, tModsLe
 		
 	nodes = append(nodes, GetStartNode(proofType, sRoot, cRoot))
 
-	rowsState, toBeHashedAcc, nodesAccount, _ :=
+	_, _, nodesAccount, _ :=
 		convertProofToWitness(statedb, addr, accountProof, accountProof1, aExtNibbles1, aExtNibbles2, accountAddr, aNode, true, tMod.Type == NonExistingAccount, false, isShorterProofLastLeaf)
 	nodes = append(nodes, nodesAccount...)
 	
 	nodes = append(nodes, GetEndNode())
 
-	// only for debugging
-	storeNodes("AccountAfterFirstLevel", nodes)
-	fmt.Println("=======================")
+	// TODO: remove finalizeProof
+	// proof := finalizeProof(i, rowsState, addrh, sRoot, cRoot, startRoot, finalRoot, tMod.Type)
 
-	proof := finalizeProof(i, rowsState, addrh, sRoot, cRoot, startRoot, finalRoot, tMod.Type)
-
-	return proof, toBeHashedAcc
+	return nodes
 }
 
 // obtainTwoProofsAndConvertToWitness obtains the GetProof proof before and after the modification for each
 // of the modification. It then converts the two proofs into an MPT circuit witness. Witness is thus
 // prepared for each of the modifications and the witnesses are chained together - the final root of
 // the previous witness is the same as the start root of the current witness.
-func obtainTwoProofsAndConvertToWitness(trieModifications []TrieModification, statedb *state.StateDB, specialTest byte) [][]byte {
+func obtainTwoProofsAndConvertToWitness(trieModifications []TrieModification, statedb *state.StateDB, specialTest byte) []Node {
 	statedb.IntermediateRoot(false)
 	allProofs := [][]byte{}
 	toBeHashed := [][]byte{}	
@@ -393,22 +397,19 @@ func obtainTwoProofsAndConvertToWitness(trieModifications []TrieModification, st
 			toBeHashed = append(toBeHashed, toBeHashedAcc...)
 			toBeHashed = append(toBeHashed, toBeHashedStorage...)
 		} else {
-			proof, toBeHashedAcc := obtainAccountProofAndConvertToWitness(i, tMod, len(trieModifications), statedb, specialTest)
-			allProofs = append(allProofs, proof...)
-			toBeHashed = append(toBeHashed, toBeHashedAcc...)
+			nodes = obtainAccountProofAndConvertToWitness(i, tMod, len(trieModifications), statedb, specialTest)
 		}
 	}
-	allProofs = append(allProofs, toBeHashed...)
 
-	return allProofs
+	return nodes
 }
 
 // prepareWitness obtains the GetProof proof before and after the modification for each
 // of the modification. It then converts the two proofs into an MPT circuit witness for each of
 // the modifications and stores it into a file.
 func prepareWitness(testName string, trieModifications []TrieModification, statedb *state.StateDB) {
-	proof := obtainTwoProofsAndConvertToWitness(trieModifications, statedb, 0)
-	storeWitness(testName, proof)
+	nodes := obtainTwoProofsAndConvertToWitness(trieModifications, statedb, 0)
+	storeNodes(testName, nodes)
 }
 
 // prepareWitnessSpecial obtains the GetProof proof before and after the modification for each
@@ -417,8 +418,8 @@ func prepareWitness(testName string, trieModifications []TrieModification, state
 // instructs the function obtainTwoProofsAndConvertToWitness to prepare special trie states, like moving
 // the account leaf in the first trie level.
 func prepareWitnessSpecial(testName string, trieModifications []TrieModification, statedb *state.StateDB, specialTest byte) {
-	proof := obtainTwoProofsAndConvertToWitness(trieModifications, statedb, specialTest)
-	storeWitness(testName, proof)
+	nodes := obtainTwoProofsAndConvertToWitness(trieModifications, statedb, specialTest)
+	storeNodes(testName, nodes)
 }
 
 // updateStateAndPrepareWitness updates the state according to the specified keys and values and then
@@ -500,16 +501,12 @@ func convertProofToWitness(statedb *state.StateDB, addr common.Address, proof1, 
 			}
 
 			l := len(proof1)
-			var leafRows, leafToBeHashed [][]byte
 			var node Node
-			
 			if isAccountProof {
-				leafRows, leafToBeHashed, node = getAccountLeaf(addr, proof1[l-1], proof2[l-1], key, nonExistingAccountProof)
+				node = prepareAccountLeafNode(addr, proof1[l-1], proof2[l-1], key, nonExistingAccountProof, false)
 			} else {
-				leafRows, leafToBeHashed, node = getStorageLeaf(proof1[l-1], proof2[l-1], key, nonExistingStorageProof)
+				node = prepareStorageLeafNode(proof1[l-1], proof2[l-1], key, nonExistingStorageProof)
 			}
-			rows = append(rows, leafRows...)
-			toBeHashed = append(toBeHashed, leafToBeHashed...)	
 
 			nodes = append(nodes, node)
 		} else {
@@ -604,7 +601,8 @@ func convertProofToWitness(statedb *state.StateDB, addr common.Address, proof1, 
 					isAccountProof, nonExistingAccountProof, isShorterProofLastLeaf, branchC16, branchC1, &toBeHashed)
 			}
 		} else {
-			addLeafAndPlaceholder(&rows, proof1, proof2, key, nonExistingAccountProof, isAccountProof, &toBeHashed)
+			node := prepareLeafAndPlaceholderNode(addr, proof1, proof2, key, nonExistingAccountProof, isAccountProof)
+			nodes = append(nodes, node)
 		}
 	} else if isBranch(proof2[len(proof2)-1]) {
 		// Let's always use C proof for non-existing proof.
