@@ -870,35 +870,75 @@ func prepareAccountLeafPlaceholderRows(key []byte, keyIndex int, nonExistingAcco
 
 func prepareStorageLeafNode(leafS, leafC []byte, key []byte, nonExistingStorageProof bool) Node {
 	var rows [][]byte
-	var toBeHashed [][]byte
 
-	leafRows, leafForHashing := prepareStorageLeafRows(leafS, 2, false)
+	leafRows, _ := prepareStorageLeafRows(leafS, 2, false)
 	rows = append(rows, leafRows...)
-	toBeHashed = append(toBeHashed, leafForHashing)
-	leafRows, leafForHashing = prepareStorageLeafRows(leafC, 3, false)
+	// keyS := leafRows[0]
+	valueS := leafRows[1]
+	leafRows, _ = prepareStorageLeafRows(leafC, 3, false)
 	rows = append(rows, leafRows...)	
-	toBeHashed = append(toBeHashed, leafForHashing)
+	// keyC := leafRows[0]
+	valueC := leafRows[1]
+
+	var listRlpBytes [2][]byte
+
+	keyRlpLen := 1 // TODO
+	listRlpBytes[0] = make([]byte, keyRlpLen)
+	listRlpBytes[1] = make([]byte, keyRlpLen)
+	for i := 0; i < keyRlpLen; i++ {
+		listRlpBytes[0][i] = leafS[i]
+	}
+	for i := 0; i < keyRlpLen; i++ {
+		listRlpBytes[1][i] = leafC[i]
+	}
+
+	var valueRlpBytes [2][]byte
+	valueRlpBytes[0] = make([]byte, 2)
+	valueRlpBytes[1] = make([]byte, 2)
+	valueRlpLen := 1 // TODO
+	for i := 0; i < valueRlpLen; i++ {
+		valueRlpBytes[0][i] = valueS[i]
+	}
+	for i := 0; i < keyRlpLen; i++ {
+		valueRlpBytes[1][i] = valueC[i]
+	}
 
 	pRows := prepareDriftedLeafPlaceholder(false)
 	rows = append(rows, pRows...)	
 
+	driftedRlpLen := 1 // TODO
+	driftedRlpBytes := make([]byte, driftedRlpLen)
+	for i := 0; i < driftedRlpLen; i++ {
+		driftedRlpBytes[i] = pRows[0][i]
+	}
+
+	var nonExistingStorageRow []byte
 	if nonExistingStorageProof {
 		cKeyRow := rows[len(rows) - 3]
 		noLeaf := false
-		nonExistingStorageRow := prepareNonExistingStorageRow(cKeyRow, key, noLeaf)
-		rows = append(rows, nonExistingStorageRow)	
+		nonExistingStorageRow = prepareNonExistingStorageRow(cKeyRow, key, noLeaf)
 	} else {
-		nonExistingStorageRow := prepareEmptyNonExistingStorageRow()
-		rows = append(rows, nonExistingStorageRow)	
+		nonExistingStorageRow = prepareEmptyNonExistingStorageRow()
 	}
+	rows = append(rows, nonExistingStorageRow)	
 
+	wrongRlpLen := 1 // TODO
+	wrongRlpBytes := make([]byte, wrongRlpLen)
+	for i := 0; i < wrongRlpLen; i++ {
+		wrongRlpBytes[i] = nonExistingStorageRow[i]
+	}
+	
+	leaf := StorageNode {
+		ListRlpBytes: listRlpBytes,
+		DriftedRlpBytes: driftedRlpBytes,
+		WrongRlpBytes: wrongRlpBytes,
+	}
+	keccakData := [][]byte{leafS, leafC}
 	node := Node {
 		Values: rows,
+		Storage: &leaf,
+		KeccakData: keccakData,
 	}
-	leaf := StorageNode {
-
-	}
-	node.Storage = &leaf
 
 	return node
 }

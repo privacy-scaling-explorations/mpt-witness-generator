@@ -31,26 +31,6 @@ func (n *ExtensionNode) MarshalJSON() ([]byte, error) {
     return []byte(jsonResult), nil
 }
 
-type StartNode struct {
-    ProofType string `json:"proof_type"`
-}
-
-type ExtensionBranchNode struct {
-    IsExtension bool `json:"is_extension"`
-    IsPlaceholder [2]bool `json:"is_placeholder"`
-    Extension ExtensionNode `json:"extension"`
-    Branch BranchNode `json:"branch"`
-}
-
-type AccountNode struct {
-    Address []byte
-    ListRlpBytes [2][]byte
-    ValueRlpBytes [2][]byte
-    ValueListRlpBytes [2][]byte
-    DriftedRlpBytes []byte
-    WrongRlpBytes []byte
-}
-
 // When marshalling, []byte encodes as a base64-encoded string.
 func base64ToString(bs []byte) string {
     var s string
@@ -69,6 +49,26 @@ func base64ToString(bs []byte) string {
     }
 
     return s
+}
+
+type StartNode struct {
+    ProofType string `json:"proof_type"`
+}
+
+type ExtensionBranchNode struct {
+    IsExtension bool `json:"is_extension"`
+    IsPlaceholder [2]bool `json:"is_placeholder"`
+    Extension ExtensionNode `json:"extension"`
+    Branch BranchNode `json:"branch"`
+}
+
+type AccountNode struct {
+    Address []byte
+    ListRlpBytes [2][]byte
+    ValueRlpBytes [2][]byte
+    ValueListRlpBytes [2][]byte
+    DriftedRlpBytes []byte
+    WrongRlpBytes []byte
 }
 
 func (n *AccountNode) MarshalJSON() ([]byte, error) {
@@ -92,6 +92,18 @@ type StorageNode struct {
     ValueRlpBytes [2][]byte `json:"value_rlp_bytes"`
     DriftedRlpBytes []byte `json:"drifted_rlp_bytes"`
     WrongRlpBytes []byte `json:"wrong_rlp_bytes"`
+}
+
+func (n *StorageNode) MarshalJSON() ([]byte, error) {
+    listRlpBytes1 := base64ToString(n.ListRlpBytes[0]) 
+    listRlpBytes2 := base64ToString(n.ListRlpBytes[1]) 
+    valueRlpBytes1 := base64ToString(n.ValueRlpBytes[0]) 
+    valueRlpBytes2 := base64ToString(n.ValueRlpBytes[1]) 
+    driftedRlpBytes := base64ToString(n.DriftedRlpBytes) 
+    wrongRlpBytes := base64ToString(n.WrongRlpBytes) 
+    jsonResult := fmt.Sprintf(`{"list_rlp_bytes":[%s,%s], "value_rlp_bytes":[%s,%s], "drifted_rlp_bytes":%s, "wrong_rlp_bytes":%s}`,
+        listRlpBytes1, listRlpBytes2, valueRlpBytes1, valueRlpBytes2, driftedRlpBytes, wrongRlpBytes)
+    return []byte(jsonResult), nil
 }
 
 type JSONableValues [][]byte
