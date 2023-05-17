@@ -374,6 +374,8 @@ func obtainTwoProofsAndConvertToWitness(trieModifications []TrieModification, st
 				convertProofToWitness(statedb, addr, storageProof, storageProof1, extNibbles1, extNibbles2, keyHashed, node, false, false, tMod.Type == NonExistingStorage, isLastLeaf)
 			nodes = append(nodes, nodesStorage...)
 
+			nodes = append(nodes, GetEndNode())
+
 			fmt.Println("=========")
 			fmt.Println(nodes)
 	

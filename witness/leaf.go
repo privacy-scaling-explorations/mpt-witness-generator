@@ -111,9 +111,8 @@ func prepareStorageLeafRows(row []byte, typ byte, valueIsZero bool) ([][]byte, [
 
 func prepareEmptyNonExistingStorageRow() []byte {	
 	// nonExistingStorageRow is used only for proof that nothing is stored at a particular storage key
-	nonExistingStorageRow := make([]byte, rowLen)
+	nonExistingStorageRow := make([]byte, valueLen)
 	nonExistingStorageRow[0] = 228
-	nonExistingStorageRow = append(nonExistingStorageRow, 19)
 
 	return nonExistingStorageRow
 }
@@ -127,7 +126,7 @@ func prepareNonExistingStorageRow(leafC, keyNibbles []byte, noLeaf bool) []byte 
 		start = 3
 	}
 	keyLenC := int(leafC[start-1]) - 128
-	keyRowC := make([]byte, rowLen)
+	keyRowC := make([]byte, valueLen)
 	for i := 0; i < start+keyLenC; i++ {
 		keyRowC[i] = leafC[i]
 	}
@@ -585,11 +584,6 @@ func prepareAccountLeafNode(addr common.Address, leafS, leafC, addressNibbles []
 func prepareDriftedLeafPlaceholder(isAccount bool) [][]byte {
 	driftedLeaf := make([]byte, rowLen)
 	driftedLeaf[0] = 248
-	if isAccount {
-		driftedLeaf = append(driftedLeaf, 10)
-	} else {
-		driftedLeaf = append(driftedLeaf, 15)
-	}
 
 	return [][]byte{driftedLeaf}
 }
@@ -870,6 +864,7 @@ func prepareAccountLeafPlaceholderRows(key []byte, keyIndex int, nonExistingAcco
 }
 
 func prepareStorageLeafInfo(row []byte, typ byte, valueIsZero bool) ([]byte, []byte, []byte, []byte) {
+	// TODO (currently only for one case)
 	var keyRlp []byte
 	var valueRlp []byte
 
@@ -903,7 +898,7 @@ func prepareStorageLeafInfo(row []byte, typ byte, valueIsZero bool) ([]byte, []b
 
 		leafForHashing := make([]byte, len(row))
 		leafForHashing = append(leafForHashing, 5) // not needed in this case
-		return [][]byte{leaf1, leaf2}, leafForHashing
+		return leaf1, leaf2, leaf1, leaf2
 	}	
 	if row[0] == 248 {
 		// [248,67,160,59,138,106,70,105,186,37,13,38,205,122,69,158,202,157,33,95,131,7,227,58,235,229,3,121,188,90,54,23,236,52,68,161,160,...
@@ -943,65 +938,35 @@ func prepareStorageLeafInfo(row []byte, typ byte, valueIsZero bool) ([]byte, []b
 func prepareStorageLeafNode(leafS, leafC []byte, key []byte, nonExistingStorageProof bool) Node {
 	var rows [][]byte
 
-	leafRows, _ := prepareStorageLeafRows(leafS, 2, false)
-	keyS := leafRows[0]
-	valueS := leafRows[1]
-
-	// debugging:
-	foo := valueS[0]
-	valueS[0] = 0
-
+	keyS, valueS, listRlpBytes1, valueRlpBytes1 := prepareStorageLeafInfo(leafS, 2, false)
 
 	rows = append(rows, keyS)
 	rows = append(rows, valueS)
 
-	leafRows, _ = prepareStorageLeafRows(leafC, 3, false)
-	keyC := leafRows[0]
-	valueC := leafRows[1]
-
-	// debugging:
-	goo := valueC[0]
-	valueC[0] = 0
+	keyC, valueC, listRlpBytes2, valueRlpBytes2 := prepareStorageLeafInfo(leafC, 3, false)
 
 	rows = append(rows, keyC)	
 	rows = append(rows, valueC)	
 
 	var listRlpBytes [2][]byte
-
-	keyRlpLen := 1 // TODO
-	listRlpBytes[0] = make([]byte, keyRlpLen)
-	listRlpBytes[1] = make([]byte, keyRlpLen)
-	for i := 0; i < keyRlpLen; i++ {
-		listRlpBytes[0][i] = leafS[i]
-	}
-	for i := 0; i < keyRlpLen; i++ {
-		listRlpBytes[1][i] = leafC[i]
-	}
+	listRlpBytes[0] = listRlpBytes1
+	listRlpBytes[1] = listRlpBytes2
 
 	var valueRlpBytes [2][]byte
-	valueSRlpLen := 1 // TODO
-	valueCRlpLen := 1 // TODO
-	valueRlpBytes[0] = make([]byte, valueSRlpLen)
-	valueRlpBytes[1] = make([]byte, valueCRlpLen)
-	for i := 0; i < valueSRlpLen; i++ {
-		valueRlpBytes[0][i] = valueS[i]
-	}
-	for i := 0; i < valueCRlpLen; i++ {
-		valueRlpBytes[1][i] = valueC[i]
-	}
-
-	// debugging:
-	valueRlpBytes[0][0] = foo
-	valueRlpBytes[1][0] = goo
+	valueRlpBytes[0] = valueRlpBytes1
+	valueRlpBytes[1] = valueRlpBytes2
 
 	pRows := prepareDriftedLeafPlaceholder(false)
-	rows = append(rows, pRows...)	
 
 	driftedRlpLen := 1 // TODO
 	driftedRlpBytes := make([]byte, driftedRlpLen)
 	for i := 0; i < driftedRlpLen; i++ {
 		driftedRlpBytes[i] = pRows[0][i]
 	}
+
+	// TODO:
+	driftedRow := pRows[0][driftedRlpLen:]
+	rows = append(rows, driftedRow)
 
 	var nonExistingStorageRow []byte
 	if nonExistingStorageProof {
@@ -1011,13 +976,17 @@ func prepareStorageLeafNode(leafS, leafC []byte, key []byte, nonExistingStorageP
 	} else {
 		nonExistingStorageRow = prepareEmptyNonExistingStorageRow()
 	}
-	rows = append(rows, nonExistingStorageRow)	
-
+	
 	wrongRlpLen := 1 // TODO
 	wrongRlpBytes := make([]byte, wrongRlpLen)
 	for i := 0; i < wrongRlpLen; i++ {
 		wrongRlpBytes[i] = nonExistingStorageRow[i]
 	}
+
+	// TODO
+	nonExistingStorageRow = nonExistingStorageRow[driftedRlpLen:]
+	rows = append(rows, nonExistingStorageRow)	
+
 
 	leaf := StorageNode {
 		ListRlpBytes: listRlpBytes,
