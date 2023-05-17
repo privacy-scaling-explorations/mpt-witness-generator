@@ -40,6 +40,7 @@ func prepareStorageLeaf(leafS []byte, key []byte, nonExistingAccountProof bool) 
 	return leafRows, leafForHashing
 }
 
+// TODO: remove with prepareStorageLeafNode
 func prepareStorageLeafRows(row []byte, typ byte, valueIsZero bool) ([][]byte, []byte) {
 	// Avoid directly changing the row as it might introduce some bugs later on.
 	leaf1 := make([]byte, rowLen)
@@ -868,17 +869,102 @@ func prepareAccountLeafPlaceholderRows(key []byte, keyIndex int, nonExistingAcco
 	return leafRows
 }
 
+func prepareStorageLeafInfo(row []byte, typ byte, valueIsZero bool) ([]byte, []byte, []byte, []byte) {
+	var keyRlp []byte
+	var valueRlp []byte
+
+	var keyRlpLen byte
+	var valueRlpLen byte
+
+	leaf1 := make([]byte, valueLen)
+	leaf2 := make([]byte, valueLen)
+	typ2 := byte(13)
+	if typ == 3 {
+		typ2 = 14
+	}
+	if len(row) < 32 { // the node doesn't get hashed in this case
+		// 192 + 32 = 224
+		if row[1] < 128 {
+			// last level: [194,32,1]
+			// or
+			// only one nibble in a leaf (as soon as the leaf has two nibbles, row[1] will have 128 + length)
+			// [194,48,1] - this one contains nibble 0 = 48 - 48
+			leaf1[0] = row[0]
+			leaf1[1] = row[1]
+			copy(leaf2, row[2:])
+		} else {
+			// [196,130,32,0,1]
+			keyLen := row[1] - 128
+			copy(leaf1, row[:keyLen+2])
+			copy(leaf2, row[keyLen+2:])
+		}
+		leaf1 = append(leaf1, typ)
+		leaf2 = append(leaf2, typ2)
+
+		leafForHashing := make([]byte, len(row))
+		leafForHashing = append(leafForHashing, 5) // not needed in this case
+		return [][]byte{leaf1, leaf2}, leafForHashing
+	}	
+	if row[0] == 248 {
+		// [248,67,160,59,138,106,70,105,186,37,13,38,205,122,69,158,202,157,33,95,131,7,227,58,235,229,3,121,188,90,54,23,236,52,68,161,160,...
+		keyLen := row[2] - 128
+		copy(leaf1, row[:keyLen+3])
+		// there are two RLP meta data bytes which are put in s_rlp1 and s_rlp2,
+		// value starts in s_advices[0]
+		if !valueIsZero {
+			copy(leaf2, row[keyLen+3:]) // RLP data in s_rlp1 and s_rlp2, value starts in s_advices[0]
+		}
+	} else {
+		if row[1] < 128 {
+			// last level:
+			// [227,32,161,160,187,239,170,18,88,1,56,188,38,60,149,117,120,38,223,78,36,235,129,201,170,170,170,170,170,170,170,170,170,170,170,170]
+			// one nibble:
+			// [227,48,161,160,187,239,170,18,88,1,56,188,38,60,149,117,120,38,223,78,36,235,129,201,170,170,170,170,170,170,170,170,170,170,170,170]
+			leaf1[0] = row[0]
+			leaf1[1] = row[1]
+			copy(leaf2, row[2:])
+		} else {
+			// [226,160,59,138,106,70,105,186,37,13,38[227,32,161,160,187,239,170,18,88,1,56,188,38,60,149,117,120,38,223,78,36,235,129,201,170,170,170,170,170,170,170,170,170,170,170,170]
+			keyRlpLen = 1
+			keyLen := row[1] - 128
+			keyRlp = row[:keyRlpLen]
+			copy(leaf1, row[keyRlpLen:keyLen+2])
+			valueRlpLen = 1 // TODO
+			valueRlp = row[keyLen+2:keyLen+2+valueRlpLen]
+			if !valueIsZero {
+				copy(leaf2, row[keyLen+2+valueRlpLen:]) // value starts in s_rlp1
+			}
+		}
+	}
+
+	return leaf1, leaf2, keyRlp, valueRlp
+}
+
 func prepareStorageLeafNode(leafS, leafC []byte, key []byte, nonExistingStorageProof bool) Node {
 	var rows [][]byte
 
 	leafRows, _ := prepareStorageLeafRows(leafS, 2, false)
-	rows = append(rows, leafRows...)
-	// keyS := leafRows[0]
+	keyS := leafRows[0]
 	valueS := leafRows[1]
+
+	// debugging:
+	foo := valueS[0]
+	valueS[0] = 0
+
+
+	rows = append(rows, keyS)
+	rows = append(rows, valueS)
+
 	leafRows, _ = prepareStorageLeafRows(leafC, 3, false)
-	rows = append(rows, leafRows...)	
-	// keyC := leafRows[0]
+	keyC := leafRows[0]
 	valueC := leafRows[1]
+
+	// debugging:
+	goo := valueC[0]
+	valueC[0] = 0
+
+	rows = append(rows, keyC)	
+	rows = append(rows, valueC)	
 
 	var listRlpBytes [2][]byte
 
@@ -893,15 +979,20 @@ func prepareStorageLeafNode(leafS, leafC []byte, key []byte, nonExistingStorageP
 	}
 
 	var valueRlpBytes [2][]byte
-	valueRlpBytes[0] = make([]byte, 2)
-	valueRlpBytes[1] = make([]byte, 2)
-	valueRlpLen := 1 // TODO
-	for i := 0; i < valueRlpLen; i++ {
+	valueSRlpLen := 1 // TODO
+	valueCRlpLen := 1 // TODO
+	valueRlpBytes[0] = make([]byte, valueSRlpLen)
+	valueRlpBytes[1] = make([]byte, valueCRlpLen)
+	for i := 0; i < valueSRlpLen; i++ {
 		valueRlpBytes[0][i] = valueS[i]
 	}
-	for i := 0; i < keyRlpLen; i++ {
+	for i := 0; i < valueCRlpLen; i++ {
 		valueRlpBytes[1][i] = valueC[i]
 	}
+
+	// debugging:
+	valueRlpBytes[0][0] = foo
+	valueRlpBytes[1][0] = goo
 
 	pRows := prepareDriftedLeafPlaceholder(false)
 	rows = append(rows, pRows...)	
@@ -927,11 +1018,12 @@ func prepareStorageLeafNode(leafS, leafC []byte, key []byte, nonExistingStorageP
 	for i := 0; i < wrongRlpLen; i++ {
 		wrongRlpBytes[i] = nonExistingStorageRow[i]
 	}
-	
+
 	leaf := StorageNode {
 		ListRlpBytes: listRlpBytes,
 		DriftedRlpBytes: driftedRlpBytes,
 		WrongRlpBytes: wrongRlpBytes,
+		ValueRlpBytes: valueRlpBytes,
 	}
 	keccakData := [][]byte{leafS, leafC}
 	node := Node {

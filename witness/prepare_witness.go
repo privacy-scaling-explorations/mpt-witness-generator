@@ -336,17 +336,7 @@ func obtainTwoProofsAndConvertToWitness(trieModifications []TrieModification, st
 				proofType = "StorageDoesNotExist"
 			}
 			
-			s := StartNode {
-				ProofType: proofType,
-			}
-			var values [][]byte
-			values = append(values, sRoot.Bytes())
-			values = append(values, cRoot.Bytes())
-			n := Node {
-				Start: &s,
-				Values: values,
-			}
-			nodes = append(nodes, n)
+			nodes = append(nodes, GetStartNode(proofType, sRoot, cRoot))
 
 			accountProof1, aNeighbourNode2, aExtNibbles2, aIsLastLeaf2, err := statedb.GetProof(addr)
 			check(err)
