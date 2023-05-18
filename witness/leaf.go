@@ -871,8 +871,8 @@ func prepareStorageLeafInfo(row []byte, typ byte, valueIsZero bool) ([]byte, []b
 	var keyRlpLen byte
 	var valueRlpLen byte
 
-	leaf1 := make([]byte, valueLen)
-	leaf2 := make([]byte, valueLen)
+	key := make([]byte, valueLen)
+	value := make([]byte, valueLen)
 	typ2 := byte(13)
 	if typ == 3 {
 		typ2 = 14
@@ -884,30 +884,40 @@ func prepareStorageLeafInfo(row []byte, typ byte, valueIsZero bool) ([]byte, []b
 			// or
 			// only one nibble in a leaf (as soon as the leaf has two nibbles, row[1] will have 128 + length)
 			// [194,48,1] - this one contains nibble 0 = 48 - 48
-			leaf1[0] = row[0]
-			leaf1[1] = row[1]
-			copy(leaf2, row[2:])
+			key[0] = row[0]
+			key[1] = row[1]
+			copy(value, row[2:])
 		} else {
 			// [196,130,32,0,1]
 			keyLen := row[1] - 128
-			copy(leaf1, row[:keyLen+2])
-			copy(leaf2, row[keyLen+2:])
+			copy(key, row[:keyLen+2])
+			copy(value, row[keyLen+2:])
 		}
-		leaf1 = append(leaf1, typ)
-		leaf2 = append(leaf2, typ2)
+		key = append(key, typ)
+		value = append(value, typ2)
 
 		leafForHashing := make([]byte, len(row))
 		leafForHashing = append(leafForHashing, 5) // not needed in this case
-		return leaf1, leaf2, leaf1, leaf2
+		return key, value, key, value
 	}	
 	if row[0] == 248 {
 		// [248,67,160,59,138,106,70,105,186,37,13,38,205,122,69,158,202,157,33,95,131,7,227,58,235,229,3,121,188,90,54,23,236,52,68,161,160,...
+		keyRlpLen = 2
 		keyLen := row[2] - 128
-		copy(leaf1, row[:keyLen+3])
+		keyRlp = row[:keyRlpLen]	
+		copy(key, row[keyRlpLen:keyLen+3])
+		valueRlpLen = 1
+		/*
+		TODO
+		if row[1] - keyLen - 1 > 1 {
+			valueRlpLen = 2
+		}
+		*/
+		valueRlp = row[keyLen+3:keyLen+3+valueRlpLen]
 		// there are two RLP meta data bytes which are put in s_rlp1 and s_rlp2,
 		// value starts in s_advices[0]
 		if !valueIsZero {
-			copy(leaf2, row[keyLen+3:]) // RLP data in s_rlp1 and s_rlp2, value starts in s_advices[0]
+			copy(value, row[keyLen+3+valueRlpLen:]) // RLP data in s_rlp1 and s_rlp2, value starts in s_advices[0]
 		}
 	} else {
 		if row[1] < 128 {
@@ -915,24 +925,32 @@ func prepareStorageLeafInfo(row []byte, typ byte, valueIsZero bool) ([]byte, []b
 			// [227,32,161,160,187,239,170,18,88,1,56,188,38,60,149,117,120,38,223,78,36,235,129,201,170,170,170,170,170,170,170,170,170,170,170,170]
 			// one nibble:
 			// [227,48,161,160,187,239,170,18,88,1,56,188,38,60,149,117,120,38,223,78,36,235,129,201,170,170,170,170,170,170,170,170,170,170,170,170]
-			leaf1[0] = row[0]
-			leaf1[1] = row[1]
-			copy(leaf2, row[2:])
+			key[0] = row[0]
+			key[1] = row[1]
+			valueRlpLen = 1
+			if row[0] - 192 - 1 > 1 {
+				valueRlpLen = 2
+			}
+			valueRlp = row[2:2+valueRlpLen]
+			copy(value, row[2+valueRlpLen:])
 		} else {
 			// [226,160,59,138,106,70,105,186,37,13,38[227,32,161,160,187,239,170,18,88,1,56,188,38,60,149,117,120,38,223,78,36,235,129,201,170,170,170,170,170,170,170,170,170,170,170,170]
 			keyRlpLen = 1
 			keyLen := row[1] - 128
 			keyRlp = row[:keyRlpLen]
-			copy(leaf1, row[keyRlpLen:keyLen+2])
-			valueRlpLen = 1 // TODO
+			copy(key, row[keyRlpLen:keyLen+2])
+			valueRlpLen = 1
+			if row[0] - 192 - keyLen - 1 > 1 {
+				valueRlpLen = 2
+			}
 			valueRlp = row[keyLen+2:keyLen+2+valueRlpLen]
 			if !valueIsZero {
-				copy(leaf2, row[keyLen+2+valueRlpLen:]) // value starts in s_rlp1
+				copy(value, row[keyLen+2+valueRlpLen:]) // value starts in s_rlp1
 			}
 		}
 	}
 
-	return leaf1, leaf2, keyRlp, valueRlp
+	return key, value, keyRlp, valueRlp
 }
 
 func prepareStorageLeafNode(leafS, leafC []byte, key []byte, nonExistingStorageProof bool) Node {
