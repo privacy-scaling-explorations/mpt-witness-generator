@@ -1,7 +1,6 @@
 package witness
 
 import (
-	"fmt"
 	"math"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -611,39 +610,19 @@ func prepareLeafAndPlaceholderNode(addr common.Address, proof1, proof2 [][]byte,
 		// this code).
 		return prepareAccountLeafNode(addr, leafS, leafC, key, nonExistingAccountProof, false)
 	} else {
-		// TODO
-		fmt.Println("todo")
-		return Node{}
+		var leaf []byte
+		isSPlaceholder := false
+		isCPlaceholder := false
 
-		/*
-		var leafRows [][]byte
-		var leafForHashing []byte
-
-		// Prepare S leaf rows:
 		if len1 > len2 {
-			leafRows, leafForHashing = prepareStorageLeafRows(proof1[len1-1], 2, false)
+			leaf = proof1[len1-1]
+			isCPlaceholder = true
 		} else {
-			leafRows, leafForHashing = prepareStorageLeafRows(proof2[len2-1], 2, true)
+			leaf = proof2[len2-1]
+			isSPlaceholder = true
 		}
 
-		*rows = append(*rows, leafRows...)
-		*toBeHashed = append(*toBeHashed, leafForHashing)
-
-		// Prepare C leaf rows:
-		if len1 > len2 {
-			leafRows, _ = prepareStorageLeafRows(proof1[len1-1], 3, true)
-		} else {
-			leafRows, _ = prepareStorageLeafRows(proof2[len2-1], 3, false)
-		}
-		*rows = append(*rows, leafRows...)
-
-		pRows := prepareDriftedLeafPlaceholder(isAccountProof)
-		*rows = append(*rows, pRows...)
-
-		// For non existing proof, S and C proofs are the same
-		nonExistingStorageRow := prepareEmptyNonExistingStorageRow()
-		*rows = append(*rows, nonExistingStorageRow)	
-		*/
+		return prepareStorageLeafNode(leaf, leaf, key, false, isSPlaceholder, isCPlaceholder)
 	}
 }
 
@@ -863,8 +842,8 @@ func prepareAccountLeafPlaceholderRows(key []byte, keyIndex int, nonExistingAcco
 	return leafRows
 }
 
-func prepareStorageLeafInfo(row []byte, typ byte, valueIsZero bool) ([]byte, []byte, []byte, []byte) {
-	// TODO (currently only for one case)
+func prepareStorageLeafInfo(row []byte, valueIsZero, isPlaceholder bool) ([]byte, []byte, []byte, []byte) {
+	// TODO (not implemented for all case)
 	var keyRlp []byte
 	var valueRlp []byte
 
@@ -873,10 +852,6 @@ func prepareStorageLeafInfo(row []byte, typ byte, valueIsZero bool) ([]byte, []b
 
 	key := make([]byte, valueLen)
 	value := make([]byte, valueLen)
-	typ2 := byte(13)
-	if typ == 3 {
-		typ2 = 14
-	}
 	if len(row) < 32 { // the node doesn't get hashed in this case
 		// 192 + 32 = 224
 		if row[1] < 128 {
@@ -893,11 +868,7 @@ func prepareStorageLeafInfo(row []byte, typ byte, valueIsZero bool) ([]byte, []b
 			copy(key, row[:keyLen+2])
 			copy(value, row[keyLen+2:])
 		}
-		key = append(key, typ)
-		value = append(value, typ2)
 
-		leafForHashing := make([]byte, len(row))
-		leafForHashing = append(leafForHashing, 5) // not needed in this case
 		return key, value, key, value
 	}	
 	if row[0] == 248 {
@@ -907,12 +878,6 @@ func prepareStorageLeafInfo(row []byte, typ byte, valueIsZero bool) ([]byte, []b
 		keyRlp = row[:keyRlpLen]	
 		copy(key, row[keyRlpLen:keyLen+3])
 		valueRlpLen = 1
-		/*
-		TODO
-		if row[1] - keyLen - 1 > 1 {
-			valueRlpLen = 2
-		}
-		*/
 		valueRlp = row[keyLen+3:keyLen+3+valueRlpLen]
 		// there are two RLP meta data bytes which are put in s_rlp1 and s_rlp2,
 		// value starts in s_advices[0]
@@ -928,11 +893,16 @@ func prepareStorageLeafInfo(row []byte, typ byte, valueIsZero bool) ([]byte, []b
 			key[0] = row[0]
 			key[1] = row[1]
 			valueRlpLen = 1
-			if row[0] - 192 - 1 > 1 {
-				valueRlpLen = 2
-			}
-			valueRlp = row[2:2+valueRlpLen]
-			copy(value, row[2+valueRlpLen:])
+			// If placeholder, we leave the value to be 0.
+			if !isPlaceholder {
+				if row[0] - 192 - 1 > 1 {
+					valueRlpLen = 2
+				}
+				valueRlp = row[2:2+valueRlpLen]
+				copy(value, row[2+valueRlpLen:])
+			} else {
+				valueRlp = []byte{0}
+			}	
 		} else {
 			// [226,160,59,138,106,70,105,186,37,13,38[227,32,161,160,187,239,170,18,88,1,56,188,38,60,149,117,120,38,223,78,36,235,129,201,170,170,170,170,170,170,170,170,170,170,170,170]
 			keyRlpLen = 1
@@ -940,12 +910,17 @@ func prepareStorageLeafInfo(row []byte, typ byte, valueIsZero bool) ([]byte, []b
 			keyRlp = row[:keyRlpLen]
 			copy(key, row[keyRlpLen:keyLen+2])
 			valueRlpLen = 1
-			if row[0] - 192 - keyLen - 1 > 1 {
-				valueRlpLen = 2
-			}
-			valueRlp = row[keyLen+2:keyLen+2+valueRlpLen]
-			if !valueIsZero {
-				copy(value, row[keyLen+2+valueRlpLen:]) // value starts in s_rlp1
+			// If placeholder, we leave the value to be 0.
+			if !isPlaceholder {
+				if row[0] - 192 - keyLen - 1 > 1 {
+					valueRlpLen = 2
+				}
+				valueRlp = row[keyLen+2:keyLen+2+valueRlpLen]
+				if !valueIsZero {
+					copy(value, row[keyLen+2+valueRlpLen:]) // value starts in s_rlp1
+				}
+			} else {
+				valueRlp = []byte{0}
 			}
 		}
 	}
@@ -953,15 +928,15 @@ func prepareStorageLeafInfo(row []byte, typ byte, valueIsZero bool) ([]byte, []b
 	return key, value, keyRlp, valueRlp
 }
 
-func prepareStorageLeafNode(leafS, leafC []byte, key []byte, nonExistingStorageProof bool) Node {
+func prepareStorageLeafNode(leafS, leafC []byte, key []byte, nonExistingStorageProof, isSPlaceholder, isCPlaceholder bool) Node {
 	var rows [][]byte
 
-	keyS, valueS, listRlpBytes1, valueRlpBytes1 := prepareStorageLeafInfo(leafS, 2, false)
+	keyS, valueS, listRlpBytes1, valueRlpBytes1 := prepareStorageLeafInfo(leafS, false, isSPlaceholder)
 
 	rows = append(rows, keyS)
 	rows = append(rows, valueS)
 
-	keyC, valueC, listRlpBytes2, valueRlpBytes2 := prepareStorageLeafInfo(leafC, 3, false)
+	keyC, valueC, listRlpBytes2, valueRlpBytes2 := prepareStorageLeafInfo(leafC, false, isCPlaceholder)
 
 	rows = append(rows, keyC)	
 	rows = append(rows, valueC)	
@@ -1004,7 +979,6 @@ func prepareStorageLeafNode(leafS, leafC []byte, key []byte, nonExistingStorageP
 	// TODO
 	nonExistingStorageRow = nonExistingStorageRow[driftedRlpLen:]
 	rows = append(rows, nonExistingStorageRow)	
-
 
 	leaf := StorageNode {
 		ListRlpBytes: listRlpBytes,

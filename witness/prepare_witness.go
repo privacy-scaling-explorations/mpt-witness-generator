@@ -497,7 +497,7 @@ func convertProofToWitness(statedb *state.StateDB, addr common.Address, proof1, 
 			if isAccountProof {
 				node = prepareAccountLeafNode(addr, proof1[l-1], proof2[l-1], key, nonExistingAccountProof, false)
 			} else {
-				node = prepareStorageLeafNode(proof1[l-1], proof2[l-1], key, nonExistingStorageProof)
+				node = prepareStorageLeafNode(proof1[l-1], proof2[l-1], key, nonExistingStorageProof, false, false)
 			}
 
 			nodes = append(nodes, node)
