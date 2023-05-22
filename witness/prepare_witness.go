@@ -526,7 +526,8 @@ func convertProofToWitness(statedb *state.StateDB, addr common.Address, proof1, 
 			// TODO: remove prepareTwoBranches
 			bRows := prepareTwoBranches(proof1[i], proof2[i], key[keyIndex], branchC16, branchC1, false, false)
 
-			bNode := prepareBranchNode(proof1[i], proof2[i], key[keyIndex], branchC16, branchC1, false, false, extensionRowS != nil)
+			bNode := prepareBranchNode(proof1[i], proof2[i], key[keyIndex], key[keyIndex],
+				branchC16, branchC1, false, false, extensionRowS != nil)
 			nodes = append(nodes, bNode)
 
 			keyIndex += 1
@@ -568,20 +569,26 @@ func convertProofToWitness(statedb *state.StateDB, addr common.Address, proof1, 
 			}
 
 			// To compute drifted position:
-			leafRow0 := leafRows[0]
+			leafRow0 := proof1[len1-1]
 			if len1 > len2 {
 				leafRow0 = proof2[len2-1]
 			}
 			
-			isModifiedExtNode, isExtension, numberOfNibbles, branchC16 := addBranchAndPlaceholder(addr, &rows, proof1, proof2, extNibblesS, extNibblesC,
+			isModifiedExtNode, isExtension, numberOfNibbles, branchC16, bNode := addBranchAndPlaceholder(addr, &rows, proof1, proof2, extNibblesS, extNibblesC,
 				leafRow0, key, neighbourNode,
 				keyIndex, extensionNodeInd, additionalBranch,
 				isAccountProof, nonExistingAccountProof, isShorterProofLastLeaf, branchC16, branchC1, &toBeHashed)
 
+			nodes = append(nodes, bNode)
+
 			if isAccountProof {
 				addAccountLeafAfterBranchPlaceholder(&rows, proof1, proof2, leafRows, neighbourNode, key, nonExistingAccountProof, isModifiedExtNode, isExtension, numberOfNibbles, &toBeHashed)	
+				// TODO:
+				// node = prepareAccountLeafNode(addr, proof1[l-1], proof2[l-1], key, nonExistingAccountProof, false)
 			} else {	
 				addStorageLeafAfterBranchPlaceholder(&rows, proof1, proof2, leafRows, neighbourNode, key, nonExistingAccountProof, isModifiedExtNode, isExtension, numberOfNibbles, &toBeHashed)
+				// TODO:
+				// node = prepareStorageLeafNode(proof1[l-1], proof2[l-1], key, nonExistingStorageProof, false, false)
 			}
 
 			// When a proof element is a modified extension node (new extension node appears at the position

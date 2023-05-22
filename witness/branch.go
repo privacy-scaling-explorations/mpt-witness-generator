@@ -200,8 +200,7 @@ func prepareTwoBranches(branch1, branch2 []byte, key, branchC16, branchC1 byte, 
 	return rows
 }
 
-func prepareBranchNode(branch1, branch2 []byte, key, branchC16, branchC1 byte, isBranchSPlaceholder, isBranchCPlaceholder, isExtension bool) Node {
-
+func prepareBranchNode(branch1, branch2 []byte, key, driftedInd, branchC16, branchC1 byte, isBranchSPlaceholder, isBranchCPlaceholder, isExtension bool) Node {
 	extensionNode := ExtensionNode {
 		ListRlpBytes: []byte{},
 	}
@@ -243,7 +242,7 @@ func prepareBranchNode(branch1, branch2 []byte, key, branchC16, branchC1 byte, i
 
 	branchNode := BranchNode {
 		ModifiedIndex: int(key),
-		DriftedIndex: int(key),
+		DriftedIndex: int(driftedInd),
 		ListRlpBytes: listRlpBytes,
 	}
 
@@ -355,9 +354,11 @@ func addBranchAndPlaceholder(addr common.Address, rows *[][]byte, proof1, proof2
 		leafRow0, key, neighbourNode []byte,
 		keyIndex, extensionNodeInd int,
 		additionalBranch, isAccountProof, nonExistingAccountProof,
-		isShorterProofLastLeaf bool, branchC16, branchC1 byte, toBeHashed *[][]byte) (bool, bool, int, byte) {
+		isShorterProofLastLeaf bool, branchC16, branchC1 byte, toBeHashed *[][]byte) (bool, bool, int, byte, Node) {
 	len1 := len(proof1)
 	len2 := len(proof2)
+
+	var node Node
 
 	numberOfNibbles := 0
 	var extRows [][]byte
@@ -440,6 +441,14 @@ func addBranchAndPlaceholder(addr common.Address, rows *[][]byte, proof1, proof2
 
 	if len1 > len2 {
 		bRows, branchToBeHashed := prepareParallelBranches(proof1[len1-2], proof1[len1-2], key[keyIndex + numberOfNibbles], true, branchC16, branchC1, isModifiedExtNode)
+
+		// We now get the first nibble of the leaf that was turned into branch.
+		// This first nibble presents the position of the leaf once it moved
+		// into the new branch.
+		driftedInd := getDriftedPosition(leafRow0, numberOfNibbles)
+		
+		node = prepareBranchNode(proof1[len1-2], proof1[len1-2], key[keyIndex + numberOfNibbles], driftedInd, branchC16, branchC1, false, false, isExtension)
+
 		if isExtension {
 			setExtNodeSelectors(bRows[0], proof1[len1-3], numberOfNibbles, branchC16)
 		}
@@ -451,29 +460,31 @@ func addBranchAndPlaceholder(addr common.Address, rows *[][]byte, proof1, proof2
 		// This first nibble presents the position of the leaf once it moved
 		// into the new branch.
 
-		// Note: leafRows[0] in this case (len1 > len2) is leafRowS[0],
-		// leafRows[0] in case below (len2 > len1) is leafRowC[0],
-		bRows[0][driftedPos] = getDriftedPosition(leafRow0, numberOfNibbles)
-					
 		*rows = append(*rows, bRows...)
 		addForHashing(branchToBeHashed, toBeHashed)
 	} else {
+		// TODO: remove
 		bRows, branchToBeHashed := prepareParallelBranches(proof2[len2-2], proof2[len2-2], key[keyIndex + numberOfNibbles], false, branchC16, branchC1, isModifiedExtNode)
+
+		// We now get the first nibble of the leaf that was turned into branch.
+		// This first nibble presents the position of the leaf once it moved
+		// into the new branch.
+		driftedInd := getDriftedPosition(leafRow0, numberOfNibbles)
+
+		node = prepareBranchNode(proof2[len2-2], proof2[len2-2], key[keyIndex + numberOfNibbles], driftedInd,
+				branchC16, branchC1, false, false, isExtension)
+
 		if isExtension {
 			setExtNodeSelectors(bRows[0], proof2[len2-3], numberOfNibbles, branchC16)	
 		}
 		if isModifiedExtNode {
 			bRows[0][isInsertedExtNodeC] = 1
 		}
-		// We now get the first nibble of the leaf that was turned into branch.
-		// This first nibble presents the position of the leaf once it moved
-		// into the new branch.
-		bRows[0][driftedPos] = getDriftedPosition(leafRow0, numberOfNibbles)
 
 		*rows = append(*rows, bRows...)
 		addForHashing(branchToBeHashed, toBeHashed)
 	}
 	*rows = append(*rows, extRows...)
 
-	return isModifiedExtNode, isExtension, numberOfNibbles, branchC16
+	return isModifiedExtNode, isExtension, numberOfNibbles, branchC16, node
 }
