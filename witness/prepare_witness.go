@@ -526,8 +526,8 @@ func convertProofToWitness(statedb *state.StateDB, addr common.Address, proof1, 
 			// TODO: remove prepareTwoBranches
 			bRows := prepareTwoBranches(proof1[i], proof2[i], key[keyIndex], branchC16, branchC1, false, false)
 
-			bNode := prepareBranchNode(proof1[i], proof2[i], key[keyIndex], key[keyIndex],
-				branchC16, branchC1, false, false, extensionRowS != nil)
+			bNode := prepareBranchNode(proof1[i], proof2[i], extensionRowS, extensionRowC,
+				key[keyIndex], key[keyIndex], branchC16, branchC1, false, false, extensionRowS != nil)
 			nodes = append(nodes, bNode)
 
 			keyIndex += 1
@@ -565,7 +565,7 @@ func convertProofToWitness(statedb *state.StateDB, addr common.Address, proof1, 
 			}
 			
 			isModifiedExtNode, _, numberOfNibbles, branchC16, bNode := addBranchAndPlaceholder(addr, &rows, proof1, proof2, extNibblesS, extNibblesC,
-				leafRow0, key, neighbourNode,
+				extensionRowS, extensionRowC, leafRow0, key, neighbourNode,
 				keyIndex, extensionNodeInd, additionalBranch,
 				isAccountProof, nonExistingAccountProof, isShorterProofLastLeaf, branchC16, branchC1, &toBeHashed)
 

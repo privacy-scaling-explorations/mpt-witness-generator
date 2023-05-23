@@ -1,6 +1,7 @@
 package witness
 
 import (
+	"fmt"
 	"log"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -200,7 +201,7 @@ func prepareTwoBranches(branch1, branch2 []byte, key, branchC16, branchC1 byte, 
 	return rows
 }
 
-func prepareBranchNode(branch1, branch2 []byte, key, driftedInd, branchC16, branchC1 byte, isBranchSPlaceholder, isBranchCPlaceholder, isExtension bool) Node {
+func prepareBranchNode(branch1, branch2, extensionS, extensionC []byte, key, driftedInd, branchC16, branchC1 byte, isBranchSPlaceholder, isBranchCPlaceholder, isExtension bool) Node {
 	extensionNode := ExtensionNode {
 		ListRlpBytes: []byte{},
 	}
@@ -267,6 +268,11 @@ func prepareBranchNode(branch1, branch2 []byte, key, driftedInd, branchC16, bran
 	values[0] = rows[1 + key]
 
 	keccakData := [][]byte{branch1, branch2}
+	if isExtension {
+		// TODO
+		// keccakData = append(keccakData, exte)
+		fmt.Println("extension")
+	}
 	node := Node {
 		ExtensionBranch: &extensionBranch,
 		Values: values,
@@ -351,6 +357,7 @@ func getDriftedPosition(leafKeyRow []byte, numberOfNibbles int) byte {
 // (used when one of the proofs have one branch more than the other).
 func addBranchAndPlaceholder(addr common.Address, rows *[][]byte, proof1, proof2,
 		extNibblesS, extNibblesC [][]byte,
+		extensionS, extensionC,
 		leafRow0, key, neighbourNode []byte,
 		keyIndex, extensionNodeInd int,
 		additionalBranch, isAccountProof, nonExistingAccountProof,
@@ -447,7 +454,8 @@ func addBranchAndPlaceholder(addr common.Address, rows *[][]byte, proof1, proof2
 		// into the new branch.
 		driftedInd := getDriftedPosition(leafRow0, numberOfNibbles)
 		
-		node = prepareBranchNode(proof1[len1-2], proof1[len1-2], key[keyIndex + numberOfNibbles], driftedInd,
+		node = prepareBranchNode(proof1[len1-2], proof1[len1-2], extensionS, extensionC,
+			key[keyIndex + numberOfNibbles], driftedInd,
 			branchC16, branchC1, false, true, isExtension)
 
 		if isExtension {
@@ -472,8 +480,9 @@ func addBranchAndPlaceholder(addr common.Address, rows *[][]byte, proof1, proof2
 		// into the new branch.
 		driftedInd := getDriftedPosition(leafRow0, numberOfNibbles)
 
-		node = prepareBranchNode(proof2[len2-2], proof2[len2-2], key[keyIndex + numberOfNibbles], driftedInd,
-				branchC16, branchC1, true, false, isExtension)
+		node = prepareBranchNode(proof2[len2-2], proof2[len2-2], extensionS, extensionC,
+			key[keyIndex + numberOfNibbles], driftedInd,
+			branchC16, branchC1, true, false, isExtension)
 
 		if isExtension {
 			setExtNodeSelectors(bRows[0], proof2[len2-3], numberOfNibbles, branchC16)	
