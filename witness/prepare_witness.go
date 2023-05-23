@@ -495,9 +495,9 @@ func convertProofToWitness(statedb *state.StateDB, addr common.Address, proof1, 
 			l := len(proof1)
 			var node Node
 			if isAccountProof {
-				node = prepareAccountLeafNode(addr, proof1[l-1], proof2[l-1], key, nonExistingAccountProof, false)
+				node = prepareAccountLeafNode(addr, proof1[l-1], proof2[l-1], nil, key, nonExistingAccountProof, false)
 			} else {
-				node = prepareStorageLeafNode(proof1[l-1], proof2[l-1], neighbourNode, key, nonExistingStorageProof, false, false)
+				node = prepareStorageLeafNode(proof1[l-1], proof2[l-1], nil, key, nonExistingStorageProof, false, false)
 			}
 
 			nodes = append(nodes, node)
@@ -558,23 +558,13 @@ func convertProofToWitness(statedb *state.StateDB, addr common.Address, proof1, 
 	
 	if len1 != len2 {
 		if additionalBranch {	
-			var leafRows [][]byte
-			var leafForHashing [][]byte
-			if isAccountProof {
-				leafRows, leafForHashing = prepareAccountLeaf(proof1[len1-1], proof2[len2-1], key, nonExistingAccountProof, false)
-				toBeHashed = append(toBeHashed, leafForHashing...)
-			} else {
-				leafRows, leafForHashing = prepareStorageLeaf(proof1[len1-1], key, nonExistingAccountProof)
-				toBeHashed = append(toBeHashed, leafForHashing...)
-			}
-
 			// To compute drifted position:
 			leafRow0 := proof1[len1-1]
 			if len1 > len2 {
 				leafRow0 = proof2[len2-1]
 			}
 			
-			isModifiedExtNode, isExtension, numberOfNibbles, branchC16, bNode := addBranchAndPlaceholder(addr, &rows, proof1, proof2, extNibblesS, extNibblesC,
+			isModifiedExtNode, _, numberOfNibbles, branchC16, bNode := addBranchAndPlaceholder(addr, &rows, proof1, proof2, extNibblesS, extNibblesC,
 				leafRow0, key, neighbourNode,
 				keyIndex, extensionNodeInd, additionalBranch,
 				isAccountProof, nonExistingAccountProof, isShorterProofLastLeaf, branchC16, branchC1, &toBeHashed)
@@ -582,12 +572,11 @@ func convertProofToWitness(statedb *state.StateDB, addr common.Address, proof1, 
 			nodes = append(nodes, bNode)
 
 			if isAccountProof {
-				addAccountLeafAfterBranchPlaceholder(&rows, proof1, proof2, leafRows, neighbourNode, key, nonExistingAccountProof, isModifiedExtNode, isExtension, numberOfNibbles, &toBeHashed)	
-				// TODO:
-				// node = prepareAccountLeafNode(addr, proof1[l-1], proof2[l-1], key, nonExistingAccountProof, false)
+				// addAccountLeafAfterBranchPlaceholder(&rows, proof1, proof2, leafRows, neighbourNode, key, nonExistingAccountProof, isModifiedExtNode, isExtension, numberOfNibbles, &toBeHashed)	
+				node := prepareAccountLeafNode(addr, proof1[len1-1], proof2[len2-1], neighbourNode, key, nonExistingAccountProof, false)
+				nodes = append(nodes, node)
 			} else {	
 				// addStorageLeafAfterBranchPlaceholder(&rows, proof1, proof2, leafRows, neighbourNode, key, nonExistingAccountProof, isModifiedExtNode, isExtension, numberOfNibbles, &toBeHashed)
-				// TODO:
 				node := prepareStorageLeafNode(proof1[len1-1], proof2[len2-1], neighbourNode, key, nonExistingStorageProof, false, false)
 				nodes = append(nodes, node)
 			}

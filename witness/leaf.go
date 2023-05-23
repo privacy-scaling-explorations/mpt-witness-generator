@@ -414,7 +414,7 @@ func prepareAccountLeafRows(leafS, leafC, addressNibbles []byte, nonExistingAcco
 	return keyRowS, keyRowC, nonExistingAccountRow, nonceBalanceRowS, nonceBalanceRowC, storageCodeHashRowS, storageCodeHashRowC
 }
 
-func prepareAccountLeafNode(addr common.Address, leafS, leafC, addressNibbles []byte, nonExistingAccountProof, noLeaf bool) Node {	
+func prepareAccountLeafNode(addr common.Address, leafS, leafC, neighbourNode, addressNibbles []byte, nonExistingAccountProof, noLeaf bool) Node {	
 	// For non existing account proof there are two cases:
 	// 1. A leaf is returned that is not at the required address (wrong leaf).
 	// 2. A branch is returned as the last element of getProof and
@@ -450,6 +450,12 @@ func prepareAccountLeafNode(addr common.Address, leafS, leafC, addressNibbles []
 	var valueListRlpBytes [2][]byte
 	valueListRlpBytes[0] = make([]byte, 2)
 	valueListRlpBytes[1] = make([]byte, 2)
+
+	driftedRlpBytes := []byte{0}
+	keyDrifted := make([]byte, valueLen)
+	if neighbourNode != nil {
+		keyDrifted, _, driftedRlpBytes, _ = prepareStorageLeafInfo(neighbourNode, false, false)
+	}
 
 	wrongValue := make([]byte, valueLen)
 	wrongRlpBytes := make([]byte, 2)
@@ -559,8 +565,7 @@ func prepareAccountLeafNode(addr common.Address, leafS, leafC, addressNibbles []
 	values[AccountBalanceC] = balanceValueC
 	values[AccountStorageC] = storageRootValueC
 	values[AccountCodehashC] = codeHashValueC
-	// TODO: values[AccountDrifted] is to be set in later functions
-	values[AccountDrifted] = make([]byte, valueLen)
+	values[AccountDrifted] = keyDrifted
 	values[AccountWrong] = wrongValue
 
 	leaf := AccountNode {
@@ -568,9 +573,13 @@ func prepareAccountLeafNode(addr common.Address, leafS, leafC, addressNibbles []
 		ListRlpBytes: listRlpBytes,
 		ValueRlpBytes: valueRlpBytes,
 		ValueListRlpBytes: valueListRlpBytes,
+		DriftedRlpBytes: driftedRlpBytes,
 		WrongRlpBytes: wrongRlpBytes,
 	}
 	keccakData := [][]byte{leafS, leafC}
+	if neighbourNode != nil {
+		keccakData = append(keccakData, neighbourNode)
+	}
 	node := Node {
 		Account: &leaf,
 		Values: values,
@@ -608,7 +617,7 @@ func prepareLeafAndPlaceholderNode(addr common.Address, proof1, proof2 [][]byte,
 
 		// When generating a proof that account doesn't exist, the length of both proofs is the same (doesn't reach
 		// this code).
-		return prepareAccountLeafNode(addr, leafS, leafC, key, nonExistingAccountProof, false)
+		return prepareAccountLeafNode(addr, leafS, leafC, nil, key, nonExistingAccountProof, false)
 	} else {
 		var leaf []byte
 		isSPlaceholder := false
