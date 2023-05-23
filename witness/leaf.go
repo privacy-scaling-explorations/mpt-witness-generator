@@ -622,7 +622,7 @@ func prepareLeafAndPlaceholderNode(addr common.Address, proof1, proof2 [][]byte,
 			isSPlaceholder = true
 		}
 
-		return prepareStorageLeafNode(leaf, leaf, key, false, isSPlaceholder, isCPlaceholder)
+		return prepareStorageLeafNode(leaf, leaf, nil, key, false, isSPlaceholder, isCPlaceholder)
 	}
 }
 
@@ -928,7 +928,7 @@ func prepareStorageLeafInfo(row []byte, valueIsZero, isPlaceholder bool) ([]byte
 	return key, value, keyRlp, valueRlp
 }
 
-func prepareStorageLeafNode(leafS, leafC []byte, key []byte, nonExistingStorageProof, isSPlaceholder, isCPlaceholder bool) Node {
+func prepareStorageLeafNode(leafS, leafC, neighbourNode []byte, key []byte, nonExistingStorageProof, isSPlaceholder, isCPlaceholder bool) Node {
 	var rows [][]byte
 
 	keyS, valueS, listRlpBytes1, valueRlpBytes1 := prepareStorageLeafInfo(leafS, false, isSPlaceholder)
@@ -949,17 +949,12 @@ func prepareStorageLeafNode(leafS, leafC []byte, key []byte, nonExistingStorageP
 	valueRlpBytes[0] = valueRlpBytes1
 	valueRlpBytes[1] = valueRlpBytes2
 
-	pRows := prepareDriftedLeafPlaceholder(false)
-
-	driftedRlpLen := 1 // TODO
-	driftedRlpBytes := make([]byte, driftedRlpLen)
-	for i := 0; i < driftedRlpLen; i++ {
-		driftedRlpBytes[i] = pRows[0][i]
+	driftedRlpBytes := []byte{0}
+	keyDrifted := make([]byte, valueLen)
+	if neighbourNode != nil {
+		keyDrifted, _, driftedRlpBytes, _ = prepareStorageLeafInfo(neighbourNode, false, false)
 	}
-
-	// TODO:
-	driftedRow := pRows[0][driftedRlpLen:]
-	rows = append(rows, driftedRow)
+	rows = append(rows, keyDrifted)
 
 	var nonExistingStorageRow []byte
 	if nonExistingStorageProof {
@@ -977,7 +972,8 @@ func prepareStorageLeafNode(leafS, leafC []byte, key []byte, nonExistingStorageP
 	}
 
 	// TODO
-	nonExistingStorageRow = nonExistingStorageRow[driftedRlpLen:]
+	nonExistingRlpLen := 1
+	nonExistingStorageRow = nonExistingStorageRow[nonExistingRlpLen:]
 	rows = append(rows, nonExistingStorageRow)	
 
 	leaf := StorageNode {
@@ -987,6 +983,9 @@ func prepareStorageLeafNode(leafS, leafC []byte, key []byte, nonExistingStorageP
 		ValueRlpBytes: valueRlpBytes,
 	}
 	keccakData := [][]byte{leafS, leafC}
+	if neighbourNode != nil {
+		keccakData = append(keccakData, neighbourNode)
+	}
 	node := Node {
 		Values: rows,
 		Storage: &leaf,

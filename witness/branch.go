@@ -447,7 +447,8 @@ func addBranchAndPlaceholder(addr common.Address, rows *[][]byte, proof1, proof2
 		// into the new branch.
 		driftedInd := getDriftedPosition(leafRow0, numberOfNibbles)
 		
-		node = prepareBranchNode(proof1[len1-2], proof1[len1-2], key[keyIndex + numberOfNibbles], driftedInd, branchC16, branchC1, false, false, isExtension)
+		node = prepareBranchNode(proof1[len1-2], proof1[len1-2], key[keyIndex + numberOfNibbles], driftedInd,
+			branchC16, branchC1, false, true, isExtension)
 
 		if isExtension {
 			setExtNodeSelectors(bRows[0], proof1[len1-3], numberOfNibbles, branchC16)
@@ -472,7 +473,7 @@ func addBranchAndPlaceholder(addr common.Address, rows *[][]byte, proof1, proof2
 		driftedInd := getDriftedPosition(leafRow0, numberOfNibbles)
 
 		node = prepareBranchNode(proof2[len2-2], proof2[len2-2], key[keyIndex + numberOfNibbles], driftedInd,
-				branchC16, branchC1, false, false, isExtension)
+				branchC16, branchC1, true, false, isExtension)
 
 		if isExtension {
 			setExtNodeSelectors(bRows[0], proof2[len2-3], numberOfNibbles, branchC16)	

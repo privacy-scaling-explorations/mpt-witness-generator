@@ -497,7 +497,7 @@ func convertProofToWitness(statedb *state.StateDB, addr common.Address, proof1, 
 			if isAccountProof {
 				node = prepareAccountLeafNode(addr, proof1[l-1], proof2[l-1], key, nonExistingAccountProof, false)
 			} else {
-				node = prepareStorageLeafNode(proof1[l-1], proof2[l-1], key, nonExistingStorageProof, false, false)
+				node = prepareStorageLeafNode(proof1[l-1], proof2[l-1], neighbourNode, key, nonExistingStorageProof, false, false)
 			}
 
 			nodes = append(nodes, node)
@@ -586,9 +586,10 @@ func convertProofToWitness(statedb *state.StateDB, addr common.Address, proof1, 
 				// TODO:
 				// node = prepareAccountLeafNode(addr, proof1[l-1], proof2[l-1], key, nonExistingAccountProof, false)
 			} else {	
-				addStorageLeafAfterBranchPlaceholder(&rows, proof1, proof2, leafRows, neighbourNode, key, nonExistingAccountProof, isModifiedExtNode, isExtension, numberOfNibbles, &toBeHashed)
+				// addStorageLeafAfterBranchPlaceholder(&rows, proof1, proof2, leafRows, neighbourNode, key, nonExistingAccountProof, isModifiedExtNode, isExtension, numberOfNibbles, &toBeHashed)
 				// TODO:
-				// node = prepareStorageLeafNode(proof1[l-1], proof2[l-1], key, nonExistingStorageProof, false, false)
+				node := prepareStorageLeafNode(proof1[len1-1], proof2[len2-1], neighbourNode, key, nonExistingStorageProof, false, false)
+				nodes = append(nodes, node)
 			}
 
 			// When a proof element is a modified extension node (new extension node appears at the position
