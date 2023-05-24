@@ -478,6 +478,9 @@ func convertProofToWitness(statedb *state.StateDB, addr common.Address, proof1, 
 	var extensionRowC []byte
 	extensionNodeInd := 0
 
+	var extListRlpBytes []byte
+	var extValues [][]byte
+
 	var nodes []Node
 
 	branchC16 := byte(0); 
@@ -486,7 +489,12 @@ func convertProofToWitness(statedb *state.StateDB, addr common.Address, proof1, 
 		if !isBranch(proof1[i]) {
 			if i != len1 - 1 { // extension node
 				var numberOfNibbles byte
+				
+				// TODO: remove
 				numberOfNibbles, extensionRowS, extensionRowC = prepareExtensionRows(extNibblesS, extensionNodeInd, proof1[i], proof2[i], false, false)
+
+				extListRlpBytes, extValues = prepareExtensions(extNibblesS, extensionNodeInd, proof1[i], proof1[i], false, false)
+
 				keyIndex += int(numberOfNibbles)
 				extensionNodeInd++
 				continue
@@ -526,7 +534,12 @@ func convertProofToWitness(statedb *state.StateDB, addr common.Address, proof1, 
 			// TODO: remove prepareTwoBranches
 			bRows := prepareTwoBranches(proof1[i], proof2[i], key[keyIndex], branchC16, branchC1, false, false)
 
-			bNode := prepareBranchNode(proof1[i], proof2[i], extensionRowS, extensionRowC,
+			var extNode []byte = nil
+			if extensionRowS != nil {
+				extNode = proof1[i-1]
+			}
+
+			bNode := prepareBranchNode(proof1[i], proof2[i], extNode, extListRlpBytes, extValues,
 				key[keyIndex], key[keyIndex], branchC16, branchC1, false, false, extensionRowS != nil)
 			nodes = append(nodes, bNode)
 
@@ -565,7 +578,7 @@ func convertProofToWitness(statedb *state.StateDB, addr common.Address, proof1, 
 			}
 			
 			isModifiedExtNode, _, numberOfNibbles, branchC16, bNode := addBranchAndPlaceholder(addr, &rows, proof1, proof2, extNibblesS, extNibblesC,
-				extensionRowS, extensionRowC, leafRow0, key, neighbourNode,
+				leafRow0, key, neighbourNode,
 				keyIndex, extensionNodeInd, additionalBranch,
 				isAccountProof, nonExistingAccountProof, isShorterProofLastLeaf, branchC16, branchC1, &toBeHashed)
 

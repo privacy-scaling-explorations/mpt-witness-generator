@@ -1,7 +1,6 @@
 package witness
 
 import (
-	"fmt"
 	"log"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -201,9 +200,10 @@ func prepareTwoBranches(branch1, branch2 []byte, key, branchC16, branchC1 byte, 
 	return rows
 }
 
-func prepareBranchNode(branch1, branch2, extensionS, extensionC []byte, key, driftedInd, branchC16, branchC1 byte, isBranchSPlaceholder, isBranchCPlaceholder, isExtension bool) Node {
+func prepareBranchNode(branch1, branch2, extNode, extListRlpBytes []byte, extValues [][]byte, key, driftedInd,
+	branchC16, branchC1 byte, isBranchSPlaceholder, isBranchCPlaceholder, isExtension bool) Node {
 	extensionNode := ExtensionNode {
-		ListRlpBytes: []byte{},
+		ListRlpBytes: extListRlpBytes,
 	}
 
 	var listRlpBytes [2][]byte
@@ -267,11 +267,11 @@ func prepareBranchNode(branch1, branch2, extensionS, extensionC []byte, key, dri
 	prepareBranchWitness(rows, branch2, 0, branch2RLPOffset)
 	values[0] = rows[1 + key]
 
+	values = append(values, extValues...)
+
 	keccakData := [][]byte{branch1, branch2}
 	if isExtension {
-		// TODO
-		// keccakData = append(keccakData, exte)
-		fmt.Println("extension")
+		keccakData = append(keccakData, extNode)
 	}
 	node := Node {
 		ExtensionBranch: &extensionBranch,
@@ -357,7 +357,6 @@ func getDriftedPosition(leafKeyRow []byte, numberOfNibbles int) byte {
 // (used when one of the proofs have one branch more than the other).
 func addBranchAndPlaceholder(addr common.Address, rows *[][]byte, proof1, proof2,
 		extNibblesS, extNibblesC [][]byte,
-		extensionS, extensionC,
 		leafRow0, key, neighbourNode []byte,
 		keyIndex, extensionNodeInd int,
 		additionalBranch, isAccountProof, nonExistingAccountProof,
@@ -369,6 +368,11 @@ func addBranchAndPlaceholder(addr common.Address, rows *[][]byte, proof1, proof2
 
 	numberOfNibbles := 0
 	var extRows [][]byte
+	var extensionRowS []byte
+	var extensionRowC []byte
+	var extListRlpBytes []byte
+	var extValues [][]byte
+
 	isExtension := (len1 == len2 + 2) || (len2 == len1 + 2)
 	if !isExtension {
 		extRows = prepareEmptyExtensionRows(false, false)
@@ -381,14 +385,18 @@ func addBranchAndPlaceholder(addr common.Address, rows *[][]byte, proof1, proof2
 		}
 	} else {
 		var numNibbles byte
-		var extensionRowS []byte
-		var extensionRowC []byte
 		if len1 > len2 {
+			// TODO: remove
 			numNibbles, extensionRowS, extensionRowC =
 				prepareExtensionRows(extNibblesS, extensionNodeInd, proof1[len1 - 3], proof1[len1 - 3], false, false)
+
+			extListRlpBytes, extValues = prepareExtensions(extNibblesS, extensionNodeInd, proof1[len1 - 3], proof1[len1 - 3], false, false)
 		} else {
+			// TODO: remove
 			numNibbles, extensionRowS, extensionRowC =
 				prepareExtensionRows(extNibblesC, extensionNodeInd, proof2[len2 - 3], proof2[len2 - 3], false, false)
+
+			extListRlpBytes, extValues = prepareExtensions(extNibblesC, extensionNodeInd, proof2[len2 - 3], proof2[len2 - 3], false, false)
 		}
 		numberOfNibbles = int(numNibbles)
 		extRows = append(extRows, extensionRowS)
@@ -454,7 +462,7 @@ func addBranchAndPlaceholder(addr common.Address, rows *[][]byte, proof1, proof2
 		// into the new branch.
 		driftedInd := getDriftedPosition(leafRow0, numberOfNibbles)
 		
-		node = prepareBranchNode(proof1[len1-2], proof1[len1-2], extensionS, extensionC,
+		node = prepareBranchNode(proof1[len1-2], proof1[len1-2], proof1[len1-3], extListRlpBytes, extValues,
 			key[keyIndex + numberOfNibbles], driftedInd,
 			branchC16, branchC1, false, true, isExtension)
 
@@ -480,7 +488,7 @@ func addBranchAndPlaceholder(addr common.Address, rows *[][]byte, proof1, proof2
 		// into the new branch.
 		driftedInd := getDriftedPosition(leafRow0, numberOfNibbles)
 
-		node = prepareBranchNode(proof2[len2-2], proof2[len2-2], extensionS, extensionC,
+		node = prepareBranchNode(proof2[len2-2], proof2[len2-2], proof2[len2-3], extListRlpBytes, extValues,
 			key[keyIndex + numberOfNibbles], driftedInd,
 			branchC16, branchC1, true, false, isExtension)
 
