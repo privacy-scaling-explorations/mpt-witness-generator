@@ -904,9 +904,11 @@ func prepareStorageLeafInfo(row []byte, valueIsZero, isPlaceholder bool) ([]byte
 			valueRlpLen = 1
 			// If placeholder, we leave the value to be 0.
 			if !isPlaceholder {
+				/*
 				if row[0] - 192 - 1 > 1 {
 					valueRlpLen = 2
 				}
+				*/
 				valueRlp = row[2:2+valueRlpLen]
 				copy(value, row[2+valueRlpLen:])
 			} else {
@@ -921,9 +923,11 @@ func prepareStorageLeafInfo(row []byte, valueIsZero, isPlaceholder bool) ([]byte
 			valueRlpLen = 1
 			// If placeholder, we leave the value to be 0.
 			if !isPlaceholder {
+				/*
 				if row[0] - 192 - keyLen - 1 > 1 {
 					valueRlpLen = 2
 				}
+				*/
 				valueRlp = row[keyLen+2:keyLen+2+valueRlpLen]
 				if !valueIsZero {
 					copy(value, row[keyLen+2+valueRlpLen:]) // value starts in s_rlp1
