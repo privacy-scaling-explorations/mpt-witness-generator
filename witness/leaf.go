@@ -542,14 +542,14 @@ func prepareAccountLeafNode(addr common.Address, leafS, leafC, neighbourNode, ad
 		valueRlpBytes[0][0] = leafS[3+keyLenS]
 		valueRlpBytes[0][1] = leafS[3+keyLenS+1]
 
-		valueRlpBytes[1][0] = leafC[3+keyLenS]
-		valueRlpBytes[1][1] = leafC[3+keyLenS+1]
+		valueRlpBytes[1][0] = leafC[3+keyLenC]
+		valueRlpBytes[1][1] = leafC[3+keyLenC+1]
 
 		valueListRlpBytes[0][0] = leafS[3+keyLenS+1+1]
 		valueListRlpBytes[0][1] = leafS[3+keyLenS+1+1+1]
 
-		valueListRlpBytes[1][0] = leafC[3+keyLenS+1+1]
-		valueListRlpBytes[1][1] = leafC[3+keyLenS+1+1+1]
+		valueListRlpBytes[1][0] = leafC[3+keyLenC+1+1]
+		valueListRlpBytes[1][1] = leafC[3+keyLenC+1+1+1]
 
 		storageRootValueS, codeHashValueS = getStorageRootCodeHashValue(leafS, storageStartS)
 		storageRootValueC, codeHashValueC = getStorageRootCodeHashValue(leafC, storageStartC)
@@ -908,7 +908,7 @@ func prepareStorageLeafInfo(row []byte, valueIsZero, isPlaceholder bool) ([]byte
 				if row[0] - 192 - 1 > 1 {
 					valueRlpLen = 2
 				}
-				*/
+				*/	
 				valueRlp = row[2:2+valueRlpLen]
 				copy(value, row[2+valueRlpLen:])
 			} else {
