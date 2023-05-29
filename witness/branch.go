@@ -200,7 +200,7 @@ func prepareTwoBranches(branch1, branch2 []byte, key, branchC16, branchC1 byte, 
 	return rows
 }
 
-func prepareBranchNode(branch1, branch2, extNode, extListRlpBytes []byte, extValues [][]byte, key, driftedInd,
+func prepareBranchNode(branch1, branch2, extNode1, extNode2, extListRlpBytes []byte, extValues [][]byte, key, driftedInd,
 	branchC16, branchC1 byte, isBranchSPlaceholder, isBranchCPlaceholder, isExtension bool) Node {
 	extensionNode := ExtensionNode {
 		ListRlpBytes: extListRlpBytes,
@@ -254,12 +254,13 @@ func prepareBranchNode(branch1, branch2, extNode, extListRlpBytes []byte, extVal
 		Branch: branchNode,
 	}
 
-	values := make([][]byte, 21)
+	values := make([][]byte, 17)
 	for i := 0; i < len(values); i++ {
 		values[i] = make([]byte, valueLen)
 	}
 	prepareBranchWitness(values, branch1, 0, branch1RLPOffset)
 
+	// Just to get the modified child:
 	rows := make([][]byte, 17)
 	for i := 0; i < len(rows); i++ {
 		rows[i] = make([]byte, valueLen)
@@ -271,7 +272,8 @@ func prepareBranchNode(branch1, branch2, extNode, extListRlpBytes []byte, extVal
 
 	keccakData := [][]byte{branch1, branch2}
 	if isExtension {
-		keccakData = append(keccakData, extNode)
+		keccakData = append(keccakData, extNode1)
+		keccakData = append(keccakData, extNode2)
 	}
 	node := Node {
 		ExtensionBranch: &extensionBranch,
@@ -462,7 +464,7 @@ func addBranchAndPlaceholder(addr common.Address, rows *[][]byte, proof1, proof2
 		// into the new branch.
 		driftedInd := getDriftedPosition(leafRow0, numberOfNibbles)
 		
-		node = prepareBranchNode(proof1[len1-2], proof1[len1-2], proof1[len1-3], extListRlpBytes, extValues,
+		node = prepareBranchNode(proof1[len1-2], proof1[len1-2], proof1[len1-3], proof1[len1-3], extListRlpBytes, extValues,
 			key[keyIndex + numberOfNibbles], driftedInd,
 			branchC16, branchC1, false, true, isExtension)
 
@@ -488,7 +490,7 @@ func addBranchAndPlaceholder(addr common.Address, rows *[][]byte, proof1, proof2
 		// into the new branch.
 		driftedInd := getDriftedPosition(leafRow0, numberOfNibbles)
 
-		node = prepareBranchNode(proof2[len2-2], proof2[len2-2], proof2[len2-3], extListRlpBytes, extValues,
+		node = prepareBranchNode(proof2[len2-2], proof2[len2-2], proof2[len2-3], proof2[len2-3], extListRlpBytes, extValues,
 			key[keyIndex + numberOfNibbles], driftedInd,
 			branchC16, branchC1, true, false, isExtension)
 
