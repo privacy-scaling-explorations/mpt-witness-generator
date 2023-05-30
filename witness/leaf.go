@@ -985,9 +985,10 @@ func prepareStorageLeafNode(leafS, leafC, neighbourNode []byte, key []byte, nonE
 
 	var nonExistingStorageRow []byte
 	if nonExistingStorageProof {
-		cKeyRow := rows[len(rows) - 3]
 		noLeaf := false
-		nonExistingStorageRow = prepareNonExistingStorageRow(cKeyRow, key, noLeaf)
+		// cKeyRow := rows[len(rows) - 3]
+		// cKeyRow = append(listRlpBytes2, cKeyRow...)
+		nonExistingStorageRow = prepareNonExistingStorageRow(leafC, key, noLeaf)
 	} else {
 		nonExistingStorageRow = prepareEmptyNonExistingStorageRow()
 	}
