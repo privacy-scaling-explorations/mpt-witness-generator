@@ -102,6 +102,8 @@ func prepareExtensions(extNibbles[][]byte, extensionNodeInd int, proofEl1, proof
 	listRlpBytes := prepareExtension(v1, v2, proofEl1, true)
 	prepareExtension(v3, v4, proofEl2, false)
 
+	/*
+	TODO
 	evenNumberOfNibbles := proofEl1[2] == 0
 	keyLen := getExtensionNodeKeyLen(proofEl1)
 	// numberOfNibbles := getExtensionNumberOfNibbles(proofEl1)
@@ -112,6 +114,7 @@ func prepareExtensions(extNibbles[][]byte, extensionNodeInd int, proofEl1, proof
 	// There can be more up to 64 nibbles, but there is only 32 bytes
 	// in extensionRowC s_advices. So we store every second nibble (having
 	// the whole byte and one nibble is enough to compute the other nibble).
+
 	startNibblePos := 2 // we don't need any nibbles for case keyLen = 1
 	if keyLen > 1 {
 		if evenNumberOfNibbles {
@@ -126,6 +129,7 @@ func prepareExtensions(extNibbles[][]byte, extensionNodeInd int, proofEl1, proof
 			extNibbles[extensionNodeInd][j]
 		ind++
 	}
+	*/
 	values = append(values, v1)
 	values = append(values, v2)
 	values = append(values, v3)
@@ -309,6 +313,12 @@ func prepareExtension(v1, v2, proofEl []byte, setKey bool) []byte {
 	listRlpBytes = append(listRlpBytes, proofEl[0])
 
 	lenKey, startKey := getExtensionLenStartKey(proofEl)
+	if lenKey != 1 {
+		// The descriptor now contains the key length RLP in value row:
+		startKey = startKey - 1
+		lenKey = lenKey + 1
+	}
+	
 	// TODO
 	if startKey == 3 {
 		listRlpBytes = append(listRlpBytes, proofEl[1])
