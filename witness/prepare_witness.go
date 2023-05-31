@@ -1,7 +1,6 @@
 package witness
 
 import (
-	"fmt"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -269,11 +268,7 @@ func obtainAccountProofAndConvertToWitness(i int, tMod TrieModification, tModsLe
 	_, _, nodesAccount, _ :=
 		convertProofToWitness(statedb, addr, accountProof, accountProof1, aExtNibbles1, aExtNibbles2, accountAddr, aNode, true, tMod.Type == NonExistingAccount, false, isShorterProofLastLeaf)
 	nodes = append(nodes, nodesAccount...)
-	
 	nodes = append(nodes, GetEndNode())
-
-	// TODO: remove finalizeProof
-	// proof := finalizeProof(i, rowsState, addrh, sRoot, cRoot, startRoot, finalRoot, tMod.Type)
 
 	return nodes
 }
@@ -284,11 +279,6 @@ func obtainAccountProofAndConvertToWitness(i int, tMod TrieModification, tModsLe
 // the previous witness is the same as the start root of the current witness.
 func obtainTwoProofsAndConvertToWitness(trieModifications []TrieModification, statedb *state.StateDB, specialTest byte) []Node {
 	statedb.IntermediateRoot(false)
-	allProofs := [][]byte{}
-	toBeHashed := [][]byte{}	
-	var startRoot common.Hash
-	var finalRoot common.Hash
-
 	var nodes []Node
 
 	for i := 0; i < len(trieModifications); i++ {
@@ -317,9 +307,6 @@ func obtainTwoProofsAndConvertToWitness(trieModifications []TrieModification, st
 			check(err)
 
 			sRoot := statedb.GetTrie().Hash()
-			if i == 0 {
-				startRoot = sRoot
-			}
 
 			if tMod.Type == StorageMod {
 				statedb.SetState(addr, tMod.Key, tMod.Value)
@@ -327,9 +314,6 @@ func obtainTwoProofsAndConvertToWitness(trieModifications []TrieModification, st
 			}
 
 			cRoot := statedb.GetTrie().Hash()
-			if i == len(trieModifications)-1 {
-				finalRoot = cRoot
-			}
 
 			proofType := "StorageChanged"
 			if tMod.Type == NonExistingStorage {
@@ -367,27 +351,14 @@ func obtainTwoProofsAndConvertToWitness(trieModifications []TrieModification, st
 				accountProof, accountProof1, sRoot, cRoot = modifyAccountSpecialEmptyTrie(addrh, accountProof1[len(accountProof1)-1])
 			}
 			
-			rowsState, toBeHashedAcc, nodesAccount, _ :=
+			// TODO: remove _
+			_, _, nodesAccount, _ :=
 				convertProofToWitness(statedb, addr, accountProof, accountProof1, aExtNibbles1, aExtNibbles2, accountAddr, aNode, true, tMod.Type == NonExistingAccount, false, aIsLastLeaf)
 			nodes = append(nodes, nodesAccount...)
-			rowsStorage, toBeHashedStorage, nodesStorage, _ :=
+			_, _, nodesStorage, _ :=
 				convertProofToWitness(statedb, addr, storageProof, storageProof1, extNibbles1, extNibbles2, keyHashed, node, false, false, tMod.Type == NonExistingStorage, isLastLeaf)
 			nodes = append(nodes, nodesStorage...)
-
 			nodes = append(nodes, GetEndNode())
-
-			fmt.Println("=========")
-			fmt.Println(nodes)
-	
-			rowsState = append(rowsState, rowsStorage...)
-	
-			proof := finalizeProof(i, rowsState, addrh, sRoot, cRoot, startRoot, finalRoot, tMod.Type)
-			allProofs = append(allProofs, proof...)
-			
-			// Put rows that just need to be hashed at the end, because circuit assign function
-			// relies on index (for example when assigning s_keccak and c_keccak).
-			toBeHashed = append(toBeHashed, toBeHashedAcc...)
-			toBeHashed = append(toBeHashed, toBeHashedStorage...)
 		} else {
 			nodes = obtainAccountProofAndConvertToWitness(i, tMod, len(trieModifications), statedb, specialTest)
 		}
