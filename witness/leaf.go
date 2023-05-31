@@ -116,42 +116,41 @@ func prepareEmptyNonExistingStorageRow() []byte {
 	return nonExistingStorageRow
 }
 
-func prepareNonExistingStorageRow(leafC, keyNibbles []byte, noLeaf bool) []byte {	
+func prepareNonExistingStorageRow(leafC, keyNibbles []byte, noLeaf bool) ([]byte, []byte) {	
 	// nonExistingStorageRow is used only for proof that nothing is stored at a particular storage key
 	nonExistingStorageRow := prepareEmptyNonExistingStorageRow()
 	
+	var wrongRlpBytes []byte
+	wrongRlpBytes = append(wrongRlpBytes, leafC[0])
 	start := 2
 	if leafC[0] == 248 {
 		start = 3
+		wrongRlpBytes = append(wrongRlpBytes, leafC[1])
 	}
 	keyLenC := int(leafC[start-1]) - 128
 	keyRowC := make([]byte, valueLen)
-	for i := 0; i < start+keyLenC; i++ {
-		keyRowC[i] = leafC[i]
+	for i := 0; i < keyLenC; i++ {
+		keyRowC[i] = leafC[start - 1 + i]
 	}
 
 	offset := 0	
 	nibblesNum := (keyLenC - 1) * 2
 
-	nonExistingStorageRow[0] = leafC[0]
-	nonExistingStorageRow[1] = leafC[1]
-	if start == 3 {
-		nonExistingStorageRow[2] = leafC[2]
-	}
-	if keyRowC[start] != 32 { // odd number of nibbles
+	nonExistingStorageRow[0] = leafC[start - 1]
+	if keyRowC[1] != 32 { // odd number of nibbles
 		nibblesNum = nibblesNum + 1
-		nonExistingStorageRow[start] = keyNibbles[64 - nibblesNum] + 48 
+		nonExistingStorageRow[1] = keyNibbles[64 - nibblesNum] + 48 
 		offset = 1
 	} else {
-		nonExistingStorageRow[start] = 32
+		nonExistingStorageRow[1] = 32
 	}
 	// Get the last nibblesNum of address:
 	remainingNibbles := keyNibbles[64 - nibblesNum:64] // exclude the last one as it is not a nibble
 	for i := 0; i < keyLenC-1; i++ {
-		nonExistingStorageRow[start+1+i] = remainingNibbles[2*i + offset] * 16 + remainingNibbles[2*i+1 + offset]
+		nonExistingStorageRow[2+i] = remainingNibbles[2*i + offset] * 16 + remainingNibbles[2*i+1 + offset]
 	}
 
-	return nonExistingStorageRow
+	return wrongRlpBytes, nonExistingStorageRow
 }
 
 // getNonceBalanceRow takes GetProof account leaf and prepares a row that contains nonce and balance.
@@ -984,24 +983,13 @@ func prepareStorageLeafNode(leafS, leafC, neighbourNode []byte, key []byte, nonE
 	rows = append(rows, keyDrifted)
 
 	var nonExistingStorageRow []byte
+	var wrongRlpBytes []byte
 	if nonExistingStorageProof {
 		noLeaf := false
-		// cKeyRow := rows[len(rows) - 3]
-		// cKeyRow = append(listRlpBytes2, cKeyRow...)
-		nonExistingStorageRow = prepareNonExistingStorageRow(leafC, key, noLeaf)
+		wrongRlpBytes, nonExistingStorageRow = prepareNonExistingStorageRow(leafC, key, noLeaf)
 	} else {
 		nonExistingStorageRow = prepareEmptyNonExistingStorageRow()
 	}
-	
-	wrongRlpLen := 1 // TODO
-	wrongRlpBytes := make([]byte, wrongRlpLen)
-	for i := 0; i < wrongRlpLen; i++ {
-		wrongRlpBytes[i] = nonExistingStorageRow[i]
-	}
-
-	// TODO
-	nonExistingRlpLen := 1
-	nonExistingStorageRow = nonExistingStorageRow[nonExistingRlpLen:]
 	rows = append(rows, nonExistingStorageRow)	
 
 	leaf := StorageNode {
