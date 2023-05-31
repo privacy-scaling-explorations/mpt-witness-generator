@@ -111,7 +111,6 @@ func prepareStorageLeafRows(row []byte, typ byte, valueIsZero bool) ([][]byte, [
 func prepareEmptyNonExistingStorageRow() []byte {	
 	// nonExistingStorageRow is used only for proof that nothing is stored at a particular storage key
 	nonExistingStorageRow := make([]byte, valueLen)
-	nonExistingStorageRow[0] = 228
 
 	return nonExistingStorageRow
 }
