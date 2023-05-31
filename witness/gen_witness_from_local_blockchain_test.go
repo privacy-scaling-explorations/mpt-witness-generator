@@ -21,6 +21,7 @@ func TestNonExistingAccountNilObjectInFirstLevel(t *testing.T) {
 
 	i := 21
 	h := fmt.Sprintf("0x%d", i)
+	// There is one branch in the state trie, but at this address there is only a nil object:
 	addr := common.HexToAddress(h)
 
 	trieMod := TrieModification{
@@ -497,6 +498,7 @@ func TestStorageInFirstLevelNonExistingLong(t *testing.T) {
 	oracle.NodeUrl = oracle.RemoteUrl
 }
 
+/*
 func ExtNodeInserted(key1, key2, key3 common.Hash, testName string) {
 	// until infura is back up:
 	oracle.NodeUrl = oracle.LocalUrl
@@ -789,3 +791,4 @@ func TestExtNodeDeletedExtShortIsBranchFirstLevel(t *testing.T) {
 
 	ExtNodeDeleted(key1, key2, key3, "ExtNodeInsertedExtShortIsBranchFirstLevel")	
 }
+*/

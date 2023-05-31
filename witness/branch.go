@@ -453,6 +453,16 @@ func addBranchAndPlaceholder(addr common.Address, rows *[][]byte, proof1, proof2
 		longExtNode = proof1[len1 - 1]
 	}
 
+	// TODO: fix
+	var extNode []byte
+	if isExtension {
+		if len1 > len2 {
+			extNode = proof1[len1 - 3]
+		} else {
+			extNode = proof2[len2 - 3]
+		}
+	}
+
 	// Note that isModifiedExtNode happens also when we have a branch instead of shortExtNode
 	isModifiedExtNode := !isBranch(longExtNode) && !isShorterProofLastLeaf
 
@@ -464,11 +474,12 @@ func addBranchAndPlaceholder(addr common.Address, rows *[][]byte, proof1, proof2
 		// into the new branch.
 		driftedInd := getDriftedPosition(leafRow0, numberOfNibbles)
 		
-		node = prepareBranchNode(proof1[len1-2], proof1[len1-2], proof1[len1-3], proof1[len1-3], extListRlpBytes, extValues,
+		node = prepareBranchNode(proof1[len1-2], proof1[len1-2], extNode, extNode, extListRlpBytes, extValues,
 			key[keyIndex + numberOfNibbles], driftedInd,
 			branchC16, branchC1, false, true, isExtension)
 
 		if isExtension {
+			// TODO: remove
 			setExtNodeSelectors(bRows[0], proof1[len1-3], numberOfNibbles, branchC16)
 		}
 		if isModifiedExtNode {
@@ -490,7 +501,7 @@ func addBranchAndPlaceholder(addr common.Address, rows *[][]byte, proof1, proof2
 		// into the new branch.
 		driftedInd := getDriftedPosition(leafRow0, numberOfNibbles)
 
-		node = prepareBranchNode(proof2[len2-2], proof2[len2-2], proof2[len2-3], proof2[len2-3], extListRlpBytes, extValues,
+		node = prepareBranchNode(proof2[len2-2], proof2[len2-2], extNode, extNode, extListRlpBytes, extValues,
 			key[keyIndex + numberOfNibbles], driftedInd,
 			branchC16, branchC1, true, false, isExtension)
 

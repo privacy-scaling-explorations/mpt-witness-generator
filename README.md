@@ -79,13 +79,25 @@ go test gen_witness_from_infura_blockchain_test.go prepare_witness.go leaf.go ex
 
 to generate the tests that use Infura blockchain.
 
-Execute
+To generate the tests that use a local blockchain you need a local `geth`. You would
+need to run something like:
+```
+geth --dev --http --ipcpath ~/Library/Ethereum/geth.ipc
+
+```
+The local `geth` is used to generate some tests that have a small number of accounts so that
+these accounts appear in the first or second level of the trie. You might need to remove the
+database if you already have some accounts:
+
+```
+geth removedb
+```
+
+And to generate the tests:
 
 ```
 go test gen_witness_from_local_blockchain_test.go prepare_witness.go leaf.go extension_node.go modified_extension_node.go nodes.go test_tools.go branch.go util.go
 ```
-
-to generate the tests that use a local blockchain.
 
 The witness files will appear in generated_witnesses folder.
 
