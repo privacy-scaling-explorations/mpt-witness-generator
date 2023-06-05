@@ -192,18 +192,7 @@ func obtainAccountProofAndConvertToWitness(i int, tMod TrieModification, tModsLe
 
 	var nodes []Node
 
-	/*
-	var startRoot common.Hash
-	var finalRoot common.Hash
-	*/
-
 	sRoot := statedb.GetTrie().Hash()
-
-	/*
-	if i == 0 {
-		startRoot = sRoot
-	}
-	*/
 
 	if tMod.Type == NonceMod {
 		statedb.SetNonce(addr, tMod.Nonce)
@@ -221,11 +210,6 @@ func obtainAccountProofAndConvertToWitness(i int, tMod TrieModification, tModsLe
 	statedb.IntermediateRoot(false)
 
 	cRoot := statedb.GetTrie().Hash()
-	/*
-	if i == tModsLen-1 {
-		finalRoot = cRoot
-	}
-	*/
 	
 	accountProof1, aNeighbourNode2, aExtNibbles2, isLastLeaf2, err := statedb.GetProof(addr)
 	check(err)
@@ -243,7 +227,7 @@ func obtainAccountProofAndConvertToWitness(i int, tMod TrieModification, tModsLe
 		accountProof1[0] = account
 	}
 
-	addrh, accountAddr, accountProof, accountProof1, sRoot, cRoot = modifyAccountProofSpecialTests(addrh, accountAddr, sRoot, cRoot, accountProof, accountProof1, aNeighbourNode2, specialTest)	
+	_, accountAddr, accountProof, accountProof1, sRoot, cRoot = modifyAccountProofSpecialTests(addrh, accountAddr, sRoot, cRoot, accountProof, accountProof1, aNeighbourNode2, specialTest)	
 
 	aNode := aNeighbourNode2
 	isShorterProofLastLeaf := isLastLeaf1
@@ -320,8 +304,6 @@ func obtainTwoProofsAndConvertToWitness(trieModifications []TrieModification, st
 				proofType = "StorageDoesNotExist"
 			}
 			
-			nodes = append(nodes, GetStartNode(proofType, sRoot, cRoot))
-
 			accountProof1, aNeighbourNode2, aExtNibbles2, aIsLastLeaf2, err := statedb.GetProof(addr)
 			check(err)
 
@@ -350,6 +332,9 @@ func obtainTwoProofsAndConvertToWitness(trieModifications []TrieModification, st
 				}
 				accountProof, accountProof1, sRoot, cRoot = modifyAccountSpecialEmptyTrie(addrh, accountProof1[len(accountProof1)-1])
 			}
+
+			// Needs to be after `specialTest == 1` preparation:
+			nodes = append(nodes, GetStartNode(proofType, sRoot, cRoot))
 			
 			// TODO: remove _
 			_, _, nodesAccount, _ :=
