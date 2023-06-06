@@ -431,7 +431,6 @@ func convertProofToWitness(statedb *state.StateDB, addr common.Address, proof1, 
 	}
 
 	var extensionRowS []byte
-	var extensionRowC []byte
 	extensionNodeInd := 0
 
 	var extListRlpBytes []byte
@@ -447,7 +446,7 @@ func convertProofToWitness(statedb *state.StateDB, addr common.Address, proof1, 
 				var numberOfNibbles byte
 				
 				// TODO: remove
-				numberOfNibbles, extensionRowS, extensionRowC = prepareExtensionRows(extNibblesS, extensionNodeInd, proof1[i], proof2[i], false, false)
+				numberOfNibbles, extensionRowS, _ = prepareExtensionRows(extNibblesS, extensionNodeInd, proof1[i], proof2[i], false, false)
 
 				extListRlpBytes, extValues = prepareExtensions(extNibblesS, extensionNodeInd, proof1[i], proof2[i], false, false)
 
@@ -487,9 +486,6 @@ func convertProofToWitness(statedb *state.StateDB, addr common.Address, proof1, 
 				}
 			}
 
-			// TODO: remove prepareTwoBranches
-			bRows := prepareTwoBranches(proof1[i], proof2[i], key[keyIndex], branchC16, branchC1, false, false)
-
 			var extNode1 []byte = nil
 			var extNode2 []byte = nil
 			if extensionRowS != nil {
@@ -503,27 +499,7 @@ func convertProofToWitness(statedb *state.StateDB, addr common.Address, proof1, 
 
 			keyIndex += 1
 
-			// extension node rows
-			if extensionRowS != nil {
-				bRows = append(bRows, extensionRowS)
-				bRows = append(bRows, extensionRowC)
-
-				setExtensionNodeSelectors(&bRows, proof1[i-1], proof2[i-1], branchC16, branchC1)
-
-				// adding extension nodes for hashing:
-				addForHashing(proof1[i-1], &toBeHashed)
-				addForHashing(proof2[i-1], &toBeHashed)
-			} else {
-				extRows := prepareEmptyExtensionRows(false, false)
-				bRows = append(bRows, extRows...)
-			}
-
-			rows = append(rows, bRows...)
-			addForHashing(proof1[i], &toBeHashed)
-			addForHashing(proof2[i], &toBeHashed)
-
 			extensionRowS = nil
-			extensionRowC = nil
 		}
 	}	
 	
