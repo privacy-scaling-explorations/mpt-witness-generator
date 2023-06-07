@@ -227,8 +227,8 @@ func obtainAccountProofAndConvertToWitness(i int, tMod TrieModification, tModsLe
 		accountProof1[0] = account
 	}
 
-	_, accountAddr, accountProof, accountProof1, sRoot, cRoot = modifyAccountProofSpecialTests(addrh, accountAddr, sRoot, cRoot, accountProof, accountProof1, aNeighbourNode2, specialTest)	
-
+	addrh, accountAddr, accountProof, accountProof1, sRoot, cRoot = modifyAccountProofSpecialTests(addrh, accountAddr, sRoot, cRoot, accountProof, accountProof1, aNeighbourNode2, specialTest)	
+	
 	aNode := aNeighbourNode2
 	isShorterProofLastLeaf := isLastLeaf1
 	if len(accountProof) > len(accountProof1) {
@@ -250,7 +250,7 @@ func obtainAccountProofAndConvertToWitness(i int, tMod TrieModification, tModsLe
 	nodes = append(nodes, GetStartNode(proofType, sRoot, cRoot))
 
 	_, _, nodesAccount, _ :=
-		convertProofToWitness(statedb, addr, accountProof, accountProof1, aExtNibbles1, aExtNibbles2, accountAddr, aNode, true, tMod.Type == NonExistingAccount, false, isShorterProofLastLeaf)
+		convertProofToWitness(statedb, addrh, addr, accountProof, accountProof1, aExtNibbles1, aExtNibbles2, accountAddr, aNode, true, tMod.Type == NonExistingAccount, false, isShorterProofLastLeaf)
 	nodes = append(nodes, nodesAccount...)
 	nodes = append(nodes, GetEndNode())
 
@@ -336,12 +336,15 @@ func obtainTwoProofsAndConvertToWitness(trieModifications []TrieModification, st
 			// Needs to be after `specialTest == 1` preparation:
 			nodes = append(nodes, GetStartNode(proofType, sRoot, cRoot))
 			
+			// In convertProofToWitness, we can't use account address in its original form (non-hashed), because
+			// of the "special" test for which we manually manipulate the "hashed" address and we don't have a preimage.
+			// TODO: addr is used for calling GetProof for modified extension node only, might be done in a different way 
 			// TODO: remove _
 			_, _, nodesAccount, _ :=
-				convertProofToWitness(statedb, addr, accountProof, accountProof1, aExtNibbles1, aExtNibbles2, accountAddr, aNode, true, tMod.Type == NonExistingAccount, false, aIsLastLeaf)
+				convertProofToWitness(statedb, addrh, addr, accountProof, accountProof1, aExtNibbles1, aExtNibbles2, accountAddr, aNode, true, tMod.Type == NonExistingAccount, false, aIsLastLeaf)
 			nodes = append(nodes, nodesAccount...)
 			_, _, nodesStorage, _ :=
-				convertProofToWitness(statedb, addr, storageProof, storageProof1, extNibbles1, extNibbles2, keyHashed, node, false, false, tMod.Type == NonExistingStorage, isLastLeaf)
+				convertProofToWitness(statedb, addrh, addr, storageProof, storageProof1, extNibbles1, extNibbles2, keyHashed, node, false, false, tMod.Type == NonExistingStorage, isLastLeaf)
 			nodes = append(nodes, nodesStorage...)
 			nodes = append(nodes, GetEndNode())
 		} else {
@@ -395,7 +398,7 @@ func updateStateAndPrepareWitness(testName string, keys, values []common.Hash, a
 // convertProofToWitness takes two GetProof proofs (before and after a single modification) and prepares
 // a witness for the MPT circuit. Alongside, it prepares the byte streams that need to be hashed
 // and inserted into the Keccak lookup table.
-func convertProofToWitness(statedb *state.StateDB, addr common.Address, proof1, proof2, extNibblesS, extNibblesC [][]byte, key []byte, neighbourNode []byte,
+func convertProofToWitness(statedb *state.StateDB, addrh []byte, addr common.Address, proof1, proof2, extNibblesS, extNibblesC [][]byte, key []byte, neighbourNode []byte,
 		isAccountProof, nonExistingAccountProof, nonExistingStorageProof, isShorterProofLastLeaf bool) ([][]byte, [][]byte, []Node, bool) {
 	rows := make([][]byte, 0)
 	toBeHashed := make([][]byte, 0)
@@ -458,7 +461,7 @@ func convertProofToWitness(statedb *state.StateDB, addr common.Address, proof1, 
 			l := len(proof1)
 			var node Node
 			if isAccountProof {
-				node = prepareAccountLeafNode(addr, proof1[l-1], proof2[l-1], nil, key, nonExistingAccountProof, false)
+				node = prepareAccountLeafNode(addrh, proof1[l-1], proof2[l-1], nil, key, nonExistingAccountProof, false)
 			} else {
 				node = prepareStorageLeafNode(proof1[l-1], proof2[l-1], nil, key, nonExistingStorageProof, false, false)
 			}
@@ -511,7 +514,7 @@ func convertProofToWitness(statedb *state.StateDB, addr common.Address, proof1, 
 				leafRow0 = proof2[len2-1]
 			}
 			
-			isModifiedExtNode, _, numberOfNibbles, branchC16, bNode := addBranchAndPlaceholder(addr, &rows, proof1, proof2, extNibblesS, extNibblesC,
+			isModifiedExtNode, _, numberOfNibbles, branchC16, bNode := addBranchAndPlaceholder(&rows, proof1, proof2, extNibblesS, extNibblesC,
 				leafRow0, key, neighbourNode,
 				keyIndex, extensionNodeInd, additionalBranch,
 				isAccountProof, nonExistingAccountProof, isShorterProofLastLeaf, branchC16, branchC1, &toBeHashed)
@@ -520,7 +523,7 @@ func convertProofToWitness(statedb *state.StateDB, addr common.Address, proof1, 
 
 			if isAccountProof {
 				// addAccountLeafAfterBranchPlaceholder(&rows, proof1, proof2, leafRows, neighbourNode, key, nonExistingAccountProof, isModifiedExtNode, isExtension, numberOfNibbles, &toBeHashed)	
-				node := prepareAccountLeafNode(addr, proof1[len1-1], proof2[len2-1], neighbourNode, key, nonExistingAccountProof, false)
+				node := prepareAccountLeafNode(addrh, proof1[len1-1], proof2[len2-1], neighbourNode, key, nonExistingAccountProof, false)
 				nodes = append(nodes, node)
 			} else {	
 				// addStorageLeafAfterBranchPlaceholder(&rows, proof1, proof2, leafRows, neighbourNode, key, nonExistingAccountProof, isModifiedExtNode, isExtension, numberOfNibbles, &toBeHashed)
@@ -537,7 +540,7 @@ func convertProofToWitness(statedb *state.StateDB, addr common.Address, proof1, 
 					isAccountProof, nonExistingAccountProof, isShorterProofLastLeaf, branchC16, branchC1, &toBeHashed)
 			}
 		} else {
-			node := prepareLeafAndPlaceholderNode(addr, proof1, proof2, key, nonExistingAccountProof, isAccountProof)
+			node := prepareLeafAndPlaceholderNode(addrh, proof1, proof2, key, nonExistingAccountProof, isAccountProof)
 			nodes = append(nodes, node)
 		}
 	} else if isBranch(proof2[len(proof2)-1]) {

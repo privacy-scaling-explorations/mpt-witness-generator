@@ -2,9 +2,6 @@ package witness
 
 import (
 	"math"
-
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/crypto"
 )
 
 // TODO: replace with prepareAccountLeafNode
@@ -412,7 +409,7 @@ func prepareAccountLeafRows(leafS, leafC, addressNibbles []byte, nonExistingAcco
 	return keyRowS, keyRowC, nonExistingAccountRow, nonceBalanceRowS, nonceBalanceRowC, storageCodeHashRowS, storageCodeHashRowC
 }
 
-func prepareAccountLeafNode(addr common.Address, leafS, leafC, neighbourNode, addressNibbles []byte, nonExistingAccountProof, noLeaf bool) Node {	
+func prepareAccountLeafNode(addrh []byte, leafS, leafC, neighbourNode, addressNibbles []byte, nonExistingAccountProof, noLeaf bool) Node {	
 	// For non existing account proof there are two cases:
 	// 1. A leaf is returned that is not at the required address (wrong leaf).
 	// 2. A branch is returned as the last element of getProof and
@@ -567,7 +564,7 @@ func prepareAccountLeafNode(addr common.Address, leafS, leafC, neighbourNode, ad
 	values[AccountWrong] = wrongValue
 
 	leaf := AccountNode {
-		Address: crypto.Keccak256(addr.Bytes()),
+		Address: addrh,
 		ListRlpBytes: listRlpBytes,
 		ValueRlpBytes: valueRlpBytes,
 		ValueListRlpBytes: valueListRlpBytes,
@@ -596,7 +593,7 @@ func prepareDriftedLeafPlaceholder(isAccount bool) [][]byte {
 
 // prepareLeafAndPlaceholderNode prepares a leaf node and its placeholder counterpart
 // (used when one of the proofs does not have a leaf).
-func prepareLeafAndPlaceholderNode(addr common.Address, proof1, proof2 [][]byte, key []byte, nonExistingAccountProof, isAccountProof bool) Node {
+func prepareLeafAndPlaceholderNode(addrh []byte, proof1, proof2 [][]byte, key []byte, nonExistingAccountProof, isAccountProof bool) Node {
 	len1 := len(proof1)
 	len2 := len(proof2)
 
@@ -615,7 +612,7 @@ func prepareLeafAndPlaceholderNode(addr common.Address, proof1, proof2 [][]byte,
 
 		// When generating a proof that account doesn't exist, the length of both proofs is the same (doesn't reach
 		// this code).
-		return prepareAccountLeafNode(addr, leafS, leafC, nil, key, nonExistingAccountProof, false)
+		return prepareAccountLeafNode(addrh, leafS, leafC, nil, key, nonExistingAccountProof, false)
 	} else {
 		var leaf []byte
 		isSPlaceholder := false

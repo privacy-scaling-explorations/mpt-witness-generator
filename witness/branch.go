@@ -3,7 +3,6 @@ package witness
 import (
 	"log"
 
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/rlp"
 )
 
@@ -192,7 +191,7 @@ func getDriftedPosition(leafKeyRow []byte, numberOfNibbles int) byte {
 
 // addBranchAndPlaceholder adds to the rows a branch and its placeholder counterpart
 // (used when one of the proofs have one branch more than the other).
-func addBranchAndPlaceholder(addr common.Address, rows *[][]byte, proof1, proof2,
+func addBranchAndPlaceholder(rows *[][]byte, proof1, proof2,
 		extNibblesS, extNibblesC [][]byte,
 		leafRow0, key, neighbourNode []byte,
 		keyIndex, extensionNodeInd int,
