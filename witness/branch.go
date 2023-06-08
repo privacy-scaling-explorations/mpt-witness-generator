@@ -218,17 +218,9 @@ func addBranchAndPlaceholder(rows *[][]byte, proof1, proof2,
 	} else {
 		var numNibbles byte
 		if len1 > len2 {
-			// TODO: remove
-			numNibbles, _, _ =
-				prepareExtensionRows(extNibblesS, extensionNodeInd, proof1[len1 - 3], proof1[len1 - 3], false, false)
-
-			extListRlpBytes, extValues = prepareExtensions(extNibblesS, extensionNodeInd, proof1[len1 - 3], proof1[len1 - 3], false, false)
+			numNibbles, extListRlpBytes, extValues = prepareExtensions(extNibblesS, extensionNodeInd, proof1[len1 - 3], proof1[len1 - 3], false, false)
 		} else {
-			// TODO: remove
-			numNibbles, _, _ =
-				prepareExtensionRows(extNibblesC, extensionNodeInd, proof2[len2 - 3], proof2[len2 - 3], false, false)
-
-			extListRlpBytes, extValues = prepareExtensions(extNibblesC, extensionNodeInd, proof2[len2 - 3], proof2[len2 - 3], false, false)
+			numNibbles, extListRlpBytes, extValues = prepareExtensions(extNibblesC, extensionNodeInd, proof2[len2 - 3], proof2[len2 - 3], false, false)
 		}
 		numberOfNibbles = int(numNibbles)
 

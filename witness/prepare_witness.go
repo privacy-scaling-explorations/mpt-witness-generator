@@ -433,7 +433,7 @@ func convertProofToWitness(statedb *state.StateDB, addrh []byte, addr common.Add
 		upTo = minLen - 1
 	}
 
-	var extensionRowS []byte
+	var isExtension bool
 	extensionNodeInd := 0
 
 	var extListRlpBytes []byte
@@ -447,11 +447,8 @@ func convertProofToWitness(statedb *state.StateDB, addrh []byte, addr common.Add
 		if !isBranch(proof1[i]) {
 			if i != len1 - 1 { // extension node
 				var numberOfNibbles byte
-				
-				// TODO: remove
-				numberOfNibbles, extensionRowS, _ = prepareExtensionRows(extNibblesS, extensionNodeInd, proof1[i], proof2[i], false, false)
-
-				extListRlpBytes, extValues = prepareExtensions(extNibblesS, extensionNodeInd, proof1[i], proof2[i], false, false)
+				isExtension = true
+				numberOfNibbles, extListRlpBytes, extValues = prepareExtensions(extNibblesS, extensionNodeInd, proof1[i], proof2[i], false, false)
 
 				keyIndex += int(numberOfNibbles)
 				extensionNodeInd++
@@ -469,7 +466,7 @@ func convertProofToWitness(statedb *state.StateDB, addrh []byte, addr common.Add
 			nodes = append(nodes, node)
 		} else {
 			switchC16 := true // If not extension node, switchC16 = true.
-			if extensionRowS != nil {
+			if isExtension {
 				keyLen := getExtensionNodeKeyLen(proof1[i-1])
 				if keyLen == 1 {
 					switchC16 = false
@@ -491,18 +488,18 @@ func convertProofToWitness(statedb *state.StateDB, addrh []byte, addr common.Add
 
 			var extNode1 []byte = nil
 			var extNode2 []byte = nil
-			if extensionRowS != nil {
+			if isExtension {
 				extNode1 = proof1[i-1]
 				extNode2 = proof2[i-1]
 			}
 
 			bNode := prepareBranchNode(proof1[i], proof2[i], extNode1, extNode2, extListRlpBytes, extValues,
-				key[keyIndex], key[keyIndex], branchC16, branchC1, false, false, extensionRowS != nil)
+				key[keyIndex], key[keyIndex], branchC16, branchC1, false, false, isExtension)
 			nodes = append(nodes, bNode)
 
 			keyIndex += 1
 
-			extensionRowS = nil
+			isExtension = false
 		}
 	}	
 	

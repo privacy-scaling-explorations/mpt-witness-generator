@@ -92,7 +92,7 @@ func prepareExtensionRows(extNibbles[][]byte, extensionNodeInd int, proofEl1, pr
 	return numberOfNibbles, extensionRowS, extensionRowC
 }
 
-func prepareExtensions(extNibbles[][]byte, extensionNodeInd int, proofEl1, proofEl2 []byte, beforeModification, afterModification bool) ([]byte, [][]byte) {
+func prepareExtensions(extNibbles[][]byte, extensionNodeInd int, proofEl1, proofEl2 []byte, beforeModification, afterModification bool) (byte, []byte, [][]byte) {
 	var values [][]byte
 	v1 := make([]byte, valueLen)
 	v2 := make([]byte, valueLen)
@@ -104,7 +104,7 @@ func prepareExtensions(extNibbles[][]byte, extensionNodeInd int, proofEl1, proof
 
 	evenNumberOfNibbles := proofEl1[2] == 0
 	keyLen := getExtensionNodeKeyLen(proofEl1)
-	// numberOfNibbles := getExtensionNumberOfNibbles(proofEl1)
+	numberOfNibbles := getExtensionNumberOfNibbles(proofEl1)
 
 	// We need nibbles as witness to compute key RLC, so we set them
 	// into extensionRowC s_advices (we can do this because both extension
@@ -132,7 +132,7 @@ func prepareExtensions(extNibbles[][]byte, extensionNodeInd int, proofEl1, proof
 	values = append(values, v3)
 	values = append(values, v4)
 
-	return listRlpBytes, values
+	return numberOfNibbles, listRlpBytes, values
 }
 
 func getExtensionLenStartKey(proofEl []byte) (int, int) {
