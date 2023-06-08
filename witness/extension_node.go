@@ -102,8 +102,6 @@ func prepareExtensions(extNibbles[][]byte, extensionNodeInd int, proofEl1, proof
 	listRlpBytes := prepareExtension(v1, v2, proofEl1, true)
 	prepareExtension(v3, v4, proofEl2, false)
 
-	/*
-	TODO
 	evenNumberOfNibbles := proofEl1[2] == 0
 	keyLen := getExtensionNodeKeyLen(proofEl1)
 	// numberOfNibbles := getExtensionNumberOfNibbles(proofEl1)
@@ -125,11 +123,10 @@ func prepareExtensions(extNibbles[][]byte, extensionNodeInd int, proofEl1, proof
 	}
 	ind := 0
 	for j := startNibblePos; j < len(extNibbles[extensionNodeInd]); j += 2 {
-		v4[ind] =
+		v3[2 + ind] = // TODO: check 2 + ind
 			extNibbles[extensionNodeInd][j]
 		ind++
 	}
-	*/
 	values = append(values, v1)
 	values = append(values, v2)
 	values = append(values, v3)
@@ -345,47 +342,4 @@ func prepareExtension(v1, v2, proofEl []byte, setKey bool) []byte {
 	}
 	
 	return listRlpBytes
-}
-
-func setExtensionNodeSelectors(bRows *[][]byte, extNodeS, extNodeC []byte, branchC16, branchC1 byte) {
-	// Set isExtension to 1 in branch init.
-	(*bRows)[0][isExtensionPos] = 1
-
-	if len(extNodeS) > 56 { // 56 because there is 1 byte for length
-		(*bRows)[0][isSExtLongerThan55Pos] = 1
-	}
-	if len(extNodeC) > 56 {
-		(*bRows)[0][isCExtLongerThan55Pos] = 1
-	}
-
-	if len(extNodeS) < 32 {
-		(*bRows)[0][isExtNodeSNonHashedPos] = 1
-	}
-	if len(extNodeC) < 32 {
-		(*bRows)[0][isExtNodeCNonHashedPos] = 1
-	}
-
-	keyLen := getExtensionNodeKeyLen(extNodeS)
-	// Set whether key extension nibbles are of even or odd length.
-	if keyLen == 1 {
-		if branchC16 == 1 {
-			(*bRows)[0][isExtShortC16Pos] = 1
-		} else {
-			(*bRows)[0][isExtShortC1Pos] = 1
-		}
-	} else {
-		if extNodeS[2] == 0 {
-			if branchC16 == 1 {
-				(*bRows)[0][isExtLongEvenC16Pos] = 1
-			} else {
-				(*bRows)[0][isExtLongEvenC1Pos] = 1
-			}
-		} else {
-			if branchC16 == 1 {
-				(*bRows)[0][isExtLongOddC16Pos] = 1
-			} else {
-				(*bRows)[0][isExtLongOddC1Pos] = 1
-			}
-		}
-	}
 }
