@@ -41,20 +41,7 @@ func listToJson(row []byte) string {
 	return json
 }
 
-func storeWitness(testName string, proof [][]byte) {
-	w := MatrixToJson(proof)
-	fmt.Println(w)
-
-	name := testName + ".json"
-	f, err := os.Create("../generated_witnesses/" + name)
-    check(err)
-	defer f.Close()
-	n3, err := f.WriteString(w)
-    check(err)
-    fmt.Printf("wrote %d bytes\n", n3)
-}
-
-func storeNodes(testName string, nodes []Node) {
+func StoreNodes(testName string, nodes []Node) {
 	name := testName + ".json"
 	f, err := os.Create("../generated_witnesses/" + name)
     check(err)

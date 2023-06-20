@@ -409,7 +409,7 @@ func prepareAccountLeafRows(leafS, leafC, addressNibbles []byte, nonExistingAcco
 	return keyRowS, keyRowC, nonExistingAccountRow, nonceBalanceRowS, nonceBalanceRowC, storageCodeHashRowS, storageCodeHashRowC
 }
 
-func prepareAccountLeafNode(addrh []byte, leafS, leafC, neighbourNode, addressNibbles []byte, nonExistingAccountProof, noLeaf bool) Node {	
+func prepareAccountLeafNode(addrh []byte, leafS, leafC, neighbourNode, addressNibbles []byte, nonExistingAccountProof bool) Node {	
 	// For non existing account proof there are two cases:
 	// 1. A leaf is returned that is not at the required address (wrong leaf).
 	// 2. A branch is returned as the last element of getProof and
@@ -479,76 +479,64 @@ func prepareAccountLeafNode(addrh []byte, leafS, leafC, neighbourNode, addressNi
 		wrongValue[2+i] = remainingNibbles[2*i + offset] * 16 + remainingNibbles[2*i+1 + offset]
 	}
 
-	nonceValueS := make([]byte, valueLen)
-	balanceValueS := make([]byte, valueLen)
-	nonceValueC := make([]byte, valueLen)
-	balanceValueC := make([]byte, valueLen)
+	rlpStringSecondPartLenS := leafS[3+keyLenS] - 183
+	if rlpStringSecondPartLenS != 1 {
+		panic("Account leaf RLP at this position should be 1 (S)")
+	}
+	rlpStringSecondPartLenC := leafC[3+keyLenC] - 183
+	if rlpStringSecondPartLenC != 1 {
+		panic("Account leaf RLP at this position should be 1 (C)")
+	}
+	rlpStringLenS := leafS[3+keyLenS+1]
+	rlpStringLenC := leafC[3+keyLenC+1]
 
-	storageRootValueS := make([]byte, valueLen)
-	codeHashValueS := make([]byte, valueLen)
-	storageRootValueC := make([]byte, valueLen)
-	codeHashValueC := make([]byte, valueLen)
+	// [248,112,157,59,158,160,175,159,65,212,107,23,98,208,38,205,150,63,244,2,185,236,246,95,240,224,191,229,27,102,202,231,184,80,248,78
+	// In this example RLP, there are first 36 bytes of a leaf.
+	// 157 means there are 29 bytes for key (157 - 128).
+	// Positions 32-35: 184, 80, 248, 78.
+	// 184 - 183 = 1 means length of the second part of a string.
+	// 80 means length of a string.
+	// 248 - 247 = 1 means length of the second part of a list.
+	// 78 means length of a list.
 
-	if !noLeaf {
-		rlpStringSecondPartLenS := leafS[3+keyLenS] - 183
-		if rlpStringSecondPartLenS != 1 {
-			panic("Account leaf RLP at this position should be 1 (S)")
-		}
-		rlpStringSecondPartLenC := leafC[3+keyLenC] - 183
-		if rlpStringSecondPartLenC != 1 {
-			panic("Account leaf RLP at this position should be 1 (C)")
-		}
-		rlpStringLenS := leafS[3+keyLenS+1]
-		rlpStringLenC := leafC[3+keyLenC+1]
+	rlpListSecondPartLenS := leafS[3+keyLenS+1+1] - 247
+	if rlpListSecondPartLenS != 1 {
+		panic("Account leaf RLP 1 (S)")
+	}
+	rlpListSecondPartLenC := leafC[3+keyLenC+1+1] - 247
+	if rlpListSecondPartLenC != 1 {
+		panic("Account leaf RLP 1 (C)")
+	}
 
-		// [248,112,157,59,158,160,175,159,65,212,107,23,98,208,38,205,150,63,244,2,185,236,246,95,240,224,191,229,27,102,202,231,184,80,248,78
-		// In this example RLP, there are first 36 bytes of a leaf.
-		// 157 means there are 29 bytes for key (157 - 128).
-		// Positions 32-35: 184, 80, 248, 78.
-		// 184 - 183 = 1 means length of the second part of a string.
-		// 80 means length of a string.
-		// 248 - 247 = 1 means length of the second part of a list.
-		// 78 means length of a list.
+	rlpListLenS := leafS[3+keyLenS+1+1+1]
+	if rlpStringLenS != rlpListLenS+2 {
+		panic("Account leaf RLP 2 (S)")
+	}
 
-		rlpListSecondPartLenS := leafS[3+keyLenS+1+1] - 247
-		if rlpListSecondPartLenS != 1 {
-			panic("Account leaf RLP 1 (S)")
-		}
-		rlpListSecondPartLenC := leafC[3+keyLenC+1+1] - 247
-		if rlpListSecondPartLenC != 1 {
-			panic("Account leaf RLP 1 (C)")
-		}
+	rlpListLenC := leafC[3+keyLenC+1+1+1]
+	if rlpStringLenC != rlpListLenC+2 {
+		panic("Account leaf RLP 2 (C)")
+	}
 
-		rlpListLenS := leafS[3+keyLenS+1+1+1]
-		if rlpStringLenS != rlpListLenS+2 {
-			panic("Account leaf RLP 2 (S)")
-		}
+	storageStartS := 0
+	storageStartC := 0
+	nonceValueS, balanceValueS, storageStartS := getNonceBalanceValue(leafS, keyLenS)
+	nonceValueC, balanceValueC, storageStartC := getNonceBalanceValue(leafC, keyLenC)
 
-		rlpListLenC := leafC[3+keyLenC+1+1+1]
-		if rlpStringLenC != rlpListLenC+2 {
-			panic("Account leaf RLP 2 (C)")
-		}
+	valueRlpBytes[0][0] = leafS[3+keyLenS]
+	valueRlpBytes[0][1] = leafS[3+keyLenS+1]
 
-		storageStartS := 0
-		storageStartC := 0
-		nonceValueS, balanceValueS, storageStartS = getNonceBalanceValue(leafS, keyLenS)
-		nonceValueC, balanceValueC, storageStartC = getNonceBalanceValue(leafC, keyLenC)
+	valueRlpBytes[1][0] = leafC[3+keyLenC]
+	valueRlpBytes[1][1] = leafC[3+keyLenC+1]
 
-		valueRlpBytes[0][0] = leafS[3+keyLenS]
-		valueRlpBytes[0][1] = leafS[3+keyLenS+1]
+	valueListRlpBytes[0][0] = leafS[3+keyLenS+1+1]
+	valueListRlpBytes[0][1] = leafS[3+keyLenS+1+1+1]
 
-		valueRlpBytes[1][0] = leafC[3+keyLenC]
-		valueRlpBytes[1][1] = leafC[3+keyLenC+1]
+	valueListRlpBytes[1][0] = leafC[3+keyLenC+1+1]
+	valueListRlpBytes[1][1] = leafC[3+keyLenC+1+1+1]
 
-		valueListRlpBytes[0][0] = leafS[3+keyLenS+1+1]
-		valueListRlpBytes[0][1] = leafS[3+keyLenS+1+1+1]
-
-		valueListRlpBytes[1][0] = leafC[3+keyLenC+1+1]
-		valueListRlpBytes[1][1] = leafC[3+keyLenC+1+1+1]
-
-		storageRootValueS, codeHashValueS = getStorageRootCodeHashValue(leafS, storageStartS)
-		storageRootValueC, codeHashValueC = getStorageRootCodeHashValue(leafC, storageStartC)
-	} 
+	storageRootValueS, codeHashValueS := getStorageRootCodeHashValue(leafS, storageStartS)
+	storageRootValueC, codeHashValueC := getStorageRootCodeHashValue(leafC, storageStartC)
 
 	values[AccountKeyS] = keyRowS
 	values[AccountKeyC] = keyRowC
@@ -612,7 +600,7 @@ func prepareLeafAndPlaceholderNode(addrh []byte, proof1, proof2 [][]byte, key []
 
 		// When generating a proof that account doesn't exist, the length of both proofs is the same (doesn't reach
 		// this code).
-		return prepareAccountLeafNode(addrh, leafS, leafC, nil, key, nonExistingAccountProof, false)
+		return prepareAccountLeafNode(addrh, leafS, leafC, nil, key, nonExistingAccountProof)
 	} else {
 		var leaf []byte
 		isSPlaceholder := false

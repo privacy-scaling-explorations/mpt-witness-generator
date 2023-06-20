@@ -360,7 +360,7 @@ func obtainTwoProofsAndConvertToWitness(trieModifications []TrieModification, st
 // the modifications and stores it into a file.
 func prepareWitness(testName string, trieModifications []TrieModification, statedb *state.StateDB) {
 	nodes := obtainTwoProofsAndConvertToWitness(trieModifications, statedb, 0)
-	storeNodes(testName, nodes)
+	StoreNodes(testName, nodes)
 }
 
 // prepareWitnessSpecial obtains the GetProof proof before and after the modification for each
@@ -370,7 +370,7 @@ func prepareWitness(testName string, trieModifications []TrieModification, state
 // the account leaf in the first trie level.
 func prepareWitnessSpecial(testName string, trieModifications []TrieModification, statedb *state.StateDB, specialTest byte) {
 	nodes := obtainTwoProofsAndConvertToWitness(trieModifications, statedb, specialTest)
-	storeNodes(testName, nodes)
+	StoreNodes(testName, nodes)
 }
 
 // updateStateAndPrepareWitness updates the state according to the specified keys and values and then
@@ -458,7 +458,7 @@ func convertProofToWitness(statedb *state.StateDB, addrh []byte, addr common.Add
 			l := len(proof1)
 			var node Node
 			if isAccountProof {
-				node = prepareAccountLeafNode(addrh, proof1[l-1], proof2[l-1], nil, key, nonExistingAccountProof, false)
+				node = prepareAccountLeafNode(addrh, proof1[l-1], proof2[l-1], nil, key, nonExistingAccountProof)
 			} else {
 				node = prepareStorageLeafNode(proof1[l-1], proof2[l-1], nil, key, nonExistingStorageProof, false, false)
 			}
@@ -519,11 +519,11 @@ func convertProofToWitness(statedb *state.StateDB, addrh []byte, addr common.Add
 			nodes = append(nodes, bNode)
 
 			if isAccountProof {
-				// addAccountLeafAfterBranchPlaceholder(&rows, proof1, proof2, leafRows, neighbourNode, key, nonExistingAccountProof, isModifiedExtNode, isExtension, numberOfNibbles, &toBeHashed)	
-				node := prepareAccountLeafNode(addrh, proof1[len1-1], proof2[len2-1], neighbourNode, key, nonExistingAccountProof, false)
+				// Add account leaf after branch placeholder:
+				node := prepareAccountLeafNode(addrh, proof1[len1-1], proof2[len2-1], neighbourNode, key, nonExistingAccountProof)
 				nodes = append(nodes, node)
 			} else {	
-				// addStorageLeafAfterBranchPlaceholder(&rows, proof1, proof2, leafRows, neighbourNode, key, nonExistingAccountProof, isModifiedExtNode, isExtension, numberOfNibbles, &toBeHashed)
+				// Add storage leaf after branch placeholder
 				node := prepareStorageLeafNode(proof1[len1-1], proof2[len2-1], neighbourNode, key, nonExistingStorageProof, false, false)
 				nodes = append(nodes, node)
 			}
