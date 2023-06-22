@@ -205,6 +205,9 @@ func addBranchAndPlaceholder(rows *[][]byte, proof1, proof2,
 	numberOfNibbles := 0
 	var extListRlpBytes []byte
 	var extValues [][]byte
+	for i := 0; i < 4; i++ {
+		extValues = append(extValues, make([]byte, valueLen))
+	}
 
 	isExtension := (len1 == len2 + 2) || (len2 == len1 + 2)
 	if !isExtension {

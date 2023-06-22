@@ -438,6 +438,9 @@ func convertProofToWitness(statedb *state.StateDB, addrh []byte, addr common.Add
 
 	var extListRlpBytes []byte
 	var extValues [][]byte
+	for i := 0; i < 4; i++ {
+		extValues = append(extValues, make([]byte, valueLen))
+	}
 
 	var nodes []Node
 
