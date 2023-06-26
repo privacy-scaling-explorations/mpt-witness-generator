@@ -28,14 +28,6 @@ func prepareAccountLeaf(leafS, leafC []byte, key []byte, nonExistingAccountProof
 	return leafRows, leafForHashing
 }
 
-func prepareStorageLeaf(leafS []byte, key []byte, nonExistingAccountProof bool) ([][]byte, [][]byte) {
-	var leafForHashing [][]byte
-	leafRows, leafForHashingS := prepareStorageLeafRows(leafS, 2, false)
-	leafForHashing = append(leafForHashing, leafForHashingS)
-
-	return leafRows, leafForHashing
-}
-
 // TODO: remove with prepareStorageLeafNode
 func prepareStorageLeafRows(row []byte, typ byte, valueIsZero bool) ([][]byte, []byte) {
 	// Avoid directly changing the row as it might introduce some bugs later on.
@@ -409,7 +401,7 @@ func prepareAccountLeafRows(leafS, leafC, addressNibbles []byte, nonExistingAcco
 	return keyRowS, keyRowC, nonExistingAccountRow, nonceBalanceRowS, nonceBalanceRowC, storageCodeHashRowS, storageCodeHashRowC
 }
 
-func prepareAccountLeafNode(addrh []byte, leafS, leafC, neighbourNode, addressNibbles []byte, nonExistingAccountProof bool) Node {	
+func prepareAccountLeafNode(addrh []byte, leafS, leafC, neighbourNode, addressNibbles []byte) Node {	
 	// For non existing account proof there are two cases:
 	// 1. A leaf is returned that is not at the required address (wrong leaf).
 	// 2. A branch is returned as the last element of getProof and
@@ -600,7 +592,7 @@ func prepareLeafAndPlaceholderNode(addrh []byte, proof1, proof2 [][]byte, key []
 
 		// When generating a proof that account doesn't exist, the length of both proofs is the same (doesn't reach
 		// this code).
-		return prepareAccountLeafNode(addrh, leafS, leafC, nil, key, nonExistingAccountProof)
+		return prepareAccountLeafNode(addrh, leafS, leafC, nil, key)
 	} else {
 		var leaf []byte
 		isSPlaceholder := false
@@ -615,118 +607,6 @@ func prepareLeafAndPlaceholderNode(addrh []byte, proof1, proof2 [][]byte, key []
 		}
 
 		return prepareStorageLeafNode(leaf, leaf, nil, key, false, isSPlaceholder, isCPlaceholder)
-	}
-}
-
-// addStorageLeafAfterBranchPlaceholder adds storage leaf rows after branch that is a placeholder.
-// It also handles the case when there is a modified extension node.
-func addStorageLeafAfterBranchPlaceholder(rows *[][]byte, proof1, proof2, leafRows [][]byte, neighbourNode, key []byte, nonExistingAccountProof, isModifiedExtNode, isExtension bool, numberOfNibbles int, toBeHashed *[][]byte) {
-	len1 := len(proof1)
-	len2 := len(proof2)
-
-	if len1 > len2 {
-		if !isModifiedExtNode {
-			*rows = append(*rows, leafRows...)
-			var leafForHashingC []byte
-			leafRows, leafForHashingC = prepareStorageLeafRows(proof2[len2-1], 3, false)
-			*rows = append(*rows, leafRows...)
-			*toBeHashed = append(*toBeHashed, leafForHashingC)
-		} else {
-			// We do not have leaf in one of the proofs when extension node is inserted.
-			// We can use the same leaf for S and C because we have the same extension
-			// node and branch in the rows above (inserted extension node rows are below
-			// leaf rows). We just need to make sure the row selectors are the right one.
-			*rows = append(*rows, leafRows...)
-
-			l := len(leafRows[0])
-			leafKey := make([]byte, l)
-			copy(leafKey, leafRows[0])
-			leafKey[l - 1] = 3
-			*rows = append(*rows, leafKey)
-
-			l = len(leafRows[1])
-			leafVal := make([]byte, l)
-			copy(leafVal, leafRows[1])
-			leafVal[l - 1] = 14
-			*rows = append(*rows, leafVal)
-		}	
-	} else {	
-		if !isModifiedExtNode {
-			*rows = append(*rows, leafRows...)
-			var leafForHashingC []byte
-			leafRows, leafForHashingC = prepareStorageLeafRows(proof2[len2-1], 3, false)
-			*rows = append(*rows, leafRows...)
-			*toBeHashed = append(*toBeHashed, leafForHashingC)
-		} else {
-			var leafForHashingC []byte
-			leafRows, leafForHashingC = prepareStorageLeafRows(proof2[len2-1], 3, false)
-			// We do not have leaf in one of the proofs when extension node is inserted.
-			// We can use the same leaf for S and C because we have the same extension
-			// node and branch in the rows above (inserted extension node rows are below
-			// leaf rows). We just need to make sure the row selectors are the right one.
-
-			l := len(leafRows[0])
-			leafKey := make([]byte, l)
-			copy(leafKey, leafRows[0])
-			leafKey[l - 1] = 2
-			*rows = append(*rows, leafKey)
-
-			l = len(leafRows[1])
-			leafVal := make([]byte, l)
-			copy(leafVal, leafRows[1])
-			leafVal[l - 1] = 13
-			*rows = append(*rows, leafVal)
-
-			*rows = append(*rows, leafRows...)
-			*toBeHashed = append(*toBeHashed, leafForHashingC)
-		}
-	}
-
-	// The branch contains hash of the neighbouring leaf, to be able
-	// to check it, we add node RLP to toBeHashed
-	addForHashing(neighbourNode, toBeHashed)
-
-	// Neighbouring leaf - the leaf that used to be one level above,
-	// but it was "drifted down" when additional branch was added.
-	// Only key is needed because we already have the value (it doesn't change)
-	// in the parallel proof.
-	if !isModifiedExtNode {
-		sLeafRows, _ := prepareStorageLeafRows(neighbourNode, 15, false)
-		*rows = append(*rows, sLeafRows[0])
-	} else {
-		pRows := prepareDriftedLeafPlaceholder(false)
-		*rows = append(*rows, pRows...)	
-	}
-	
-	// For non existing proof, S and C proofs are the same
-	nonExistingStorageRow := prepareEmptyNonExistingStorageRow()
-	*rows = append(*rows, nonExistingStorageRow)
-}
-
-// addAccountLeafAfterBranchPlaceholder adds account leaf rows after branch that is a placeholder.
-// It also handles the case when there is a modified extension node.
-func addAccountLeafAfterBranchPlaceholder(rows *[][]byte, proof1, proof2, leafRows [][]byte, neighbourNode, key []byte, nonExistingAccountProof, isModifiedExtNode, isExtension bool, numberOfNibbles int, toBeHashed *[][]byte) {
-	*rows = append(*rows, leafRows...)
-
-	// The branch contains hash of the neighbouring leaf, to be able
-	// to check it, we add node RLP to toBeHashed
-	addForHashing(neighbourNode, toBeHashed)
-
-	// Neighbouring leaf - the leaf that used to be one level above,
-	// but it was "drifted down" when additional branch was added.
-	// Only key is needed because we already have the value (it doesn't change)
-	// in the parallel proof.
-	if !isModifiedExtNode {
-		h := append(neighbourNode, 5)
-		*toBeHashed = append(*toBeHashed, h)
-
-		keyRowS, _, _, _, _, _, _ :=
-			prepareAccountLeafRows(neighbourNode, neighbourNode, key, nonExistingAccountProof, false)
-		keyRowS = append(keyRowS, 10)
-		*rows = append(*rows, keyRowS)
-	} else {
-		pRows := prepareDriftedLeafPlaceholder(true)
-		*rows = append(*rows, pRows...)	
 	}
 }
 

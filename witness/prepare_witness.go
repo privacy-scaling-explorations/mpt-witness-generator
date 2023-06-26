@@ -249,7 +249,7 @@ func obtainAccountProofAndConvertToWitness(i int, tMod TrieModification, tModsLe
 		
 	nodes = append(nodes, GetStartNode(proofType, sRoot, cRoot))
 
-	_, _, nodesAccount, _ :=
+	nodesAccount, _ :=
 		convertProofToWitness(statedb, addrh, addr, accountProof, accountProof1, aExtNibbles1, aExtNibbles2, accountAddr, aNode, true, tMod.Type == NonExistingAccount, false, isShorterProofLastLeaf)
 	nodes = append(nodes, nodesAccount...)
 	nodes = append(nodes, GetEndNode())
@@ -340,10 +340,10 @@ func obtainTwoProofsAndConvertToWitness(trieModifications []TrieModification, st
 			// of the "special" test for which we manually manipulate the "hashed" address and we don't have a preimage.
 			// TODO: addr is used for calling GetProof for modified extension node only, might be done in a different way 
 			// TODO: remove _
-			_, _, nodesAccount, _ :=
+			nodesAccount, _ :=
 				convertProofToWitness(statedb, addrh, addr, accountProof, accountProof1, aExtNibbles1, aExtNibbles2, accountAddr, aNode, true, tMod.Type == NonExistingAccount, false, aIsLastLeaf)
 			nodes = append(nodes, nodesAccount...)
-			_, _, nodesStorage, _ :=
+			nodesStorage, _ :=
 				convertProofToWitness(statedb, addrh, addr, storageProof, storageProof1, extNibbles1, extNibbles2, keyHashed, node, false, false, tMod.Type == NonExistingStorage, isLastLeaf)
 			nodes = append(nodes, nodesStorage...)
 			nodes = append(nodes, GetEndNode())
@@ -399,7 +399,7 @@ func updateStateAndPrepareWitness(testName string, keys, values []common.Hash, a
 // a witness for the MPT circuit. Alongside, it prepares the byte streams that need to be hashed
 // and inserted into the Keccak lookup table.
 func convertProofToWitness(statedb *state.StateDB, addrh []byte, addr common.Address, proof1, proof2, extNibblesS, extNibblesC [][]byte, key []byte, neighbourNode []byte,
-		isAccountProof, nonExistingAccountProof, nonExistingStorageProof, isShorterProofLastLeaf bool) ([][]byte, [][]byte, []Node, bool) {
+		isAccountProof, nonExistingAccountProof, nonExistingStorageProof, isShorterProofLastLeaf bool) ([]Node, bool) {
 	rows := make([][]byte, 0)
 	toBeHashed := make([][]byte, 0)
 
@@ -461,7 +461,7 @@ func convertProofToWitness(statedb *state.StateDB, addrh []byte, addr common.Add
 			l := len(proof1)
 			var node Node
 			if isAccountProof {
-				node = prepareAccountLeafNode(addrh, proof1[l-1], proof2[l-1], nil, key, nonExistingAccountProof)
+				node = prepareAccountLeafNode(addrh, proof1[l-1], proof2[l-1], nil, key)
 			} else {
 				node = prepareStorageLeafNode(proof1[l-1], proof2[l-1], nil, key, nonExistingStorageProof, false, false)
 			}
@@ -514,7 +514,7 @@ func convertProofToWitness(statedb *state.StateDB, addrh []byte, addr common.Add
 				leafRow0 = proof2[len2-1]
 			}
 			
-			isModifiedExtNode, _, numberOfNibbles, branchC16, bNode := addBranchAndPlaceholder(&rows, proof1, proof2, extNibblesS, extNibblesC,
+			isModifiedExtNode, _, numberOfNibbles, branchC16, bNode := addBranchAndPlaceholder(proof1, proof2, extNibblesS, extNibblesC,
 				leafRow0, key, neighbourNode,
 				keyIndex, extensionNodeInd, additionalBranch,
 				isAccountProof, nonExistingAccountProof, isShorterProofLastLeaf, branchC16, branchC1, &toBeHashed)
@@ -523,7 +523,7 @@ func convertProofToWitness(statedb *state.StateDB, addrh []byte, addr common.Add
 
 			if isAccountProof {
 				// Add account leaf after branch placeholder:
-				node := prepareAccountLeafNode(addrh, proof1[len1-1], proof2[len2-1], neighbourNode, key, nonExistingAccountProof)
+				node := prepareAccountLeafNode(addrh, proof1[len1-1], proof2[len2-1], neighbourNode, key)
 				nodes = append(nodes, node)
 			} else {	
 				// Add storage leaf after branch placeholder
@@ -549,6 +549,8 @@ func convertProofToWitness(statedb *state.StateDB, addrh []byte, addr common.Add
 		// as the last row.
 		// When non existing proof and only the branches are returned, we add a placeholder leaf.
 		// This is to enable the lookup (in account leaf row), most constraints are disabled for these rows.
+
+		// TODO: prepare node
 		if isAccountProof {
 			leafRows := prepareAccountLeafPlaceholderRows(key, keyIndex, nonExistingAccountProof)
 			rows = append(rows, leafRows...)	
@@ -558,5 +560,5 @@ func convertProofToWitness(statedb *state.StateDB, addrh []byte, addr common.Add
 		}
 	}
 
-	return rows, toBeHashed, nodes, extensionNodeInd > 0
+	return nodes, extensionNodeInd > 0
 }
