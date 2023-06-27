@@ -48,61 +48,6 @@ func prepareNonExistingStorageRow(leafC, keyNibbles []byte, noLeaf bool) ([]byte
 	return wrongRlpBytes, nonExistingStorageRow
 }
 
-// getNonceBalanceRow takes GetProof account leaf and prepares a row that contains nonce and balance.
-// TODO: replace with getNonceBalanceValue
-func getNonceBalanceRow(leaf []byte, keyLen int) ([]byte, int) {
-	nonceStart := 3 + keyLen + 1 + 1 + 1 + 1
-
-	var nonceRlpLen byte
-	var balanceStart int
-	var nonce []byte
-
-	// If the first nonce byte is > 128, it means it presents (nonce_len - 128),
-	// if the first nonce byte is <= 128, the actual nonce value is < 128 and is exactly this first byte
-	// (however, when nonce = 0, the actual value that is stored is 128)
-	if leaf[nonceStart] <= 128 {
-		// only one nonce byte
-		nonceRlpLen = 1
-		nonce = leaf[nonceStart : nonceStart+int(nonceRlpLen)]
-		balanceStart = nonceStart + int(nonceRlpLen)
-	} else {
-		nonceRlpLen = leaf[nonceStart] - 128
-		nonce = leaf[nonceStart : nonceStart+int(nonceRlpLen)+1]
-		balanceStart = nonceStart + int(nonceRlpLen) + 1
-	}
-
-	var balanceRlpLen byte
-	var storageStart int
-	if leaf[balanceStart] <= 128 {
-		// only one balance byte
-		balanceRlpLen = 1
-		storageStart = balanceStart + int(balanceRlpLen)
-	} else {
-		balanceRlpLen = leaf[balanceStart] - 128
-		storageStart = balanceStart + int(balanceRlpLen) + 1
-	}
-
-	nonceBalanceRow := make([]byte, rowLen)
-	for i := 0; i < len(nonce); i++ {
-		nonceBalanceRow[branchNodeRLPLen+i] = nonce[i]
-	}
-	nonceBalanceRow[0] = leaf[3+keyLen]
-	nonceBalanceRow[1] = leaf[3+keyLen+1]
-	nonceBalanceRow[branch2start] = leaf[3+keyLen+1+1]
-	nonceBalanceRow[branch2start+1] = leaf[3+keyLen+1+1+1]
-	var balance []byte
-	if balanceRlpLen == 1 {
-		balance = leaf[balanceStart : balanceStart+int(balanceRlpLen)]
-	} else {
-		balance = leaf[balanceStart : balanceStart+int(balanceRlpLen)+1]
-	}
-	for i := 0; i < len(balance); i++ {
-		nonceBalanceRow[branch2start+2+i] = balance[i] // c_advices
-	}
-
-	return nonceBalanceRow, storageStart
-}
-
 func getNonceBalanceValue(leaf []byte, keyLen int) ([]byte, []byte, int) {
 	nonceStart := 3 + keyLen + 1 + 1 + 1 + 1
 

@@ -50,46 +50,6 @@ const isInsertedExtNodeS = 34
 const isInsertedExtNodeC = 35
 const isShortExtNodeBranch = 36
 
-/*
-Info about row type (given as the last element of the row):
-0: init branch (such a row contains RLP info about the branch node; key)
-1: branch child
-2: storage leaf s key
-3: storage leaf c key
-5: hash to be computed (for example branch RLP whose hash needs to be checked in the parent)
-6: account leaf key S
-4: account leaf key C
-7: account leaf nonce balance S
-8: account leaf nonce balance C
-9: account leaf root codehash S
-10: account leaf neighbouring leaf
-11: account leaf root codehash C
-13: storage leaf s value
-14: storage leaf c value
-15: neighbouring storage leaf (when leaf turned into branch)
-16: extension node S
-17: extension node C
-18: non existing account
-19: non existing storage
-20: modified extension node S before modification
-21: modified extension node C before modification
-22: modified extension node S after modification
-23: modified extension node C after modification
-24: modified extension node before modification selectors
-25: modified extension node after modification selectors
-*/
-
-const (
-	BranchInitRow = iota
-	BranchChildRow
-	StorageLeafKeySRow
-	StorageLeafKeyCRow
-	AccountLeafKeyCRow // 4
-	HashRow
-	AccountLeafKeySRow // 6
-	// TODO
-)
-
 type AccountRowType int64
 const (
 	AccountKeyS AccountRowType = iota
@@ -107,9 +67,10 @@ const (
 )
 
 // TODO: replace with ProofType
+/*
 type ModType int64
 const (
-	StorageMod ModType = iota
+	StorageChanged ModType = iota
 	NonceMod
 	BalanceMod
 	CodeHashMod
@@ -118,18 +79,8 @@ const (
 	NonExistingAccount
 	NonExistingStorage
 )
+*/
 
-type TrieModification struct {
-	Type     ModType
-	Key      common.Hash
-	Value    common.Hash
-	Address  common.Address
-	Nonce    uint64
-	Balance  *big.Int
-	CodeHash []byte
-}
-
-/*
 type ProofType int64
 const (
     Disabled ProofType = iota
@@ -140,16 +91,17 @@ const (
     AccountDoesNotExist
     StorageChanged
     StorageDoesNotExist
+	AccountCreate // TODO: remove (implicitly create by nonce, balance, codehash change)
 )
-*/
 
-// addForHashing takes the stream of bytes and append a byte to it that marks this stream
-// to be hashed and put into keccak lookup table that is to be used by MPT circuit.
-func addForHashing(toBeHashed []byte, toBeHashedCollection *[][]byte) {
-	forHashing := make([]byte, len(toBeHashed))
-	copy(forHashing, toBeHashed)
-	forHashing = append(forHashing, HashRow)
-	*toBeHashedCollection = append(*toBeHashedCollection, forHashing)
+type TrieModification struct {
+	Type     ProofType
+	Key      common.Hash
+	Value    common.Hash
+	Address  common.Address
+	Nonce    uint64
+	Balance  *big.Int
+	CodeHash []byte
 }
 
 // GetWitness is to be used by external programs to generate the witness. 
@@ -194,15 +146,15 @@ func obtainAccountProofAndConvertToWitness(i int, tMod TrieModification, tModsLe
 
 	sRoot := statedb.GetTrie().Hash()
 
-	if tMod.Type == NonceMod {
+	if tMod.Type == NonceChanged {
 		statedb.SetNonce(addr, tMod.Nonce)
-	} else if tMod.Type == BalanceMod {
+	} else if tMod.Type == BalanceChanged {
 		statedb.SetBalance(addr, tMod.Balance)
-	} else if tMod.Type == CodeHashMod {
+	} else if tMod.Type == CodeHashExists {
 		statedb.SetCode(addr, tMod.CodeHash)
-	} else if tMod.Type == CreateAccount {
+	} else if tMod.Type == AccountCreate {
 		statedb.CreateAccount(tMod.Address)
-	} else if tMod.Type == DeleteAccount {
+	} else if tMod.Type == AccountDestructed {
 		statedb.DeleteAccount(tMod.Address)
 	}
 	// No statedb change in case of NonExistingAccount
@@ -214,7 +166,7 @@ func obtainAccountProofAndConvertToWitness(i int, tMod TrieModification, tModsLe
 	accountProof1, aNeighbourNode2, aExtNibbles2, isLastLeaf2, err := statedb.GetProof(addr)
 	check(err)
 
-	if tMod.Type == NonExistingAccount && len(accountProof) == 0 {
+	if tMod.Type == AccountDoesNotExist && len(accountProof) == 0 {
 		// If there is only one account in the state trie and we want to prove for some 
 		// other account that it doesn't exist.
 		// We get the root node (the only account) and put it as the only element of the proof,
@@ -239,18 +191,18 @@ func obtainAccountProofAndConvertToWitness(i int, tMod TrieModification, tModsLe
 	
 	// TODO: CodeHashExists
 	proofType := "NonceChanged"
-	if tMod.Type == BalanceMod {
+	if tMod.Type == BalanceChanged {
 		proofType = "BalanceChanged"
-	} else if tMod.Type == DeleteAccount {
+	} else if tMod.Type == AccountDestructed {
 		proofType = "AccountDestructed"
-	} else if tMod.Type == NonExistingAccount {
+	} else if tMod.Type == AccountDoesNotExist {
 		proofType = "AccountDoesNotExist"
 	}
 		
 	nodes = append(nodes, GetStartNode(proofType, sRoot, cRoot))
 
 	nodesAccount, _ :=
-		convertProofToWitness(statedb, addrh, addr, accountProof, accountProof1, aExtNibbles1, aExtNibbles2, accountAddr, aNode, true, tMod.Type == NonExistingAccount, false, isShorterProofLastLeaf)
+		convertProofToWitness(statedb, addrh, addr, accountProof, accountProof1, aExtNibbles1, aExtNibbles2, accountAddr, aNode, true, tMod.Type == AccountDoesNotExist, false, isShorterProofLastLeaf)
 	nodes = append(nodes, nodesAccount...)
 	nodes = append(nodes, GetEndNode())
 
@@ -267,7 +219,7 @@ func obtainTwoProofsAndConvertToWitness(trieModifications []TrieModification, st
 
 	for i := 0; i < len(trieModifications); i++ {
 		tMod := trieModifications[i]
-		if tMod.Type == StorageMod || tMod.Type == NonExistingStorage {
+		if tMod.Type == StorageChanged || tMod.Type == StorageDoesNotExist {
 			kh := crypto.Keccak256(tMod.Key.Bytes())
 			if oracle.PreventHashingInSecureTrie {
 				kh = tMod.Key.Bytes()
@@ -292,7 +244,7 @@ func obtainTwoProofsAndConvertToWitness(trieModifications []TrieModification, st
 
 			sRoot := statedb.GetTrie().Hash()
 
-			if tMod.Type == StorageMod {
+			if tMod.Type == StorageChanged {
 				statedb.SetState(addr, tMod.Key, tMod.Value)
 				statedb.IntermediateRoot(false)
 			}
@@ -300,7 +252,7 @@ func obtainTwoProofsAndConvertToWitness(trieModifications []TrieModification, st
 			cRoot := statedb.GetTrie().Hash()
 
 			proofType := "StorageChanged"
-			if tMod.Type == NonExistingStorage {
+			if tMod.Type == StorageDoesNotExist {
 				proofType = "StorageDoesNotExist"
 			}
 			
@@ -341,10 +293,10 @@ func obtainTwoProofsAndConvertToWitness(trieModifications []TrieModification, st
 			// TODO: addr is used for calling GetProof for modified extension node only, might be done in a different way 
 			// TODO: remove _
 			nodesAccount, _ :=
-				convertProofToWitness(statedb, addrh, addr, accountProof, accountProof1, aExtNibbles1, aExtNibbles2, accountAddr, aNode, true, tMod.Type == NonExistingAccount, false, aIsLastLeaf)
+				convertProofToWitness(statedb, addrh, addr, accountProof, accountProof1, aExtNibbles1, aExtNibbles2, accountAddr, aNode, true, tMod.Type == AccountDoesNotExist, false, aIsLastLeaf)
 			nodes = append(nodes, nodesAccount...)
 			nodesStorage, _ :=
-				convertProofToWitness(statedb, addrh, addr, storageProof, storageProof1, extNibbles1, extNibbles2, keyHashed, node, false, false, tMod.Type == NonExistingStorage, isLastLeaf)
+				convertProofToWitness(statedb, addrh, addr, storageProof, storageProof1, extNibbles1, extNibbles2, keyHashed, node, false, false, tMod.Type == StorageDoesNotExist, isLastLeaf)
 			nodes = append(nodes, nodesStorage...)
 			nodes = append(nodes, GetEndNode())
 		} else {
@@ -534,6 +486,7 @@ func convertProofToWitness(statedb *state.StateDB, addrh []byte, addr common.Add
 			// When a proof element is a modified extension node (new extension node appears at the position
 			// of the existing extension node), additional rows are added (extension node before and after
 			// modification).
+			// TODO: port to Node
 			if isModifiedExtNode {
 				addModifiedExtNode(statedb, addr, &rows, proof1, proof2, extNibblesS, extNibblesC, key, neighbourNode,
 					keyIndex, extensionNodeInd, numberOfNibbles, additionalBranch,
@@ -544,13 +497,11 @@ func convertProofToWitness(statedb *state.StateDB, addrh []byte, addr common.Add
 			nodes = append(nodes, node)
 		}
 	} else if isBranch(proof2[len(proof2)-1]) {
-		// Let's always use C proof for non-existing proof.
 		// Account proof has drifted leaf as the last row, storage proof has non-existing-storage row
 		// as the last row.
 		// When non existing proof and only the branches are returned, we add a placeholder leaf.
 		// This is to enable the lookup (in account leaf row), most constraints are disabled for these rows.
 
-		// TODO: prepare node
 		if isAccountProof {
 			node := prepareAccountLeafPlaceholderNode(addrh, key, keyIndex)
 			nodes = append(nodes, node)
