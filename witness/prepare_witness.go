@@ -555,8 +555,8 @@ func convertProofToWitness(statedb *state.StateDB, addrh []byte, addr common.Add
 			node := prepareAccountLeafPlaceholderNode(addrh, key, keyIndex)
 			nodes = append(nodes, node)
 		} else {
-			leafRows := prepareStorageLeafPlaceholderRows(key, keyIndex, nonExistingStorageProof)
-			rows = append(rows, leafRows...)	
+			node := prepareStorageLeafPlaceholderNode(key, keyIndex)
+			nodes = append(nodes, node)
 		}
 	}
 
