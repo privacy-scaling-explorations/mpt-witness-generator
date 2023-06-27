@@ -461,7 +461,7 @@ func convertProofToWitness(statedb *state.StateDB, addrh []byte, addr common.Add
 			l := len(proof1)
 			var node Node
 			if isAccountProof {
-				node = prepareAccountLeafNode(addrh, proof1[l-1], proof2[l-1], nil, key)
+				node = prepareAccountLeafNode(addrh, proof1[l-1], proof2[l-1], nil, key, false)
 			} else {
 				node = prepareStorageLeafNode(proof1[l-1], proof2[l-1], nil, key, nonExistingStorageProof, false, false)
 			}
@@ -523,7 +523,7 @@ func convertProofToWitness(statedb *state.StateDB, addrh []byte, addr common.Add
 
 			if isAccountProof {
 				// Add account leaf after branch placeholder:
-				node := prepareAccountLeafNode(addrh, proof1[len1-1], proof2[len2-1], neighbourNode, key)
+				node := prepareAccountLeafNode(addrh, proof1[len1-1], proof2[len2-1], neighbourNode, key, false)
 				nodes = append(nodes, node)
 			} else {	
 				// Add storage leaf after branch placeholder
@@ -552,8 +552,8 @@ func convertProofToWitness(statedb *state.StateDB, addrh []byte, addr common.Add
 
 		// TODO: prepare node
 		if isAccountProof {
-			leafRows := prepareAccountLeafPlaceholderRows(key, keyIndex, nonExistingAccountProof)
-			rows = append(rows, leafRows...)	
+			node := prepareAccountLeafPlaceholderNode(addrh, key, keyIndex)
+			nodes = append(nodes, node)
 		} else {
 			leafRows := prepareStorageLeafPlaceholderRows(key, keyIndex, nonExistingStorageProof)
 			rows = append(rows, leafRows...)	

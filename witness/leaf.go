@@ -401,7 +401,7 @@ func prepareAccountLeafRows(leafS, leafC, addressNibbles []byte, nonExistingAcco
 	return keyRowS, keyRowC, nonExistingAccountRow, nonceBalanceRowS, nonceBalanceRowC, storageCodeHashRowS, storageCodeHashRowC
 }
 
-func prepareAccountLeafNode(addrh []byte, leafS, leafC, neighbourNode, addressNibbles []byte) Node {	
+func prepareAccountLeafNode(addrh []byte, leafS, leafC, neighbourNode, addressNibbles []byte, isPlaceholder bool) Node {	
 	// For non existing account proof there are two cases:
 	// 1. A leaf is returned that is not at the required address (wrong leaf).
 	// 2. A branch is returned as the last element of getProof and
@@ -512,8 +512,14 @@ func prepareAccountLeafNode(addrh []byte, leafS, leafC, neighbourNode, addressNi
 
 	storageStartS := 0
 	storageStartC := 0
-	nonceValueS, balanceValueS, storageStartS := getNonceBalanceValue(leafS, keyLenS)
-	nonceValueC, balanceValueC, storageStartC := getNonceBalanceValue(leafC, keyLenC)
+	nonceValueS := make([]byte, valueLen)
+	nonceValueC := make([]byte, valueLen)
+	balanceValueS := make([]byte, valueLen)
+	balanceValueC := make([]byte, valueLen)
+	if !isPlaceholder {
+		nonceValueS, balanceValueS, storageStartS = getNonceBalanceValue(leafS, keyLenS)
+		nonceValueC, balanceValueC, storageStartC = getNonceBalanceValue(leafC, keyLenC)
+	}
 
 	valueRlpBytes[0][0] = leafS[3+keyLenS]
 	valueRlpBytes[0][1] = leafS[3+keyLenS+1]
@@ -527,8 +533,14 @@ func prepareAccountLeafNode(addrh []byte, leafS, leafC, neighbourNode, addressNi
 	valueListRlpBytes[1][0] = leafC[3+keyLenC+1+1]
 	valueListRlpBytes[1][1] = leafC[3+keyLenC+1+1+1]
 
-	storageRootValueS, codeHashValueS := getStorageRootCodeHashValue(leafS, storageStartS)
-	storageRootValueC, codeHashValueC := getStorageRootCodeHashValue(leafC, storageStartC)
+	storageRootValueS := make([]byte, valueLen)
+	storageRootValueC := make([]byte, valueLen)
+	codeHashValueS := make([]byte, valueLen)
+	codeHashValueC := make([]byte, valueLen)
+	if !isPlaceholder {
+		storageRootValueS, codeHashValueS = getStorageRootCodeHashValue(leafS, storageStartS)
+		storageRootValueC, codeHashValueC = getStorageRootCodeHashValue(leafC, storageStartC)
+	}
 
 	values[AccountKeyS] = keyRowS
 	values[AccountKeyC] = keyRowC
@@ -592,7 +604,7 @@ func prepareLeafAndPlaceholderNode(addrh []byte, proof1, proof2 [][]byte, key []
 
 		// When generating a proof that account doesn't exist, the length of both proofs is the same (doesn't reach
 		// this code).
-		return prepareAccountLeafNode(addrh, leafS, leafC, nil, key)
+		return prepareAccountLeafNode(addrh, leafS, leafC, nil, key, false)
 	} else {
 		var leaf []byte
 		isSPlaceholder := false
@@ -662,15 +674,14 @@ func prepareStorageLeafPlaceholderRows(key []byte, keyIndex int, nonExistingStor
 	return rows
 }
 
-// prepareAccountLeafPlaceholderRows prepares account leaf placeholder rows for the cases when
-// both proofs only have branches / extension nodes and no leaves (for example non existing leaf proof).
-func prepareAccountLeafPlaceholderRows(key []byte, keyIndex int, nonExistingAccountProof bool) [][]byte {
+func prepareAccountLeafPlaceholderNode(addrh, key []byte, keyIndex int) Node {
 	isEven := keyIndex % 2 == 0 
 	keyLen := int(math.Floor(float64(64-keyIndex) / float64(2))) + 1
 	remainingNibbles := key[keyIndex:]
 	offset := 0
 	leaf := make([]byte, rowLen)
 	leaf[0] = 248
+	leaf[1] = byte(keyLen) + 73
 	leaf[2] = byte(keyLen) + 128
 	leaf[3 + keyLen] = 184
 	leaf[3 + keyLen + 1 + 1] = 248
@@ -684,34 +695,25 @@ func prepareAccountLeafPlaceholderRows(key []byte, keyIndex int, nonExistingAcco
 	for i := 0; i < keyLen - 1; i++ {
 		leaf[4+i] = remainingNibbles[2*i + offset] * 16 + remainingNibbles[2*i + 1 + offset]
 	}
-	
-	leafRows, _ := prepareAccountLeaf(leaf, leaf, key, nonExistingAccountProof, true)
 
-	leafRows[0][1] = byte(keyLen) + 73
-	leafRows[1][1] = byte(keyLen) + 73
-	leafRows[3][0] = 184
-	leafRows[3][1] = 70
-	leafRows[3][2] = 128
-	leafRows[3][branch2start] = 248
-	leafRows[3][branch2start + 1] = 68
-	leafRows[3][branch2start + 2] = 128
+	node := prepareAccountLeafNode(addrh, leaf, leaf, nil, key, true)
 
-	leafRows[4][0] = 184
-	leafRows[4][1] = 70
-	leafRows[4][2] = 128
-	leafRows[4][branch2start] = 248
-	leafRows[4][branch2start + 1] = 68
-	leafRows[4][branch2start + 2] = 128
-	
-	leafRows[5][0] = 160
-	leafRows[5][branch2start] = 160
-	leafRows[6][0] = 160
-	leafRows[6][branch2start] = 160
+	node.Account.ValueRlpBytes[0][0] = 184
+	node.Account.ValueRlpBytes[0][1] = 70
+	node.Account.ValueRlpBytes[1][0] = 184
+	node.Account.ValueRlpBytes[1][1] = 70
 
-	pRows := prepareDriftedLeafPlaceholder(true)
-	leafRows = append(leafRows, pRows...)
+	node.Account.ValueListRlpBytes[0][0] = 248
+	node.Account.ValueListRlpBytes[0][1] = 68
+	node.Account.ValueListRlpBytes[1][0] = 248
+	node.Account.ValueListRlpBytes[1][1] = 68
 
-	return leafRows
+	node.Values[AccountStorageS][0] = 160 
+	node.Values[AccountStorageC][0] = 160 
+	node.Values[AccountCodehashS][0] = 160 
+	node.Values[AccountCodehashC][0] = 160 
+
+	return node
 }
 
 func prepareStorageLeafInfo(row []byte, valueIsZero, isPlaceholder bool) ([]byte, []byte, []byte, []byte) {
