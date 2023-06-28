@@ -14,22 +14,13 @@ const branchNodeRLPLen = 2 // we have two positions for RLP meta data
 const branch2start = branchNodeRLPLen + 32
 const branchRows = 19 // 1 (init) + 16 (children) + 2 (extension S and C)
 
-const accountLeafRows = 8
-const storageLeafRows = 6
-const counterLen = 4
-
 // rowLen - each branch node has 2 positions for RLP meta data and 32 positions for hash
 const rowLen = branch2start + 2 + 32 + 1 // +1 is for info about what type of row is it
 const valueLen = 34
-const keyPos = 10
-const isBranchSPlaceholderPos = 11
-const isBranchCPlaceholderPos = 12
 const driftedPos = 13
 const isExtensionPos = 14
 // extension key even or odd is about nibbles - that determines whether the first byte (not
 // considering RLP bytes) is 0 or 1 (see encoding.go hexToCompact)
-const isBranchC16Pos = 19
-const isBranchC1Pos = 20
 const isExtShortC16Pos = 21
 const isExtShortC1Pos = 22
 const isExtLongEvenC16Pos = 23
@@ -38,16 +29,9 @@ const isExtLongOddC16Pos = 25
 const isExtLongOddC1Pos = 26
 // short/long means having one or more than one nibbles
 const isSExtLongerThan55Pos = 27
-const isCExtLongerThan55Pos = 28
-const isBranchSNonHashedPos = 29
-const isBranchCNonHashedPos = 30
 const isExtNodeSNonHashedPos = 31
-const isExtNodeCNonHashedPos = 32
 
 // nibbles_counter_pos = 33, set in the assign function.
-
-const isInsertedExtNodeS = 34
-const isInsertedExtNodeC = 35
 const isShortExtNodeBranch = 36
 
 type AccountRowType int64
@@ -66,32 +50,17 @@ const (
     AccountWrong	
 )
 
-// TODO: replace with ProofType
-/*
-type ModType int64
-const (
-	StorageChanged ModType = iota
-	NonceMod
-	BalanceMod
-	CodeHashMod
-	CreateAccount
-	DeleteAccount
-	NonExistingAccount
-	NonExistingStorage
-)
-*/
-
 type ProofType int64
 const (
     Disabled ProofType = iota
     NonceChanged
     BalanceChanged
-    CodeHashExists
+    CodeHashChanged
     AccountDestructed
     AccountDoesNotExist
     StorageChanged
     StorageDoesNotExist
-	AccountCreate // TODO: remove (implicitly create by nonce, balance, codehash change)
+	AccountCreate
 )
 
 type TrieModification struct {
@@ -150,14 +119,14 @@ func obtainAccountProofAndConvertToWitness(i int, tMod TrieModification, tModsLe
 		statedb.SetNonce(addr, tMod.Nonce)
 	} else if tMod.Type == BalanceChanged {
 		statedb.SetBalance(addr, tMod.Balance)
-	} else if tMod.Type == CodeHashExists {
+	} else if tMod.Type == CodeHashChanged {
 		statedb.SetCode(addr, tMod.CodeHash)
 	} else if tMod.Type == AccountCreate {
 		statedb.CreateAccount(tMod.Address)
 	} else if tMod.Type == AccountDestructed {
 		statedb.DeleteAccount(tMod.Address)
 	}
-	// No statedb change in case of NonExistingAccount
+	// No statedb change in case of AccountDoesNotExist.
 
 	statedb.IntermediateRoot(false)
 
@@ -189,7 +158,6 @@ func obtainAccountProofAndConvertToWitness(i int, tMod TrieModification, tModsLe
 		isShorterProofLastLeaf = isLastLeaf2
 	}
 	
-	// TODO: CodeHashExists
 	proofType := "NonceChanged"
 	if tMod.Type == BalanceChanged {
 		proofType = "BalanceChanged"
@@ -197,11 +165,13 @@ func obtainAccountProofAndConvertToWitness(i int, tMod TrieModification, tModsLe
 		proofType = "AccountDestructed"
 	} else if tMod.Type == AccountDoesNotExist {
 		proofType = "AccountDoesNotExist"
+	} else if tMod.Type == CodeHashChanged {
+		proofType = "CodeHashExists" // TODO: change when it changes in the circuit
 	}
 		
 	nodes = append(nodes, GetStartNode(proofType, sRoot, cRoot))
 
-	nodesAccount, _ :=
+	nodesAccount :=
 		convertProofToWitness(statedb, addrh, addr, accountProof, accountProof1, aExtNibbles1, aExtNibbles2, accountAddr, aNode, true, tMod.Type == AccountDoesNotExist, false, isShorterProofLastLeaf)
 	nodes = append(nodes, nodesAccount...)
 	nodes = append(nodes, GetEndNode())
@@ -291,11 +261,10 @@ func obtainTwoProofsAndConvertToWitness(trieModifications []TrieModification, st
 			// In convertProofToWitness, we can't use account address in its original form (non-hashed), because
 			// of the "special" test for which we manually manipulate the "hashed" address and we don't have a preimage.
 			// TODO: addr is used for calling GetProof for modified extension node only, might be done in a different way 
-			// TODO: remove _
-			nodesAccount, _ :=
+			nodesAccount :=
 				convertProofToWitness(statedb, addrh, addr, accountProof, accountProof1, aExtNibbles1, aExtNibbles2, accountAddr, aNode, true, tMod.Type == AccountDoesNotExist, false, aIsLastLeaf)
 			nodes = append(nodes, nodesAccount...)
-			nodesStorage, _ :=
+			nodesStorage :=
 				convertProofToWitness(statedb, addrh, addr, storageProof, storageProof1, extNibbles1, extNibbles2, keyHashed, node, false, false, tMod.Type == StorageDoesNotExist, isLastLeaf)
 			nodes = append(nodes, nodesStorage...)
 			nodes = append(nodes, GetEndNode())
@@ -351,7 +320,7 @@ func updateStateAndPrepareWitness(testName string, keys, values []common.Hash, a
 // a witness for the MPT circuit. Alongside, it prepares the byte streams that need to be hashed
 // and inserted into the Keccak lookup table.
 func convertProofToWitness(statedb *state.StateDB, addrh []byte, addr common.Address, proof1, proof2, extNibblesS, extNibblesC [][]byte, key []byte, neighbourNode []byte,
-		isAccountProof, nonExistingAccountProof, nonExistingStorageProof, isShorterProofLastLeaf bool) ([]Node, bool) {
+		isAccountProof, nonExistingAccountProof, nonExistingStorageProof, isShorterProofLastLeaf bool) []Node {
 	rows := make([][]byte, 0)
 	toBeHashed := make([][]byte, 0)
 
@@ -511,5 +480,5 @@ func convertProofToWitness(statedb *state.StateDB, addrh []byte, addr common.Add
 		}
 	}
 
-	return nodes, extensionNodeInd > 0
+	return nodes
 }
