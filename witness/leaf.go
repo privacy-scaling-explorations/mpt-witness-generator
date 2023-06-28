@@ -82,18 +82,14 @@ func getNonceBalanceValue(leaf []byte, keyLen int) ([]byte, []byte, int) {
 
 	nonceVal := make([]byte, valueLen)
 	balanceVal := make([]byte, valueLen)
-	for i := 0; i < len(nonce); i++ {
-		nonceVal[i] = nonce[i]
-	}
+	copy(nonceVal, nonce)
 	var balance []byte
 	if balanceRlpLen == 1 {
 		balance = leaf[balanceStart : balanceStart+int(balanceRlpLen)]
 	} else {
 		balance = leaf[balanceStart : balanceStart+int(balanceRlpLen)+1]
 	}
-	for i := 0; i < len(balance); i++ {
-		balanceVal[i] = balance[i]
-	}
+	copy(balanceVal, balance)
 
 	return nonceVal, balanceVal, storageStart
 }
@@ -416,7 +412,18 @@ func prepareStorageLeafInfo(row []byte, valueIsZero, isPlaceholder bool) ([]byte
 
 	key := make([]byte, valueLen)
 	value := make([]byte, valueLen)
-	// TODO: merge cases
+
+	var setValue = func(keyLen, offset byte) {
+		if !isPlaceholder {
+			valueRlp = row[keyLen+offset:keyLen+offset+valueRlpLen]
+			if !valueIsZero {
+				copy(value, row[keyLen+offset+valueRlpLen:])
+			}
+		} else {
+			valueRlp = []byte{0}
+		}
+	}
+
 	if len(row) < 32 { // the node doesn't get hashed in this case
 		// 192 + 32 = 224
 		if row[1] < 128 {
@@ -429,15 +436,9 @@ func prepareStorageLeafInfo(row []byte, valueIsZero, isPlaceholder bool) ([]byte
 			keyRlp = row[:keyRlpLen]
 			copy(key, row[keyRlpLen:keyLen+1])
 			valueRlpLen = 1
+			offset := byte(1)
 			// If placeholder, we leave the value to be 0.
-			if !isPlaceholder {
-				valueRlp = row[keyLen+1:keyLen+1+valueRlpLen]
-				if !valueIsZero {
-					copy(value, row[keyLen+1+valueRlpLen:])
-				}
-			} else {
-				valueRlp = []byte{0}
-			}
+			setValue(keyLen, offset)	
 		} else {
 			// [196,130,32,0,1]
 			/*
@@ -450,15 +451,9 @@ func prepareStorageLeafInfo(row []byte, valueIsZero, isPlaceholder bool) ([]byte
 			keyRlp = row[:keyRlpLen]
 			copy(key, row[keyRlpLen:keyLen+2])
 			valueRlpLen = 1
+			offset := byte(2)
 			// If placeholder, we leave the value to be 0.
-			if !isPlaceholder {
-				valueRlp = row[keyLen+2:keyLen+2+valueRlpLen]
-				if !valueIsZero {
-					copy(value, row[keyLen+2+valueRlpLen:]) // value starts in s_rlp1
-				}
-			} else {
-				valueRlp = []byte{0}
-			}
+			setValue(keyLen, offset)	
 		}	
 	} else if row[0] == 248 {
 		// [248,67,160,59,138,106,70,105,186,37,13,38,205,122,69,158,202,157,33,95,131,7,227,58,235,229,3,121,188,90,54,23,236,52,68,161,160,...
@@ -467,12 +462,10 @@ func prepareStorageLeafInfo(row []byte, valueIsZero, isPlaceholder bool) ([]byte
 		keyRlp = row[:keyRlpLen]	
 		copy(key, row[keyRlpLen:keyLen+3])
 		valueRlpLen = 1
-		valueRlp = row[keyLen+3:keyLen+3+valueRlpLen]
+		offset := byte(3)
 		// there are two RLP meta data bytes which are put in s_rlp1 and s_rlp2,
 		// value starts in s_advices[0]
-		if !valueIsZero {
-			copy(value, row[keyLen+3+valueRlpLen:]) // RLP data in s_rlp1 and s_rlp2, value starts in s_advices[0]
-		}
+		setValue(keyLen, offset)	
 	} else {
 		if row[1] < 128 {
 			// last level:
@@ -481,14 +474,11 @@ func prepareStorageLeafInfo(row []byte, valueIsZero, isPlaceholder bool) ([]byte
 			// [227,48,161,160,187,239,170,18,88,1,56,188,38,60,149,117,120,38,223,78,36,235,129,201,170,170,170,170,170,170,170,170,170,170,170,170]
 			key[0] = row[0]
 			key[1] = row[1]
+			keyLen := byte(2)
+			offset := byte(0)
 			valueRlpLen = 1
 			// If placeholder, we leave the value to be 0.
-			if !isPlaceholder {
-				valueRlp = row[2:2+valueRlpLen]
-				copy(value, row[2+valueRlpLen:])
-			} else {
-				valueRlp = []byte{0}
-			}	
+			setValue(keyLen, offset)	
 		} else {
 			// [226,160,59,138,106,70,105,186,37,13,38[227,32,161,160,187,239,170,18,88,1,56,188,38,60,149,117,120,38,223,78,36,235,129,201,170,170,170,170,170,170,170,170,170,170,170,170]
 			keyRlpLen = 1
@@ -496,15 +486,9 @@ func prepareStorageLeafInfo(row []byte, valueIsZero, isPlaceholder bool) ([]byte
 			keyRlp = row[:keyRlpLen]
 			copy(key, row[keyRlpLen:keyLen+2])
 			valueRlpLen = 1
+			offset := byte(2)
 			// If placeholder, we leave the value to be 0.
-			if !isPlaceholder {
-				valueRlp = row[keyLen+2:keyLen+2+valueRlpLen]
-				if !valueIsZero {
-					copy(value, row[keyLen+2+valueRlpLen:]) // value starts in s_rlp1
-				}
-			} else {
-				valueRlp = []byte{0}
-			}
+			setValue(keyLen, offset)	
 		}
 	}
 
