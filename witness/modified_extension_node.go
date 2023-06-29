@@ -47,7 +47,7 @@ func addModifiedExtNode(statedb *state.StateDB, addr common.Address, rows *[][]b
 	extRows = append(extRows, extensionRowC)
 
 	*rows = append(*rows, extRows...)
-	addForHashing(longExtNode, toBeHashed)
+	// addForHashing(longExtNode, toBeHashed)
 
 	// Get nibbles of the extension node that gets shortened because of the newly insertd
 	// extension node:
@@ -150,5 +150,5 @@ func addModifiedExtNode(statedb *state.StateDB, addr common.Address, rows *[][]b
 	*rows = append(*rows, extNodeSelectors1)
 	*rows = append(*rows, extensionRowS1)
 	*rows = append(*rows, extensionRowC1)
-	addForHashing(shortExtNode, toBeHashed)
+	// addForHashing(shortExtNode, toBeHashed)
 }

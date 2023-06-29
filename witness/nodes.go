@@ -1,13 +1,54 @@
 package witness
 
+import (
+	"fmt"
+	"strings"
+
+	"github.com/ethereum/go-ethereum/common"
+)
+
 type BranchNode struct {
-    ModifiedIndex int `json:"modified_index"`
-    DriftedIndex int `json:"drifted_index"`
-    ListRlpBytes [2][]byte `json:"list_rlp_bytes"`
+    ModifiedIndex int
+    DriftedIndex int
+    ListRlpBytes [2][]byte
+}
+
+func (n *BranchNode) MarshalJSON() ([]byte, error) {
+    listRlpBytes1 := base64ToString(n.ListRlpBytes[0]) 
+    listRlpBytes2 := base64ToString(n.ListRlpBytes[1]) 
+    jsonResult := fmt.Sprintf(`{"modified_index": %d, "drifted_index": %d, "list_rlp_bytes":[%s,%s]}`,
+        n.ModifiedIndex, n.DriftedIndex, listRlpBytes1, listRlpBytes2)
+    return []byte(jsonResult), nil
 }
 
 type ExtensionNode struct {
-   ListRlpBytes []byte `json:"list_rlp_bytes"`
+   ListRlpBytes []byte
+}
+
+func (n *ExtensionNode) MarshalJSON() ([]byte, error) {
+    listRlpBytes := base64ToString(n.ListRlpBytes) 
+    jsonResult := fmt.Sprintf(`{"list_rlp_bytes":%s}`, listRlpBytes)
+    return []byte(jsonResult), nil
+}
+
+// When marshalling, []byte encodes as a base64-encoded string.
+func base64ToString(bs []byte) string {
+    var s string
+    if bs == nil {
+        f := make([]string, valueLen)
+        s = "["
+        for i := 0; i < len(f); i++ {
+            if i != len(f) - 1 {
+                s += "0, "
+            } else {
+                s += "0]"
+            }
+          }
+    } else {
+        s = strings.Join(strings.Fields(fmt.Sprintf("%d", bs)), ",")
+    }
+
+    return s
 }
 
 type StartNode struct {
@@ -22,12 +63,28 @@ type ExtensionBranchNode struct {
 }
 
 type AccountNode struct {
-    Address []byte `json:"address"`
-    ListRlpBytes [2][]byte `json:"list_rlp_bytes"`
-    ValueRlpBytes [2][]byte `json:"value_rlp_bytes"`
-    ValueListRlpBytes [2][]byte `json:"value_list_rlp_bytes"`
-    DriftedRlpBytes []byte `json:"drifted_rlp_bytes"`
-    WrongRlpBytes []byte `json:"wrong_rlp_bytes"`
+    Address []byte
+    ListRlpBytes [2][]byte
+    ValueRlpBytes [2][]byte
+    ValueListRlpBytes [2][]byte
+    DriftedRlpBytes []byte
+    WrongRlpBytes []byte
+}
+
+func (n *AccountNode) MarshalJSON() ([]byte, error) {
+    address := base64ToString(n.Address) 
+    listRlpBytes1 := base64ToString(n.ListRlpBytes[0]) 
+    listRlpBytes2 := base64ToString(n.ListRlpBytes[1]) 
+    valueRlpBytes1 := base64ToString(n.ValueRlpBytes[0]) 
+    valueRlpBytes2 := base64ToString(n.ValueRlpBytes[1]) 
+    valueListRlpBytes1 := base64ToString(n.ValueListRlpBytes[0]) 
+    valueListRlpBytes2 := base64ToString(n.ValueListRlpBytes[1]) 
+    driftedRlpBytes := base64ToString(n.DriftedRlpBytes) 
+    wrongRlpBytes := base64ToString(n.WrongRlpBytes) 
+    jsonResult := fmt.Sprintf(`{"address":%s, "list_rlp_bytes":[%s,%s], "value_rlp_bytes":[%s,%s], "value_list_rlp_bytes":[%s,%s], "drifted_rlp_bytes":%s, "wrong_rlp_bytes":%s}`,
+        address, listRlpBytes1, listRlpBytes2, valueRlpBytes1, valueRlpBytes2, valueListRlpBytes1, valueListRlpBytes2,
+        driftedRlpBytes, wrongRlpBytes)
+    return []byte(jsonResult), nil
 }
 
 type StorageNode struct {
@@ -35,6 +92,30 @@ type StorageNode struct {
     ValueRlpBytes [2][]byte `json:"value_rlp_bytes"`
     DriftedRlpBytes []byte `json:"drifted_rlp_bytes"`
     WrongRlpBytes []byte `json:"wrong_rlp_bytes"`
+}
+
+func (n *StorageNode) MarshalJSON() ([]byte, error) {
+    listRlpBytes1 := base64ToString(n.ListRlpBytes[0]) 
+    listRlpBytes2 := base64ToString(n.ListRlpBytes[1]) 
+    valueRlpBytes1 := base64ToString(n.ValueRlpBytes[0]) 
+    valueRlpBytes2 := base64ToString(n.ValueRlpBytes[1]) 
+    driftedRlpBytes := base64ToString(n.DriftedRlpBytes) 
+    wrongRlpBytes := base64ToString(n.WrongRlpBytes) 
+    jsonResult := fmt.Sprintf(`{"list_rlp_bytes":[%s,%s], "value_rlp_bytes":[%s,%s], "drifted_rlp_bytes":%s, "wrong_rlp_bytes":%s}`,
+        listRlpBytes1, listRlpBytes2, valueRlpBytes1, valueRlpBytes2, driftedRlpBytes, wrongRlpBytes)
+    return []byte(jsonResult), nil
+}
+
+type JSONableValues [][]byte
+
+func (u JSONableValues) MarshalJSON() ([]byte, error) {
+    var result string
+    if u == nil {
+        result = "[]"
+    } else {
+        result = strings.Join(strings.Fields(fmt.Sprintf("%d", u)), ",")
+    }
+    return []byte(result), nil
 }
 
 /*
@@ -46,21 +127,49 @@ type Node struct {
     ExtensionBranch *ExtensionBranchNode `json:"extension_branch"`
     Account *AccountNode `json:"account"`
     Storage *StorageNode `json:"storage"`
-    Values[][]byte `json:"values"`
+    Values JSONableValues `json:"values"`
+    KeccakData JSONableValues `json:"keccak_data"`
 }
 
-/*
-s := StartNode {
-	ProofType: "StorageChanged",
+func GetStartNode(proofType string, sRoot, cRoot common.Hash) Node {
+    s := StartNode {
+		ProofType: proofType,
+	}
+	var values [][]byte
+	var values1 []byte
+	var values2 []byte
+	values1 = append(values1, 160)
+	values1 = append(values1, sRoot.Bytes()...)
+	values1 = append(values1, 0)
+	values2 = append(values2, 160)
+	values2 = append(values2, cRoot.Bytes()...)
+	values2 = append(values2, 0)
+
+	values = append(values, values1)
+	values = append(values, values2)
+
+	return Node {
+		Start: &s,
+		Values: values,
+	}
 }
 
-n := Node {
-	Start: &s,
-}
+func GetEndNode() Node {
+    e := StartNode {
+		ProofType: "Disabled",
+	}
+	var endValues [][]byte
+	var endValues1 []byte
+	var endValues2 []byte
+	for i := 0; i < valueLen; i++ {
+		endValues1 = append(endValues1, 0)
+		endValues2 = append(endValues2, 0)
+	}
+	endValues = append(endValues, endValues1)
+	endValues = append(endValues, endValues2)
 
-b, err := json.Marshal(n)
-if err != nil {
-	fmt.Println(err)
+	return Node {
+		Start: &e,
+		Values: endValues,
+	}
 }
-fmt.Println(string(b))
-*/

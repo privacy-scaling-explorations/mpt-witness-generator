@@ -30,7 +30,7 @@ func GetWitness(proofConf *C.char) *C.char {
 	addr := common.HexToAddress(config.Addr)
 	for i := 0; i < len(config.Keys); i++ {
 		trieMod := witness.TrieModification{
-			Type: witness.StorageMod,
+			Type: witness.StorageChanged,
 			Key: common.HexToHash(config.Keys[i]),
 			Value: common.HexToHash(config.Values[i]),
 			Address: addr,
@@ -39,8 +39,12 @@ func GetWitness(proofConf *C.char) *C.char {
 	}
 
 	proof := witness.GetWitness(config.NodeUrl, config.BlockNum, trieModifications)
+	b, err := json.Marshal(proof)
+	if err != nil {
+		fmt.Println(err)
+	}
 
-	return C.CString(witness.MatrixToJson(proof))
+	return C.CString(string(b))
 }
 
 func main() {}

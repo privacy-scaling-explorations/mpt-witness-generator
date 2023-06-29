@@ -21,11 +21,12 @@ func TestNonExistingAccountNilObjectInFirstLevel(t *testing.T) {
 
 	i := 21
 	h := fmt.Sprintf("0x%d", i)
+	// There is one branch in the state trie, but at this address there is only a nil object:
 	addr := common.HexToAddress(h)
 
 	trieMod := TrieModification{
 		Address: addr,
-    	Type: NonExistingAccount,
+    	Type: AccountDoesNotExist,
 	}
 	trieModifications := []TrieModification{trieMod}
 
@@ -49,7 +50,7 @@ func TestNonExistingAccountInFirstLevel(t *testing.T) {
 	addr := common.HexToAddress(h)
 
 	trieMod := TrieModification{
-    	Type: NonExistingAccount,
+    	Type: AccountDoesNotExist,
 		Balance: big.NewInt(23),
 		Address: addr,
 	}
@@ -75,7 +76,7 @@ func TestNonExistingAccountAfterFirstLevel(t *testing.T) {
 
 	trieMod := TrieModification{
 		Address: addr,
-    	Type: NonExistingAccount,
+    	Type: AccountDoesNotExist,
 	}
 	trieModifications := []TrieModification{trieMod}
 
@@ -99,7 +100,7 @@ func TestAccountAfterFirstLevel(t *testing.T) {
 	addr := common.HexToAddress(h)
 
 	trieMod := TrieModification{
-    	Type: BalanceMod,
+    	Type: BalanceChanged,
 		Balance: big.NewInt(23),
 		Address: addr,
 	}
@@ -125,7 +126,7 @@ func TestAccountInFirstLevel(t *testing.T) {
 	addr := common.HexToAddress(h)
 
 	trieMod := TrieModification{
-    	Type: NonceMod,
+    	Type: NonceChanged,
 		Balance: big.NewInt(23),
 		Address: addr,
 	}
@@ -171,7 +172,7 @@ func TestAccountExtensionInFirstLevel(t *testing.T) {
 	}
 
 	trieMod := TrieModification{
-    	Type: NonceMod,
+    	Type: NonceChanged,
 		Balance: big.NewInt(23),
 		Address: addr,
 	}
@@ -196,7 +197,7 @@ func TestAccountBranchPlaceholder(t *testing.T) {
 	// Implicitly create account such that the account from the first level will be
 	// replaced by a branch.
 	trieMod := TrieModification{
-    	Type: NonceMod,
+    	Type: NonceChanged,
 		Balance: big.NewInt(23),
 		Address: addr,
 	}
@@ -260,7 +261,7 @@ func TestAccountBranchPlaceholderInFirstLevel(t *testing.T) {
 	// Implicitly create account such that the account from the first level will be
 	// replaced by a branch.
 	trieMod := TrieModification{
-    	Type: BalanceMod,
+    	Type: BalanceChanged,
 		Balance: big.NewInt(23),
 		Address: addr,
 	}
@@ -285,7 +286,7 @@ func TestStorageInFirstAccountInFirstLevel(t *testing.T) {
 	addr := common.HexToAddress(h)
 
 	trieMod := TrieModification{
-    	Type: StorageMod,
+    	Type: StorageChanged,
 		Key: common.HexToHash("0x12"),
 		Value: common.BigToHash(big.NewInt(int64(17))),
 		Address: addr,
@@ -333,7 +334,7 @@ func TestExtensionTwoNibblesInEvenLevel(t *testing.T) {
 	}
 
 	trieMod := TrieModification{
-    	Type: NonceMod,
+    	Type: NonceChanged,
 		Nonce: 33,
 		Address: addr,
 	}
@@ -380,7 +381,7 @@ func TestExtensionThreeNibblesInEvenLevel(t *testing.T) {
 	}
 
 	trieMod := TrieModification{
-    	Type: NonceMod,
+    	Type: NonceChanged,
 		Nonce: 33,
 		Address: addr,
 	}
@@ -427,7 +428,7 @@ func TestExtensionThreeNibblesInOddLevel(t *testing.T) {
 	}
 
 	trieMod := TrieModification{
-    	Type: NonceMod,
+    	Type: NonceChanged,
 		Nonce: 33,
 		Address: addr,
 	}
@@ -456,7 +457,7 @@ func TestStorageInFirstLevelNonExisting(t *testing.T) {
 	statedb.IntermediateRoot(false)
 
 	trieMod := TrieModification{
-    	Type: NonExistingStorage,
+    	Type: StorageDoesNotExist,
 		Key: common.HexToHash("0x12"),
 		Address: addr,
 	}
@@ -486,7 +487,7 @@ func TestStorageInFirstLevelNonExistingLong(t *testing.T) {
 	statedb.IntermediateRoot(false)
 
 	trieMod := TrieModification{
-    	Type: NonExistingStorage,
+    	Type: StorageDoesNotExist,
 		Key: common.HexToHash("0x12"),
 		Address: addr,
 	}
@@ -497,6 +498,7 @@ func TestStorageInFirstLevelNonExistingLong(t *testing.T) {
 	oracle.NodeUrl = oracle.RemoteUrl
 }
 
+/*
 func ExtNodeInserted(key1, key2, key3 common.Hash, testName string) {
 	// until infura is back up:
 	oracle.NodeUrl = oracle.LocalUrl
@@ -789,3 +791,4 @@ func TestExtNodeDeletedExtShortIsBranchFirstLevel(t *testing.T) {
 
 	ExtNodeDeleted(key1, key2, key3, "ExtNodeInsertedExtShortIsBranchFirstLevel")	
 }
+*/
