@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"strconv"
+	"path/filepath"
 )
 
 func check(err error) {
@@ -43,7 +44,15 @@ func listToJson(row []byte) string {
 
 func StoreNodes(testName string, nodes []Node) {
 	name := testName + ".json"
-	f, err := os.Create("../generated_witnesses/" + name)
+	path := "../generated_witnesses/" + name
+
+	// Create the directories if they do not exist yet
+    err := os.MkdirAll(filepath.Dir(path), 0755)
+    if err != nil {
+        log.Fatal(err)
+    }
+
+	f, err := os.Create(path)
     check(err)
 	defer f.Close()
 	b, err := json.Marshal(nodes)

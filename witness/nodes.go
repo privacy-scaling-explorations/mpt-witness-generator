@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/ethereum/go-ethereum/common"
+    "github.com/privacy-scaling-explorations/mpt-witness-generator/oracle"
 )
 
 type BranchNode struct {
@@ -52,6 +53,7 @@ func base64ToString(bs []byte) string {
 }
 
 type StartNode struct {
+    DisablePreimageCheck bool `json:"disable_preimage_check"`
     ProofType string `json:"proof_type"`
 }
 
@@ -63,7 +65,8 @@ type ExtensionBranchNode struct {
 }
 
 type AccountNode struct {
-    Address []byte
+    Address common.Address
+    Key []byte
     ListRlpBytes [2][]byte
     ValueRlpBytes [2][]byte
     ValueListRlpBytes [2][]byte
@@ -72,7 +75,8 @@ type AccountNode struct {
 }
 
 func (n *AccountNode) MarshalJSON() ([]byte, error) {
-    address := base64ToString(n.Address) 
+    address := base64ToString(n.Address.Bytes())
+    key := base64ToString(n.Key)
     listRlpBytes1 := base64ToString(n.ListRlpBytes[0]) 
     listRlpBytes2 := base64ToString(n.ListRlpBytes[1]) 
     valueRlpBytes1 := base64ToString(n.ValueRlpBytes[0]) 
@@ -81,13 +85,15 @@ func (n *AccountNode) MarshalJSON() ([]byte, error) {
     valueListRlpBytes2 := base64ToString(n.ValueListRlpBytes[1]) 
     driftedRlpBytes := base64ToString(n.DriftedRlpBytes) 
     wrongRlpBytes := base64ToString(n.WrongRlpBytes) 
-    jsonResult := fmt.Sprintf(`{"address":%s, "list_rlp_bytes":[%s,%s], "value_rlp_bytes":[%s,%s], "value_list_rlp_bytes":[%s,%s], "drifted_rlp_bytes":%s, "wrong_rlp_bytes":%s}`,
-        address, listRlpBytes1, listRlpBytes2, valueRlpBytes1, valueRlpBytes2, valueListRlpBytes1, valueListRlpBytes2,
+    jsonResult := fmt.Sprintf(`{"address":%s, "key":%s, "list_rlp_bytes":[%s,%s], "value_rlp_bytes":[%s,%s], "value_list_rlp_bytes":[%s,%s], "drifted_rlp_bytes":%s, "wrong_rlp_bytes":%s}`,
+        address, key, listRlpBytes1, listRlpBytes2, valueRlpBytes1, valueRlpBytes2, valueListRlpBytes1, valueListRlpBytes2,
         driftedRlpBytes, wrongRlpBytes)
     return []byte(jsonResult), nil
 }
 
 type StorageNode struct {
+    Address common.Hash `json:"address"`
+	Key []byte `json:"key"`
     ListRlpBytes [2][]byte `json:"list_rlp_bytes"`
     ValueRlpBytes [2][]byte `json:"value_rlp_bytes"`
     DriftedRlpBytes []byte `json:"drifted_rlp_bytes"`
@@ -95,14 +101,16 @@ type StorageNode struct {
 }
 
 func (n *StorageNode) MarshalJSON() ([]byte, error) {
+    address := base64ToString(n.Address.Bytes())
+    key := base64ToString(n.Key)
     listRlpBytes1 := base64ToString(n.ListRlpBytes[0]) 
     listRlpBytes2 := base64ToString(n.ListRlpBytes[1]) 
     valueRlpBytes1 := base64ToString(n.ValueRlpBytes[0]) 
     valueRlpBytes2 := base64ToString(n.ValueRlpBytes[1]) 
     driftedRlpBytes := base64ToString(n.DriftedRlpBytes) 
     wrongRlpBytes := base64ToString(n.WrongRlpBytes) 
-    jsonResult := fmt.Sprintf(`{"list_rlp_bytes":[%s,%s], "value_rlp_bytes":[%s,%s], "drifted_rlp_bytes":%s, "wrong_rlp_bytes":%s}`,
-        listRlpBytes1, listRlpBytes2, valueRlpBytes1, valueRlpBytes2, driftedRlpBytes, wrongRlpBytes)
+    jsonResult := fmt.Sprintf(`{"address":%s, "key":%s, "list_rlp_bytes":[%s,%s], "value_rlp_bytes":[%s,%s], "drifted_rlp_bytes":%s, "wrong_rlp_bytes":%s}`,
+        address, key, listRlpBytes1, listRlpBytes2, valueRlpBytes1, valueRlpBytes2, driftedRlpBytes, wrongRlpBytes)
     return []byte(jsonResult), nil
 }
 
@@ -131,8 +139,9 @@ type Node struct {
     KeccakData JSONableValues `json:"keccak_data"`
 }
 
-func GetStartNode(proofType string, sRoot, cRoot common.Hash) Node {
+func GetStartNode(proofType string, sRoot, cRoot common.Hash, specialTest byte) Node {
     s := StartNode {
+        DisablePreimageCheck: oracle.PreventHashingInSecureTrie || specialTest == 5,
 		ProofType: proofType,
 	}
 	var values [][]byte
@@ -156,17 +165,13 @@ func GetStartNode(proofType string, sRoot, cRoot common.Hash) Node {
 
 func GetEndNode() Node {
     e := StartNode {
+        DisablePreimageCheck: false,
 		ProofType: "Disabled",
 	}
-	var endValues [][]byte
-	var endValues1 []byte
-	var endValues2 []byte
-	for i := 0; i < valueLen; i++ {
-		endValues1 = append(endValues1, 0)
-		endValues2 = append(endValues2, 0)
-	}
-	endValues = append(endValues, endValues1)
-	endValues = append(endValues, endValues2)
+
+    endValues1, endValues2 := make([]byte, valueLen), make([]byte, valueLen)
+    endValues1[0], endValues2[0] = 160, 160
+    endValues := [][]byte{endValues1, endValues2}
 
 	return Node {
 		Start: &e,
