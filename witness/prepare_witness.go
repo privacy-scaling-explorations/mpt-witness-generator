@@ -372,7 +372,7 @@ func convertProofToWitness(statedb *state.StateDB, addrh []byte, addr common.Add
 			if i != len1 - 1 { // extension node
 				var numberOfNibbles byte
 				isExtension = true
-				numberOfNibbles, extListRlpBytes, extValues = prepareExtensions(extNibblesS, extensionNodeInd, proof1[i], proof2[i], false, false)
+				numberOfNibbles, extListRlpBytes, extValues = prepareExtensions(extNibblesS, extensionNodeInd, proof1[i], proof2[i])
 
 				keyIndex += int(numberOfNibbles)
 				extensionNodeInd++
@@ -457,9 +457,11 @@ func convertProofToWitness(statedb *state.StateDB, addrh []byte, addr common.Add
 			// modification).
 			// TODO: port to Node
 			if isModifiedExtNode {
-				addModifiedExtNode(statedb, addr, &rows, proof1, proof2, extNibblesS, extNibblesC, key, neighbourNode,
+				longNode, shortNode := prepareModifiedExtNode(statedb, addr, &rows, proof1, proof2, extNibblesS, extNibblesC, key, neighbourNode,
 					keyIndex, extensionNodeInd, numberOfNibbles, additionalBranch,
 					isAccountProof, nonExistingAccountProof, isShorterProofLastLeaf, branchC16, branchC1, &toBeHashed)
+				nodes = append(nodes, longNode)
+				nodes = append(nodes, shortNode)
 			}
 		} else {
 			node := prepareLeafAndPlaceholderNode(addrh, proof1, proof2, key, nonExistingAccountProof, isAccountProof)

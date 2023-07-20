@@ -498,9 +498,7 @@ func TestStorageInFirstLevelNonExistingLong(t *testing.T) {
 	oracle.NodeUrl = oracle.RemoteUrl
 }
 
-/*
 func ExtNodeInserted(key1, key2, key3 common.Hash, testName string) {
-	// until infura is back up:
 	oracle.NodeUrl = oracle.LocalUrl
 
 	blockNum := 0
@@ -525,7 +523,7 @@ func ExtNodeInserted(key1, key2, key3 common.Hash, testName string) {
 	v1 = common.FromHex("0xbb")
 	val := common.BytesToHash(v1)
 	trieMod := TrieModification{
-    	Type: StorageMod,
+    	Type: StorageChanged,
 		Key: key3,
 		Value: val,
 		Address: addr,
@@ -538,7 +536,6 @@ func ExtNodeInserted(key1, key2, key3 common.Hash, testName string) {
 }
 
 func ExtNodeDeleted(key1, key2, key3 common.Hash, testName string) {
-	// until infura is back up:
 	oracle.NodeUrl = oracle.LocalUrl
 
 	blockNum := 0
@@ -563,7 +560,7 @@ func ExtNodeDeleted(key1, key2, key3 common.Hash, testName string) {
 
 	val := common.Hash{} // empty value deletes the key
 	trieMod := TrieModification{
-    	Type: StorageMod,
+    	Type: StorageChanged,
 		Key: key3,
 		Value: val,
 		Address: addr,
@@ -583,11 +580,13 @@ func TestExtNodeInsertedBefore6After1FirstLevel(t *testing.T) {
 	// key2 bytes: [1 * 16 + 2, 3 * 16 + 4, 5 * 16 + 6, 3 * 16, 0, ..., 0]
 	// We now have an extension node with nibbles: [1, 2, 3, 4, 5, 6].
 
+	// The branch will be inserted at 0x1234, it will have nodes at 4 and 5:
 	key3 := common.HexToHash("0x1234400000000000000000000000000000000000000000000000000000000000")
 	
 	ExtNodeInserted(key1, key2, key3, "ExtNodeInsertedBefore6After1FirstLevel")
 }
 
+/*
 func TestExtNodeDeletedBefore6After1FirstLevel(t *testing.T) {
 	key1 := common.HexToHash("0x1234561000000000000000000000000000000000000000000000000000000000")
 	// key1 bytes: [1 * 16 + 2, 3 * 16 + 4, 5 * 16 + 6, 1 * 16, 0, ..., 0]
