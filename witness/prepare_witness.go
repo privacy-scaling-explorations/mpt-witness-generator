@@ -431,10 +431,8 @@ func convertProofToWitness(statedb *state.StateDB, addrh []byte, addr common.Add
 	if len1 != len2 {
 		if additionalBranch {		
 			leafRow0 := proof1[len1-1] // To compute the drifted position.
-			leaf := proof2[len2-1]
 			if len1 > len2 {
 				leafRow0 = proof2[len2-1]
-				leaf = proof1[len1-1]
 			}
 			
 			isModifiedExtNode, _, numberOfNibbles, branchC16, bNode := addBranchAndPlaceholder(proof1, proof2, extNibblesS, extNibblesC,
@@ -450,7 +448,7 @@ func convertProofToWitness(statedb *state.StateDB, addrh []byte, addr common.Add
 				if !isModifiedExtNode {
 					node = prepareAccountLeafNode(addrh, proof1[len1-1], proof2[len2-1], neighbourNode, key, false)
 				} else {
-					node = prepareAccountLeafNode(addrh, leaf, leaf, neighbourNode, key, false)
+					node = prepareLeafAndPlaceholderNode(addrh, proof1, proof2, key, nonExistingAccountProof, isAccountProof)
 				}
 				nodes = append(nodes, node)
 			} else {	
@@ -459,7 +457,7 @@ func convertProofToWitness(statedb *state.StateDB, addrh []byte, addr common.Add
 				if !isModifiedExtNode {
 					node = prepareStorageLeafNode(proof1[len1-1], proof2[len2-1], neighbourNode, key, nonExistingStorageProof, false, false)
 				} else {
-					node = prepareStorageLeafNode(leaf, leaf, neighbourNode, key, nonExistingStorageProof, false, false)
+					node = prepareLeafAndPlaceholderNode(addrh, proof1, proof2, key, nonExistingAccountProof, isAccountProof)
 				}
 				nodes = append(nodes, node)
 			}
@@ -467,7 +465,6 @@ func convertProofToWitness(statedb *state.StateDB, addrh []byte, addr common.Add
 			// When a proof element is a modified extension node (new extension node appears at the position
 			// of the existing extension node), additional rows are added (extension node before and after
 			// modification).
-			// TODO: port to Node
 			if isModifiedExtNode {
 				longNode, shortNode := prepareModifiedExtNode(statedb, addr, &rows, proof1, proof2, extNibblesS, extNibblesC, key, neighbourNode,
 					keyIndex, extensionNodeInd, numberOfNibbles, additionalBranch,
