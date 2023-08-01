@@ -1,8 +1,6 @@
 package witness
 
 import (
-	"fmt"
-
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/privacy-scaling-explorations/mpt-witness-generator/state"
 	"github.com/privacy-scaling-explorations/mpt-witness-generator/trie"
@@ -45,9 +43,7 @@ func prepareModifiedExtNode(statedb *state.StateDB, addr common.Address, rows *[
 	_, extListRlpBytes, extValues := prepareExtensions(extNibbles, extensionNodeInd, longExtNode, longExtNode)
 	b := []byte{0, 0, 0, 0} // We don't really need a branch info (only extension node).
 	longNode := prepareBranchNode(b, b, longExtNode, longExtNode, extListRlpBytes, extValues,
-		key[keyIndex], key[keyIndex], branchC16, branchC1, false, false, true)
-	fmt.Println(longNode)
-
+		key[keyIndex], key[keyIndex], branchC16, branchC1, false, false, true, false, false)
 
 	var extRows [][]byte
 	// We need to prove the old extension node is in S proof (when ext. node inserted).
@@ -150,9 +146,7 @@ func prepareModifiedExtNode(statedb *state.StateDB, addr common.Address, rows *[
 
 		numberOfNibbles1, extListRlpBytes, extValues := prepareExtensions(extNibbles, extensionNodeInd + 1, shortExtNode, shortExtNode)
 		shortNode = prepareBranchNode(b, b, shortExtNode, shortExtNode, extListRlpBytes, extValues,
-			key[keyIndex], key[keyIndex], branchC16, branchC1, false, false, true)
-		fmt.Println(shortNode)
-
+			key[keyIndex], key[keyIndex], branchC16, branchC1, false, false, true, false, false)
 
 		setExtNodeSelectors(extNodeSelectors1, shortExtNode, int(numberOfNibbles1), branchC16)
 		// extNodeSelectors1 = append(extNodeSelectors1, 25)

@@ -57,6 +57,11 @@ type StartNode struct {
 
 type ExtensionBranchNode struct {
     IsExtension bool `json:"is_extension"`
+    // IsModExtension = true for the extension node that gets replaced by a shorter (in terms of nibbles)
+    // extension node. IsModExtension is not set to true for the newly appeared extension node (nibbles
+    // of the extension node that caused replacement + nibbles of the newly appeared extension node =
+    // nibbles of the original extension node).
+    IsModExtension [2]bool `json:"is_mod_extension"`
     IsPlaceholder [2]bool `json:"is_placeholder"`
     Extension ExtensionNode `json:"extension"`
     Branch BranchNode `json:"branch"`
