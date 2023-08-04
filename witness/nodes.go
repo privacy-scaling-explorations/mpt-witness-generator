@@ -74,6 +74,7 @@ type AccountNode struct {
     ValueListRlpBytes [2][]byte
     DriftedRlpBytes []byte
     WrongRlpBytes []byte
+    IsModExtension [2]bool `json:"is_mod_extension"`
 }
 
 func (n *AccountNode) MarshalJSON() ([]byte, error) {
@@ -86,9 +87,9 @@ func (n *AccountNode) MarshalJSON() ([]byte, error) {
     valueListRlpBytes2 := base64ToString(n.ValueListRlpBytes[1]) 
     driftedRlpBytes := base64ToString(n.DriftedRlpBytes) 
     wrongRlpBytes := base64ToString(n.WrongRlpBytes) 
-    jsonResult := fmt.Sprintf(`{"address":%s, "list_rlp_bytes":[%s,%s], "value_rlp_bytes":[%s,%s], "value_list_rlp_bytes":[%s,%s], "drifted_rlp_bytes":%s, "wrong_rlp_bytes":%s}`,
+    jsonResult := fmt.Sprintf(`{"address":%s, "list_rlp_bytes":[%s,%s], "value_rlp_bytes":[%s,%s], "value_list_rlp_bytes":[%s,%s], "drifted_rlp_bytes":%s, "wrong_rlp_bytes":%s, "is_mod_extension": [%t, %t]}`,
         address, listRlpBytes1, listRlpBytes2, valueRlpBytes1, valueRlpBytes2, valueListRlpBytes1, valueListRlpBytes2,
-        driftedRlpBytes, wrongRlpBytes)
+        driftedRlpBytes, wrongRlpBytes, n.IsModExtension[0], n.IsModExtension[1])
     return []byte(jsonResult), nil
 }
 
@@ -97,6 +98,7 @@ type StorageNode struct {
     ValueRlpBytes [2][]byte `json:"value_rlp_bytes"`
     DriftedRlpBytes []byte `json:"drifted_rlp_bytes"`
     WrongRlpBytes []byte `json:"wrong_rlp_bytes"`
+    IsModExtension [2]bool `json:"is_mod_extension"`
 }
 
 func (n *StorageNode) MarshalJSON() ([]byte, error) {
@@ -106,8 +108,8 @@ func (n *StorageNode) MarshalJSON() ([]byte, error) {
     valueRlpBytes2 := base64ToString(n.ValueRlpBytes[1]) 
     driftedRlpBytes := base64ToString(n.DriftedRlpBytes) 
     wrongRlpBytes := base64ToString(n.WrongRlpBytes) 
-    jsonResult := fmt.Sprintf(`{"list_rlp_bytes":[%s,%s], "value_rlp_bytes":[%s,%s], "drifted_rlp_bytes":%s, "wrong_rlp_bytes":%s}`,
-        listRlpBytes1, listRlpBytes2, valueRlpBytes1, valueRlpBytes2, driftedRlpBytes, wrongRlpBytes)
+    jsonResult := fmt.Sprintf(`{"list_rlp_bytes":[%s,%s], "value_rlp_bytes":[%s,%s], "drifted_rlp_bytes":%s, "wrong_rlp_bytes":%s, "is_mod_extension": [%t, %t]}`,
+        listRlpBytes1, listRlpBytes2, valueRlpBytes1, valueRlpBytes2, driftedRlpBytes, wrongRlpBytes, n.IsModExtension[0], n.IsModExtension[1])
     return []byte(jsonResult), nil
 }
 

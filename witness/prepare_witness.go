@@ -383,9 +383,9 @@ func convertProofToWitness(statedb *state.StateDB, addrh []byte, addr common.Add
 			l := len(proof1)
 			var node Node
 			if isAccountProof {
-				node = prepareAccountLeafNode(addrh, proof1[l-1], proof2[l-1], nil, key, false)
+				node = prepareAccountLeafNode(addrh, proof1[l-1], proof2[l-1], nil, key, false, false, false)
 			} else {
-				node = prepareStorageLeafNode(proof1[l-1], proof2[l-1], nil, key, nonExistingStorageProof, false, false)
+				node = prepareStorageLeafNode(proof1[l-1], proof2[l-1], nil, key, nonExistingStorageProof, false, false, false, false)
 			}
 
 			nodes = append(nodes, node)
@@ -446,18 +446,32 @@ func convertProofToWitness(statedb *state.StateDB, addrh []byte, addr common.Add
 				// Add account leaf after branch placeholder:
 				var node Node
 				if !isModifiedExtNode {
-					node = prepareAccountLeafNode(addrh, proof1[len1-1], proof2[len2-1], neighbourNode, key, false)
+					node = prepareAccountLeafNode(addrh, proof1[len1-1], proof2[len2-1], neighbourNode, key, false, false, false)
 				} else {
-					node = prepareLeafAndPlaceholderNode(addrh, proof1, proof2, key, nonExistingAccountProof, isAccountProof)
+					isSModExtension := false
+					isCModExtension := false
+					if len2 > len1 {
+						isSModExtension = true
+					} else {
+						isCModExtension = true
+					}
+					node = prepareLeafAndPlaceholderNode(addrh, proof1, proof2, key, nonExistingAccountProof, isAccountProof, isSModExtension, isCModExtension)
 				}
 				nodes = append(nodes, node)
 			} else {	
 				// Add storage leaf after branch placeholder
 				var node Node
 				if !isModifiedExtNode {
-					node = prepareStorageLeafNode(proof1[len1-1], proof2[len2-1], neighbourNode, key, nonExistingStorageProof, false, false)
+					node = prepareStorageLeafNode(proof1[len1-1], proof2[len2-1], neighbourNode, key, nonExistingStorageProof, false, false, false, false)
 				} else {
-					node = prepareLeafAndPlaceholderNode(addrh, proof1, proof2, key, nonExistingAccountProof, isAccountProof)
+					isSModExtension := false
+					isCModExtension := false
+					if len2 > len1 {
+						isSModExtension = true
+					} else {
+						isCModExtension = true
+					}
+					node = prepareLeafAndPlaceholderNode(addrh, proof1, proof2, key, nonExistingAccountProof, isAccountProof, isSModExtension, isCModExtension)
 				}
 				nodes = append(nodes, node)
 			}
@@ -475,7 +489,7 @@ func convertProofToWitness(statedb *state.StateDB, addrh []byte, addr common.Add
 				fmt.Println(shortNode)
 			}
 		} else {
-			node := prepareLeafAndPlaceholderNode(addrh, proof1, proof2, key, nonExistingAccountProof, isAccountProof)
+			node := prepareLeafAndPlaceholderNode(addrh, proof1, proof2, key, nonExistingAccountProof, isAccountProof, false, false)
 			nodes = append(nodes, node)
 		}
 	} else if isBranch(proof2[len(proof2)-1]) {
