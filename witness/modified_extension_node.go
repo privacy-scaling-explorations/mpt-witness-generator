@@ -6,16 +6,16 @@ import (
 	"github.com/privacy-scaling-explorations/mpt-witness-generator/trie"
 )
 
-// prepareModifiedExtNode adds rows for a modified extension node before and after modification.
+// prepareModExtensionNodes adds rows for a modified extension node before and after modification.
 // These rows are added only when an existing extension node gets shortened or elongated (in terms
 // of the extension node nibbles) because of another extension node being added or deleted.
 // The rows added are somewhat exceptional as otherwise they do not appear.
-func prepareModifiedExtNode(statedb *state.StateDB, addr common.Address, rows *[][]byte, proof1, proof2,
+func prepareModExtensionNodes(statedb *state.StateDB, addr common.Address, rows *[][]byte, proof1, proof2,
 		extNibblesS, extNibblesC [][]byte,
 		key, neighbourNode []byte,
 		keyIndex, extensionNodeInd, numberOfNibbles int,
 		additionalBranch, isAccountProof, nonExistingAccountProof,
-		isShorterProofLastLeaf bool, branchC16, branchC1 byte, toBeHashed *[][]byte) (Node, Node) {
+		isShorterProofLastLeaf bool, branchC16, branchC1 byte, toBeHashed *[][]byte) Node {
 	len1 := len(proof1)
 	len2 := len(proof2)
 
@@ -40,10 +40,12 @@ func prepareModifiedExtNode(statedb *state.StateDB, addr common.Address, rows *[
 	setExtNodeSelectors(extNodeSelectors, longExtNode, int(numberOfNibbles0), branchC16)
 	extNodeSelectors = append(extNodeSelectors, 24)
 
-	_, extListRlpBytes, extValues := prepareExtensions(extNibbles, extensionNodeInd, longExtNode, longExtNode)
-	b := []byte{0, 0, 0, 0} // We don't really need a branch info (only extension node).
+	_, extListRlpBytesS, extValuesS := prepareExtensions(extNibbles, extensionNodeInd, longExtNode, longExtNode)
+	/*
+	b := []byte{249, 1, 49, 128} // We don't really need a branch info (only extension node).
 	longNode := prepareBranchNode(b, b, longExtNode, longExtNode, extListRlpBytes, extValues,
 		key[keyIndex], key[keyIndex], branchC16, branchC1, false, false, true, false, false)
+	*/
 
 	var extRows [][]byte
 	// We need to prove the old extension node is in S proof (when ext. node inserted).
@@ -89,14 +91,15 @@ func prepareModifiedExtNode(statedb *state.StateDB, addr common.Address, rows *[
 	}
 
 	var shortExtNode []byte
-	extNodeSelectors1 := make([]byte, rowLen)
 	/*
+	extNodeSelectors1 := make([]byte, rowLen)
 	emptyExtRows := prepareEmptyExtensionRows(false, true)
 	extensionRowS1 := emptyExtRows[0]
 	extensionRowC1 := emptyExtRows[1]
 	*/
 
-	var shortNode Node
+	var extListRlpBytesC []byte 
+	var extValuesC [][]byte
 
 	if !shortExtNodeIsBranch {
 		if len2 > len1 {
@@ -144,11 +147,13 @@ func prepareModifiedExtNode(statedb *state.StateDB, addr common.Address, rows *[
 			prepareExtensionRows(extNibbles, extensionNodeInd + 1, shortExtNode, shortExtNode, false, true)
 		*/
 
-		numberOfNibbles1, extListRlpBytes, extValues := prepareExtensions(extNibbles, extensionNodeInd + 1, shortExtNode, shortExtNode)
+		_, extListRlpBytesC, extValuesC = prepareExtensions(extNibbles, extensionNodeInd + 1, shortExtNode, shortExtNode)
+		/*
 		shortNode = prepareBranchNode(b, b, shortExtNode, shortExtNode, extListRlpBytes, extValues,
 			key[keyIndex], key[keyIndex], branchC16, branchC1, false, false, true, false, false)
 
 		setExtNodeSelectors(extNodeSelectors1, shortExtNode, int(numberOfNibbles1), branchC16)
+		*/
 		// extNodeSelectors1 = append(extNodeSelectors1, 25)
 	}/* else {
 		if len1 > len2 {
@@ -169,5 +174,22 @@ func prepareModifiedExtNode(statedb *state.StateDB, addr common.Address, rows *[
 	*rows = append(*rows, extensionRowC1)
 	*/
 
-	return longNode, shortNode
+	listRlpBytes := [2][]byte{extListRlpBytesS, extListRlpBytesC}
+	modExtensionNode := ModExtensionNode {
+		ListRlpBytes: listRlpBytes,
+	}
+
+	var values [][]byte
+	values = append(values, extValuesS...)
+	values = append(values, extValuesC...)
+
+	keccakData := [][]byte{}
+	keccakData = append(keccakData, longExtNode)
+	keccakData = append(keccakData, shortExtNode)
+
+	return Node {
+		ModExtension: &modExtensionNode,
+		Values: values,
+		KeccakData: keccakData,
+	}
 }

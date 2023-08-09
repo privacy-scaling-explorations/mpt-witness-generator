@@ -67,6 +67,17 @@ type ExtensionBranchNode struct {
     Branch BranchNode `json:"branch"`
 }
 
+type ModExtensionNode struct {
+   ListRlpBytes [2][]byte
+}
+
+func (n *ModExtensionNode) MarshalJSON() ([]byte, error) {
+    listRlpBytes1 := base64ToString(n.ListRlpBytes[0]) 
+    listRlpBytes2 := base64ToString(n.ListRlpBytes[1]) 
+    jsonResult := fmt.Sprintf(`{"list_rlp_bytes":[%s,%s]}`, listRlpBytes1, listRlpBytes2)
+    return []byte(jsonResult), nil
+}
+
 type AccountNode struct {
     Address []byte
     ListRlpBytes [2][]byte
@@ -134,6 +145,7 @@ type Node struct {
     ExtensionBranch *ExtensionBranchNode `json:"extension_branch"`
     Account *AccountNode `json:"account"`
     Storage *StorageNode `json:"storage"`
+    ModExtension *ModExtensionNode `json:"mod_extension_node"`
     Values JSONableValues `json:"values"`
     KeccakData JSONableValues `json:"keccak_data"`
 }
