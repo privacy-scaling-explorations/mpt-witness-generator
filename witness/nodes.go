@@ -145,7 +145,7 @@ type Node struct {
     ExtensionBranch *ExtensionBranchNode `json:"extension_branch"`
     Account *AccountNode `json:"account"`
     Storage *StorageNode `json:"storage"`
-    ModExtension *ModExtensionNode `json:"mod_extension_node"`
+    ModExtension *ModExtensionNode `json:"mod_extension"`
     Values JSONableValues `json:"values"`
     KeccakData JSONableValues `json:"keccak_data"`
 }

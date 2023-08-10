@@ -180,6 +180,8 @@ func prepareModExtensionNodes(statedb *state.StateDB, addr common.Address, rows 
 	}
 
 	var values [][]byte
+	extValuesS = append(extValuesS[:1], extValuesS[2:]...)
+	extValuesC = append(extValuesC[:1], extValuesC[2:]...)
 	values = append(values, extValuesS...)
 	values = append(values, extValuesC...)
 
