@@ -6,16 +6,16 @@ import (
 	"github.com/privacy-scaling-explorations/mpt-witness-generator/trie"
 )
 
-// addModifiedExtNode adds rows for a modified extension node before and after modification.
+// prepareModExtensionNode adds rows for a modified extension node before and after modification.
 // These rows are added only when an existing extension node gets shortened or elongated (in terms
 // of the extension node nibbles) because of another extension node being added or deleted.
 // The rows added are somewhat exceptional as otherwise they do not appear.
-func addModifiedExtNode(statedb *state.StateDB, addr common.Address, rows *[][]byte, proof1, proof2,
+func prepareModExtensionNode(statedb *state.StateDB, addr common.Address, rows *[][]byte, proof1, proof2,
 		extNibblesS, extNibblesC [][]byte,
 		key, neighbourNode []byte,
 		keyIndex, extensionNodeInd, numberOfNibbles int,
 		additionalBranch, isAccountProof, nonExistingAccountProof,
-		isShorterProofLastLeaf bool, branchC16, branchC1 byte, toBeHashed *[][]byte) {
+		isShorterProofLastLeaf bool, branchC16, branchC1 byte, toBeHashed *[][]byte) Node {
 	len1 := len(proof1)
 	len2 := len(proof2)
 
@@ -39,6 +39,13 @@ func addModifiedExtNode(statedb *state.StateDB, addr common.Address, rows *[][]b
 	extNodeSelectors := make([]byte, rowLen)
 	setExtNodeSelectors(extNodeSelectors, longExtNode, int(numberOfNibbles0), branchC16)
 	extNodeSelectors = append(extNodeSelectors, 24)
+
+	_, extListRlpBytesS, extValuesS := prepareExtensions(extNibbles, extensionNodeInd, longExtNode, longExtNode)
+	/*
+	b := []byte{249, 1, 49, 128} // We don't really need a branch info (only extension node).
+	longNode := prepareBranchNode(b, b, longExtNode, longExtNode, extListRlpBytes, extValues,
+		key[keyIndex], key[keyIndex], branchC16, branchC1, false, false, true, false, false)
+	*/
 
 	var extRows [][]byte
 	// We need to prove the old extension node is in S proof (when ext. node inserted).
@@ -84,10 +91,15 @@ func addModifiedExtNode(statedb *state.StateDB, addr common.Address, rows *[][]b
 	}
 
 	var shortExtNode []byte
+	/*
 	extNodeSelectors1 := make([]byte, rowLen)
 	emptyExtRows := prepareEmptyExtensionRows(false, true)
 	extensionRowS1 := emptyExtRows[0]
 	extensionRowC1 := emptyExtRows[1]
+	*/
+
+	var extListRlpBytesC []byte 
+	var extValuesC [][]byte
 
 	if !shortExtNodeIsBranch {
 		if len2 > len1 {
@@ -129,13 +141,21 @@ func addModifiedExtNode(statedb *state.StateDB, addr common.Address, rows *[][]b
 		// Enable `prepareExtensionRows` call:
 		extNibbles = append(extNibbles, nibbles)
 
+		/*
 		var numberOfNibbles1 byte
 		numberOfNibbles1, extensionRowS1, extensionRowC1 =
 			prepareExtensionRows(extNibbles, extensionNodeInd + 1, shortExtNode, shortExtNode, false, true)
+		*/
+
+		_, extListRlpBytesC, extValuesC = prepareExtensions(extNibbles, extensionNodeInd + 1, shortExtNode, shortExtNode)
+		/*
+		shortNode = prepareBranchNode(b, b, shortExtNode, shortExtNode, extListRlpBytes, extValues,
+			key[keyIndex], key[keyIndex], branchC16, branchC1, false, false, true, false, false)
 
 		setExtNodeSelectors(extNodeSelectors1, shortExtNode, int(numberOfNibbles1), branchC16)
-		extNodeSelectors1 = append(extNodeSelectors1, 25)
-	} else {
+		*/
+		// extNodeSelectors1 = append(extNodeSelectors1, 25)
+	}/* else {
 		if len1 > len2 {
 			// Needed only for len1 > len2
 			(*rows)[len(*rows)-branchRows-9][driftedPos] = longNibbles[numberOfNibbles]
@@ -143,12 +163,35 @@ func addModifiedExtNode(statedb *state.StateDB, addr common.Address, rows *[][]b
 
 		extNodeSelectors1 = append(extNodeSelectors1, 25)
 	}
+	*/
 
 	// The shortened extension node is needed as a witness to be able to check in a circuit
 	// that the shortened extension node and newly added leaf (that causes newly inserted
 	// extension node) are the only nodes in the newly inserted extension node.
+	/*
 	*rows = append(*rows, extNodeSelectors1)
 	*rows = append(*rows, extensionRowS1)
 	*rows = append(*rows, extensionRowC1)
-	// addForHashing(shortExtNode, toBeHashed)
+	*/
+
+	listRlpBytes := [2][]byte{extListRlpBytesS, extListRlpBytesC}
+	modExtensionNode := ModExtensionNode {
+		ListRlpBytes: listRlpBytes,
+	}
+
+	var values [][]byte
+	extValuesS = append(extValuesS[:1], extValuesS[2:]...)
+	extValuesC = append(extValuesC[:1], extValuesC[2:]...)
+	values = append(values, extValuesS...)
+	values = append(values, extValuesC...)
+
+	keccakData := [][]byte{}
+	keccakData = append(keccakData, longExtNode)
+	keccakData = append(keccakData, shortExtNode)
+
+	return Node {
+		ModExtension: &modExtensionNode,
+		Values: values,
+		KeccakData: keccakData,
+	}
 }
