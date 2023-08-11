@@ -6,11 +6,11 @@ import (
 	"github.com/privacy-scaling-explorations/mpt-witness-generator/trie"
 )
 
-// prepareModExtensionNodes adds rows for a modified extension node before and after modification.
+// prepareModExtensionNode adds rows for a modified extension node before and after modification.
 // These rows are added only when an existing extension node gets shortened or elongated (in terms
 // of the extension node nibbles) because of another extension node being added or deleted.
 // The rows added are somewhat exceptional as otherwise they do not appear.
-func prepareModExtensionNodes(statedb *state.StateDB, addr common.Address, rows *[][]byte, proof1, proof2,
+func prepareModExtensionNode(statedb *state.StateDB, addr common.Address, rows *[][]byte, proof1, proof2,
 		extNibblesS, extNibblesC [][]byte,
 		key, neighbourNode []byte,
 		keyIndex, extensionNodeInd, numberOfNibbles int,
