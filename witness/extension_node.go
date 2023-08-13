@@ -92,7 +92,7 @@ func prepareExtensionRows(extNibbles[][]byte, extensionNodeInd int, proofEl1, pr
 	return numberOfNibbles, extensionRowS, extensionRowC
 }
 
-func prepareExtensions(extNibbles[][]byte, extensionNodeInd int, proofEl1, proofEl2 []byte, beforeModification, afterModification bool) (byte, []byte, [][]byte) {
+func prepareExtensions(extNibbles[][]byte, extensionNodeInd int, proofEl1, proofEl2 []byte) (byte, []byte, [][]byte) {
 	var values [][]byte
 	v1 := make([]byte, valueLen)
 	v2 := make([]byte, valueLen)

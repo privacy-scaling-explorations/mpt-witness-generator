@@ -121,7 +121,7 @@ func getStorageRootCodeHashValue(leaf []byte, storageStart int) ([]byte, []byte)
 	return storageRootValue, codeHashValue
 }
 
-func prepareAccountLeafNode(addr common.Address, addrh []byte, leafS, leafC, neighbourNode, addressNibbles []byte, isPlaceholder bool) Node {
+func prepareAccountLeafNode(addr common.Address, addrh []byte, leafS, leafC, neighbourNode, addressNibbles []byte, isPlaceholder, isSModExtension, isCModExtension bool) Node {	
 	// For non existing account proof there are two cases:
 	// 1. A leaf is returned that is not at the required address (wrong leaf).
 	// 2. A branch is returned as the last element of getProof and
@@ -283,6 +283,7 @@ func prepareAccountLeafNode(addr common.Address, addrh []byte, leafS, leafC, nei
 		ValueListRlpBytes: valueListRlpBytes,
 		DriftedRlpBytes: driftedRlpBytes,
 		WrongRlpBytes: wrongRlpBytes,
+		IsModExtension: [2]bool{isSModExtension, isCModExtension},
 	}
 	keccakData := [][]byte{leafS, leafC, addr.Bytes()}
 	if neighbourNode != nil {
@@ -299,7 +300,7 @@ func prepareAccountLeafNode(addr common.Address, addrh []byte, leafS, leafC, nei
 
 // prepareLeafAndPlaceholderNode prepares a leaf node and its placeholder counterpart
 // (used when one of the proofs does not have a leaf).
-func prepareLeafAndPlaceholderNode(addr common.Address, addrh []byte, proof1, proof2 [][]byte, storage_key common.Hash, key []byte, nonExistingAccountProof, isAccountProof bool) Node {
+func prepareLeafAndPlaceholderNode(addr common.Address, addrh []byte, proof1, proof2 [][]byte, storage_key common.Hash, key []byte, nonExistingAccountProof, isAccountProof, isSModExtension, isCModExtension bool) Node {
 	len1 := len(proof1)
 	len2 := len(proof2)
 
@@ -318,7 +319,7 @@ func prepareLeafAndPlaceholderNode(addr common.Address, addrh []byte, proof1, pr
 
 		// When generating a proof that account doesn't exist, the length of both proofs is the same (doesn't reach
 		// this code).
-		return prepareAccountLeafNode(addr, addrh, leafS, leafC, nil, key, false)
+		return prepareAccountLeafNode(addr, addrh, leafS, leafC, nil, key, false, isSModExtension, isCModExtension)
 	} else {
 		var leaf []byte
 		isSPlaceholder := false
@@ -332,7 +333,7 @@ func prepareLeafAndPlaceholderNode(addr common.Address, addrh []byte, proof1, pr
 			isSPlaceholder = true
 		}
 
-		return prepareStorageLeafNode(leaf, leaf, nil, storage_key, key, false, isSPlaceholder, isCPlaceholder)
+		return prepareStorageLeafNode(leaf, leaf, nil, storage_key, key, false, isSPlaceholder, isCPlaceholder, isSModExtension, isCModExtension)
 	}
 }
 
@@ -378,7 +379,7 @@ func prepareAccountLeafPlaceholderNode(addr common.Address, addrh, key []byte, k
 		leaf[4+i] = remainingNibbles[2*i + offset] * 16 + remainingNibbles[2*i + 1 + offset]
 	}
 
-	node := prepareAccountLeafNode(addr, addrh, leaf, leaf, nil, key, true)
+	node := prepareAccountLeafNode(addr, addrh, leaf, leaf, nil, key, true, false, false)
 
 	node.Account.ValueRlpBytes[0][0] = 184
 	node.Account.ValueRlpBytes[0][1] = 70
@@ -404,7 +405,7 @@ func prepareStorageLeafPlaceholderNode(storage_key common.Hash, key []byte, keyI
 	keyLen := getLeafKeyLen(keyIndex)
 	leaf[0] = 192 + 1 + byte(keyLen) + 1
 
-	return prepareStorageLeafNode(leaf, leaf, nil, storage_key, key, false, true, true)
+	return prepareStorageLeafNode(leaf, leaf, nil, storage_key, key, false, true, true, false, false)
 }
 
 func prepareStorageLeafInfo(row []byte, valueIsZero, isPlaceholder bool) ([]byte, []byte, []byte, []byte) {
@@ -499,7 +500,7 @@ func prepareStorageLeafInfo(row []byte, valueIsZero, isPlaceholder bool) ([]byte
 	return key, value, keyRlp, valueRlp
 }
 
-func prepareStorageLeafNode(leafS, leafC, neighbourNode []byte, storage_key common.Hash, key []byte, nonExistingStorageProof, isSPlaceholder, isCPlaceholder bool) Node {
+func prepareStorageLeafNode(leafS, leafC, neighbourNode []byte, storage_key common.Hash, key []byte, nonExistingStorageProof, isSPlaceholder, isCPlaceholder, isSModExtension, isCModExtension bool) Node {
 	var rows [][]byte
 
 	keyS, valueS, listRlpBytes1, valueRlpBytes1 := prepareStorageLeafInfo(leafS, false, isSPlaceholder)
@@ -544,6 +545,7 @@ func prepareStorageLeafNode(leafS, leafC, neighbourNode []byte, storage_key comm
 		DriftedRlpBytes: driftedRlpBytes,
 		WrongRlpBytes: wrongRlpBytes,
 		ValueRlpBytes: valueRlpBytes,
+		IsModExtension: [2]bool{isSModExtension, isCModExtension},
 	}
 	keccakData := [][]byte{leafS, leafC, storage_key.Bytes()}
 	if neighbourNode != nil {

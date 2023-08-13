@@ -1,6 +1,7 @@
 package witness
 
 import (
+	"fmt"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -372,7 +373,7 @@ func convertProofToWitness(statedb *state.StateDB, addr common.Address, addrh []
 			if i != len1 - 1 { // extension node
 				var numberOfNibbles byte
 				isExtension = true
-				numberOfNibbles, extListRlpBytes, extValues = prepareExtensions(extNibblesS, extensionNodeInd, proof1[i], proof2[i], false, false)
+				numberOfNibbles, extListRlpBytes, extValues = prepareExtensions(extNibblesS, extensionNodeInd, proof1[i], proof2[i])
 
 				keyIndex += int(numberOfNibbles)
 				extensionNodeInd++
@@ -382,9 +383,9 @@ func convertProofToWitness(statedb *state.StateDB, addr common.Address, addrh []
 			l := len(proof1)
 			var node Node
 			if isAccountProof {
-				node = prepareAccountLeafNode(addr, addrh, proof1[l-1], proof2[l-1], nil, key, false)
+				node = prepareAccountLeafNode(addr, addrh, proof1[l-1], proof2[l-1], nil, key, false, false, false)
 			} else {
-				node = prepareStorageLeafNode(proof1[l-1], proof2[l-1], nil, storage_key, key, nonExistingStorageProof, false, false)
+				node = prepareStorageLeafNode(proof1[l-1], proof2[l-1], nil, storage_key, key, nonExistingStorageProof, false, false, false, false)
 			}
 
 			nodes = append(nodes, node)
@@ -418,7 +419,7 @@ func convertProofToWitness(statedb *state.StateDB, addr common.Address, addrh []
 			}
 
 			bNode := prepareBranchNode(proof1[i], proof2[i], extNode1, extNode2, extListRlpBytes, extValues,
-				key[keyIndex], key[keyIndex], branchC16, branchC1, false, false, isExtension)
+				key[keyIndex], key[keyIndex], branchC16, branchC1, false, false, isExtension, false, false)
 			nodes = append(nodes, bNode)
 
 			keyIndex += 1
@@ -428,9 +429,8 @@ func convertProofToWitness(statedb *state.StateDB, addr common.Address, addrh []
 	}	
 	
 	if len1 != len2 {
-		if additionalBranch {	
-			// To compute drifted position:
-			leafRow0 := proof1[len1-1]
+		if additionalBranch {		
+			leafRow0 := proof1[len1-1] // To compute the drifted position.
 			if len1 > len2 {
 				leafRow0 = proof2[len2-1]
 			}
@@ -444,25 +444,51 @@ func convertProofToWitness(statedb *state.StateDB, addr common.Address, addrh []
 
 			if isAccountProof {
 				// Add account leaf after branch placeholder:
-				node := prepareAccountLeafNode(addr, addrh, proof1[len1-1], proof2[len2-1], neighbourNode, key, false)
+				var node Node
+				if !isModifiedExtNode {
+					node = prepareAccountLeafNode(addr, addrh, proof1[len1-1], proof2[len2-1], neighbourNode, key, false, false, false)
+				} else {
+					isSModExtension := false
+					isCModExtension := false
+					if len2 > len1 {
+						isSModExtension = true
+					} else {
+						isCModExtension = true
+					}
+					node = prepareLeafAndPlaceholderNode(addr, addrh, proof1, proof2, storage_key, key, nonExistingAccountProof, isAccountProof, isSModExtension, isCModExtension)
+				}
 				nodes = append(nodes, node)
 			} else {	
 				// Add storage leaf after branch placeholder
-				node := prepareStorageLeafNode(proof1[len1-1], proof2[len2-1], neighbourNode, storage_key, key, nonExistingStorageProof, false, false)
+				var node Node
+				if !isModifiedExtNode {
+					node = prepareStorageLeafNode(proof1[len1-1], proof2[len2-1], neighbourNode, storage_key, key, nonExistingStorageProof, false, false, false, false)
+				} else {
+					isSModExtension := false
+					isCModExtension := false
+					if len2 > len1 {
+						isSModExtension = true
+					} else {
+						isCModExtension = true
+					}
+					node = prepareLeafAndPlaceholderNode(addr, addrh, proof1, proof2, storage_key, key, nonExistingAccountProof, isAccountProof, isSModExtension, isCModExtension)
+				}
 				nodes = append(nodes, node)
 			}
 
 			// When a proof element is a modified extension node (new extension node appears at the position
 			// of the existing extension node), additional rows are added (extension node before and after
 			// modification).
-			// TODO: port to Node
 			if isModifiedExtNode {
-				addModifiedExtNode(statedb, addr, &rows, proof1, proof2, extNibblesS, extNibblesC, key, neighbourNode,
+				// TODO
+				modExtensionNode := prepareModExtensionNode(statedb, addr, &rows, proof1, proof2, extNibblesS, extNibblesC, key, neighbourNode,
 					keyIndex, extensionNodeInd, numberOfNibbles, additionalBranch,
 					isAccountProof, nonExistingAccountProof, isShorterProofLastLeaf, branchC16, branchC1, &toBeHashed)
+				// node = append(nodes, modExtensionNode)
+				fmt.Println(modExtensionNode)
 			}
 		} else {
-			node := prepareLeafAndPlaceholderNode(addr, addrh, proof1, proof2, storage_key, key, nonExistingAccountProof, isAccountProof)
+			node := prepareLeafAndPlaceholderNode(addr, addrh, proof1, proof2, storage_key, key, nonExistingAccountProof, isAccountProof, false, false)
 			nodes = append(nodes, node)
 		}
 	} else if isBranch(proof2[len(proof2)-1]) {
