@@ -1,6 +1,8 @@
 package witness
 
 import (
+	"fmt"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/privacy-scaling-explorations/mpt-witness-generator/state"
 	"github.com/privacy-scaling-explorations/mpt-witness-generator/trie"
@@ -175,9 +177,12 @@ func prepareModExtensionNode(statedb *state.StateDB, addr common.Address, rows *
 	*/
 
 	listRlpBytes := [2][]byte{extListRlpBytesS, extListRlpBytesC}
+	fmt.Println(listRlpBytes)
+	/*
 	modExtensionNode := ModExtensionNode {
 		ListRlpBytes: listRlpBytes,
 	}
+	*/
 
 	var values [][]byte
 	extValuesS = append(extValuesS[:1], extValuesS[2:]...)
@@ -189,8 +194,9 @@ func prepareModExtensionNode(statedb *state.StateDB, addr common.Address, rows *
 	keccakData = append(keccakData, longExtNode)
 	keccakData = append(keccakData, shortExtNode)
 
+	// TODO: add rows to a leaf instead
 	return Node {
-		ModExtension: &modExtensionNode,
+		// ModExtension: &modExtensionNode,
 		Values: values,
 		KeccakData: keccakData,
 	}

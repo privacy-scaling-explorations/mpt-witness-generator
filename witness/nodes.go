@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"github.com/ethereum/go-ethereum/common"
-    "github.com/privacy-scaling-explorations/mpt-witness-generator/oracle"
+	"github.com/privacy-scaling-explorations/mpt-witness-generator/oracle"
 )
 
 type BranchNode struct {
@@ -67,17 +67,6 @@ type ExtensionBranchNode struct {
     IsPlaceholder [2]bool `json:"is_placeholder"`
     Extension ExtensionNode `json:"extension"`
     Branch BranchNode `json:"branch"`
-}
-
-type ModExtensionNode struct {
-   ListRlpBytes [2][]byte
-}
-
-func (n *ModExtensionNode) MarshalJSON() ([]byte, error) {
-    listRlpBytes1 := base64ToString(n.ListRlpBytes[0]) 
-    listRlpBytes2 := base64ToString(n.ListRlpBytes[1]) 
-    jsonResult := fmt.Sprintf(`{"list_rlp_bytes":[%s,%s]}`, listRlpBytes1, listRlpBytes2)
-    return []byte(jsonResult), nil
 }
 
 type AccountNode struct {
@@ -153,7 +142,6 @@ type Node struct {
     ExtensionBranch *ExtensionBranchNode `json:"extension_branch"`
     Account *AccountNode `json:"account"`
     Storage *StorageNode `json:"storage"`
-    ModExtension *ModExtensionNode `json:"mod_extension"`
     Values JSONableValues `json:"values"`
     KeccakData JSONableValues `json:"keccak_data"`
 }
