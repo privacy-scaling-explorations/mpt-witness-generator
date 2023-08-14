@@ -1,23 +1,21 @@
 package witness
 
 import (
-	"fmt"
-
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/privacy-scaling-explorations/mpt-witness-generator/state"
 	"github.com/privacy-scaling-explorations/mpt-witness-generator/trie"
 )
 
-// prepareModExtensionNode adds rows for a modified extension node before and after modification.
+// equipLeafWithModExtensionNode adds rows for a modified extension node before and after modification.
 // These rows are added only when an existing extension node gets shortened or elongated (in terms
 // of the extension node nibbles) because of another extension node being added or deleted.
 // The rows added are somewhat exceptional as otherwise they do not appear.
-func prepareModExtensionNode(statedb *state.StateDB, addr common.Address, rows *[][]byte, proof1, proof2,
+func equipLeafWithModExtensionNode(statedb *state.StateDB, leafNode Node, addr common.Address, rows *[][]byte, proof1, proof2,
 		extNibblesS, extNibblesC [][]byte,
 		key, neighbourNode []byte,
 		keyIndex, extensionNodeInd, numberOfNibbles int,
 		additionalBranch, isAccountProof, nonExistingAccountProof,
-		isShorterProofLastLeaf bool, branchC16, branchC1 byte, toBeHashed *[][]byte) Node {
+		isShorterProofLastLeaf bool, branchC16, branchC1 byte, toBeHashed *[][]byte) {
 	len1 := len(proof1)
 	len2 := len(proof2)
 
@@ -177,12 +175,6 @@ func prepareModExtensionNode(statedb *state.StateDB, addr common.Address, rows *
 	*/
 
 	listRlpBytes := [2][]byte{extListRlpBytesS, extListRlpBytesC}
-	fmt.Println(listRlpBytes)
-	/*
-	modExtensionNode := ModExtensionNode {
-		ListRlpBytes: listRlpBytes,
-	}
-	*/
 
 	var values [][]byte
 	extValuesS = append(extValuesS[:1], extValuesS[2:]...)
@@ -194,10 +186,12 @@ func prepareModExtensionNode(statedb *state.StateDB, addr common.Address, rows *
 	keccakData = append(keccakData, longExtNode)
 	keccakData = append(keccakData, shortExtNode)
 
-	// TODO: add rows to a leaf instead
-	return Node {
-		// ModExtension: &modExtensionNode,
-		Values: values,
-		KeccakData: keccakData,
+	if leafNode.Account == nil {
+		leafNode.Storage.ModListRlpBytes = listRlpBytes
+	} else {
+		leafNode.Account.ModListRlpBytes = listRlpBytes
 	}
+
+	leafNode.Values = append(leafNode.Values, values...)
+	leafNode.KeccakData = append(leafNode.KeccakData, keccakData...)
 }
