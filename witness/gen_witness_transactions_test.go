@@ -16,7 +16,7 @@ import (
 )
 
 func createTransaction(ind int) *types.Transaction {
-	key, _   := crypto.GenerateKey()
+	key, _ := crypto.GenerateKey()
 	signer := types.LatestSigner(params.TestChainConfig)
 
 	amount := math.BigPow(2, int64(ind))
@@ -33,7 +33,7 @@ func createTransaction(ind int) *types.Transaction {
 
 func TestTransactions(t *testing.T) {
 	txs := make([]*types.Transaction, 70)
-	key, _   := crypto.GenerateKey()
+	key, _ := crypto.GenerateKey()
 	signer := types.LatestSigner(params.TestChainConfig)
 
 	for i := range txs {
@@ -54,10 +54,9 @@ func TestTransactions(t *testing.T) {
 	stackTrie.UpdateAndGetProofs(db, types.Transactions(txs))
 
 	/*
-	rowsTransactions, toBeHashedAcc, _ :=
-		convertProofToWitness(statedb, addr, accountProof, accountProof1, aExtNibbles1, aExtNibbles2, accountAddr, aNode, true, tMod.Type == NonExistingAccount, false, isShorterProofLastLeaf)
+		rowsTransactions, toBeHashedAcc, _ :=
+			convertProofToWitness(statedb, addr, accountProof, accountProof1, aExtNibbles1, aExtNibbles2, accountAddr, aNode, true, tMod.Type == NonExistingAccount, false, isShorterProofLastLeaf)
 	*/
-	
 
 	fmt.Println("===")
 }
@@ -65,7 +64,7 @@ func TestTransactions(t *testing.T) {
 // No update for each step, just final proof.
 func TestGetProof(t *testing.T) {
 	txs := make([]*types.Transaction, 70)
-	key, _   := crypto.GenerateKey()
+	key, _ := crypto.GenerateKey()
 	signer := types.LatestSigner(params.TestChainConfig)
 
 	for i := range txs {
@@ -99,4 +98,3 @@ func TestGetProof(t *testing.T) {
 
 	fmt.Println("===")
 }
-

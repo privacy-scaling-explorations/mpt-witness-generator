@@ -19,7 +19,7 @@ func TestUpdateOneLevel(t *testing.T) {
 
 	var values []common.Hash
 	for i := 0; i < len(ks); i++ {
-		values = append(values, common.BigToHash(big.NewInt(int64(i + 1)))) // don't put 0 value because otherwise nothing will be set (if 0 is prev value), see state_object.go line 279
+		values = append(values, common.BigToHash(big.NewInt(int64(i+1)))) // don't put 0 value because otherwise nothing will be set (if 0 is prev value), see state_object.go line 279
 	}
 
 	// This key is turned into odd length (see hexToCompact in encoding.go to see
@@ -28,9 +28,9 @@ func TestUpdateOneLevel(t *testing.T) {
 	addr := common.HexToAddress("0xaaaccf12580138bc2bbceeeaa111df4e42ab81ff")
 
 	trieMod := TrieModification{
-    	Type: StorageChanged,
-		Key: ks[0],
-		Value: v,
+		Type:    StorageChanged,
+		Key:     ks[0],
+		Value:   v,
 		Address: addr,
 	}
 	trieModifications := []TrieModification{trieMod}
@@ -45,14 +45,14 @@ func TestUpdateOneLevel1(t *testing.T) {
 	ks := [...]common.Hash{common.HexToHash("0x12"), common.HexToHash("0x21")}
 	var values []common.Hash
 	for i := 0; i < len(ks); i++ {
-		values = append(values, common.BigToHash(big.NewInt(int64(i + 1)))) // don't put 0 value because otherwise nothing will be set (if 0 is prev value), see state_object.go line 279
+		values = append(values, common.BigToHash(big.NewInt(int64(i+1)))) // don't put 0 value because otherwise nothing will be set (if 0 is prev value), see state_object.go line 279
 	}
 
 	val := common.BigToHash(big.NewInt(int64(17)))
 	trieMod := TrieModification{
-    	Type: StorageChanged,
-		Key: ks[1],
-		Value: val,
+		Type:    StorageChanged,
+		Key:     ks[1],
+		Value:   val,
 		Address: addr,
 	}
 	trieModifications := []TrieModification{trieMod}
@@ -69,7 +69,7 @@ func TestUpdateOneLevelBigVal(t *testing.T) {
 
 	var values []common.Hash
 	for i := 0; i < len(ks); i++ {
-		values = append(values, common.BigToHash(big.NewInt(int64(i + 1)))) // don't put 0 value because otherwise nothing will be set (if 0 is prev value), see state_object.go line 279
+		values = append(values, common.BigToHash(big.NewInt(int64(i+1)))) // don't put 0 value because otherwise nothing will be set (if 0 is prev value), see state_object.go line 279
 	}
 
 	// ks[0] key is turned into odd length (see hexToCompact in encoding.go to see
@@ -80,9 +80,9 @@ func TestUpdateOneLevelBigVal(t *testing.T) {
 	addr := common.HexToAddress("0xaaaccf12580138bc2bbceeeaa826df4e42ab81ff")
 
 	trieMod := TrieModification{
-    	Type: StorageChanged,
-		Key: ks[0],
-		Value: v2,
+		Type:    StorageChanged,
+		Key:     ks[0],
+		Value:   v2,
 		Address: addr,
 	}
 	trieModifications := []TrieModification{trieMod}
@@ -103,7 +103,7 @@ func TestUpdateTwoLevels(t *testing.T) {
 
 	var values []common.Hash
 	for i := 0; i < len(ks); i++ {
-		values = append(values, common.BigToHash(big.NewInt(int64(i + 1)))) // don't put 0 value because otherwise nothing will be set (if 0 is prev value), see state_object.go line 279
+		values = append(values, common.BigToHash(big.NewInt(int64(i+1)))) // don't put 0 value because otherwise nothing will be set (if 0 is prev value), see state_object.go line 279
 	}
 
 	// This key is turned into even length (see hexToCompact in encoding.go to see
@@ -112,9 +112,9 @@ func TestUpdateTwoLevels(t *testing.T) {
 	addr := common.HexToAddress("0xaaaccf12580138bc2bbc957aa826df4e42ab81ff")
 
 	trieMod := TrieModification{
-    	Type: StorageChanged,
-		Key: ks[0],
-		Value: v,
+		Type:    StorageChanged,
+		Key:     ks[0],
+		Value:   v,
 		Address: addr,
 	}
 	trieModifications := []TrieModification{trieMod}
@@ -135,7 +135,7 @@ func TestUpdateTwoLevelsBigVal(t *testing.T) {
 
 	var values []common.Hash
 	for i := 0; i < len(ks); i++ {
-		values = append(values, common.BigToHash(big.NewInt(int64(i + 1)))) // don't put 0 value because otherwise nothing will be set (if 0 is prev value), see state_object.go line 279
+		values = append(values, common.BigToHash(big.NewInt(int64(i+1)))) // don't put 0 value because otherwise nothing will be set (if 0 is prev value), see state_object.go line 279
 	}
 
 	// This key is turned into even length (see hexToCompact in encoding.go to see
@@ -145,13 +145,13 @@ func TestUpdateTwoLevelsBigVal(t *testing.T) {
 	addr := common.HexToAddress("0xaaaccf12580138bc2bbc957aa826df4e42ab81ff")
 
 	trieMod := TrieModification{
-    	Type: StorageChanged,
-		Key: ks[0],
-		Value: v2,
+		Type:    StorageChanged,
+		Key:     ks[0],
+		Value:   v2,
 		Address: addr,
 	}
 	trieModifications := []TrieModification{trieMod}
-	
+
 	updateStateAndPrepareWitness("UpdateTwoLevelsBigVal", ks[:], values, []common.Address{addr, addr, addr}, trieModifications)
 }
 
@@ -177,19 +177,19 @@ func TestUpdateThreeLevels(t *testing.T) {
 		common.HexToHash("0x45"),
 		common.HexToHash("0x46"),
 	}
-		// ks[10] = 0x38 is at position 3 in root.Children[3].Children[8]
-		// nibbles
-		// [9,5,12,5,13,12,14,10,13,14,9,6,0,3,4,7,9,11,1,7,7,11,6,8,9,5,9,0,4,9,4,8,5,13,15,8,10,10,9,7,11,3,9,15,3,5,3,3,0,3,9,10,15,5,15,4,5,6,1,9,9,16]
-		// terminator flag 16 (last byte) is removed, then it remains len 61 (these are nibbles):
-		// [9,5,12,5,13,12,14,10,13,14,9,6,0,3,4,7,9,11,1,7,7,11,6,8,9,5,9,0,4,9,4,8,5,13,15,8,10,10,9,7,11,3,9,15,3,5,3,3,0,3,9,10,15,5,15,4,5,6,1,9,9]
+	// ks[10] = 0x38 is at position 3 in root.Children[3].Children[8]
+	// nibbles
+	// [9,5,12,5,13,12,14,10,13,14,9,6,0,3,4,7,9,11,1,7,7,11,6,8,9,5,9,0,4,9,4,8,5,13,15,8,10,10,9,7,11,3,9,15,3,5,3,3,0,3,9,10,15,5,15,4,5,6,1,9,9,16]
+	// terminator flag 16 (last byte) is removed, then it remains len 61 (these are nibbles):
+	// [9,5,12,5,13,12,14,10,13,14,9,6,0,3,4,7,9,11,1,7,7,11,6,8,9,5,9,0,4,9,4,8,5,13,15,8,10,10,9,7,11,3,9,15,3,5,3,3,0,3,9,10,15,5,15,4,5,6,1,9,9]
 
-		// buf (31 len):
-		// this is key stored in leaf:
-		// [57,92,93,206,173,233,96,52,121,177,119,182,137,89,4,148,133,223,138,169,123,57,243,83,48,57,175,95,69,97,153]
+	// buf (31 len):
+	// this is key stored in leaf:
+	// [57,92,93,206,173,233,96,52,121,177,119,182,137,89,4,148,133,223,138,169,123,57,243,83,48,57,175,95,69,97,153]
 
 	var values []common.Hash
 	for i := 0; i < len(ks); i++ {
-		values = append(values, common.BigToHash(big.NewInt(int64(i + 1)))) // don't put 0 value because otherwise nothing will be set (if 0 is prev value), see state_object.go line 279
+		values = append(values, common.BigToHash(big.NewInt(int64(i+1)))) // don't put 0 value because otherwise nothing will be set (if 0 is prev value), see state_object.go line 279
 	}
 	addr := common.HexToAddress("0xaaaccf12580138bc263c95757826df4e42ab81ff")
 	var addresses []common.Address
@@ -200,9 +200,9 @@ func TestUpdateThreeLevels(t *testing.T) {
 	v := common.BigToHash(big.NewInt(int64(17)))
 
 	trieMod := TrieModification{
-    	Type: StorageChanged,
-		Key: ks[10],
-		Value: v,
+		Type:    StorageChanged,
+		Key:     ks[10],
+		Value:   v,
 		Address: addr,
 	}
 	trieModifications := []TrieModification{trieMod}
@@ -223,10 +223,10 @@ func TestFromNilToValue(t *testing.T) {
 		common.HexToHash("0x36"),
 		common.HexToHash("0x37"),
 	}
-	
+
 	var values []common.Hash
 	for i := 0; i < len(ks); i++ {
-		values = append(values, common.BigToHash(big.NewInt(int64(i + 1)))) // don't put 0 value because otherwise nothing will be set (if 0 is prev value), see state_object.go line 279
+		values = append(values, common.BigToHash(big.NewInt(int64(i+1)))) // don't put 0 value because otherwise nothing will be set (if 0 is prev value), see state_object.go line 279
 	}
 	addr := common.HexToAddress("0x50efbf12580138bc263c95757826df4e42ab81ff")
 	var addresses []common.Address
@@ -240,14 +240,14 @@ func TestFromNilToValue(t *testing.T) {
 	v := common.BigToHash(big.NewInt(int64(17)))
 
 	trieMod := TrieModification{
-    	Type: StorageChanged,
-		Key: toBeModified,
-		Value: v,
+		Type:    StorageChanged,
+		Key:     toBeModified,
+		Value:   v,
 		Address: addr,
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	updateStateAndPrepareWitness("FromNilToValue", ks[:], values, addresses, trieModifications) 
+	updateStateAndPrepareWitness("FromNilToValue", ks[:], values, addresses, trieModifications)
 }
 
 func TestDelete(t *testing.T) {
@@ -260,7 +260,7 @@ func TestDelete(t *testing.T) {
 
 	var values []common.Hash
 	for i := 0; i < len(ks); i++ {
-		values = append(values, common.BigToHash(big.NewInt(int64(i + 1)))) // don't put 0 value because otherwise nothing will be set (if 0 is prev value), see state_object.go line 279
+		values = append(values, common.BigToHash(big.NewInt(int64(i+1)))) // don't put 0 value because otherwise nothing will be set (if 0 is prev value), see state_object.go line 279
 	}
 	addr := common.HexToAddress("0x50efbf12580138bc263c95757826df4e24eb81ff")
 	var addresses []common.Address
@@ -272,9 +272,9 @@ func TestDelete(t *testing.T) {
 	val := common.Hash{} // empty value deletes the key
 
 	trieMod := TrieModification{
-    	Type: StorageChanged,
-		Key: toBeModified,
-		Value: val,
+		Type:    StorageChanged,
+		Key:     toBeModified,
+		Value:   val,
 		Address: addr,
 	}
 	trieModifications := []TrieModification{trieMod}
@@ -289,7 +289,7 @@ func TestUpdateOneLevelEvenAddress(t *testing.T) {
 	ks := [...]common.Hash{common.HexToHash("0x12"), common.HexToHash("0x21")}
 	var values []common.Hash
 	for i := 0; i < len(ks); i++ {
-		values = append(values, common.BigToHash(big.NewInt(int64(i + 1)))) // don't put 0 value because otherwise nothing will be set (if 0 is prev value), see state_object.go line 279
+		values = append(values, common.BigToHash(big.NewInt(int64(i+1)))) // don't put 0 value because otherwise nothing will be set (if 0 is prev value), see state_object.go line 279
 	}
 	var addresses []common.Address
 	for i := 0; i < len(ks); i++ {
@@ -300,9 +300,9 @@ func TestUpdateOneLevelEvenAddress(t *testing.T) {
 	toBeModified := ks[1]
 	val := common.BigToHash(big.NewInt(int64(17)))
 	trieMod := TrieModification{
-    	Type: StorageChanged,
-		Key: toBeModified,
-		Value: val,
+		Type:    StorageChanged,
+		Key:     toBeModified,
+		Value:   val,
 		Address: addr,
 	}
 	trieModifications := []TrieModification{trieMod}
@@ -320,7 +320,7 @@ func TestAddBranch(t *testing.T) {
 
 	var values []common.Hash
 	for i := 0; i < len(ks); i++ {
-		values = append(values, common.BigToHash(big.NewInt(int64(i + 1)))) // don't put 0 value because otherwise nothing will be set (if 0 is prev value), see state_object.go line 279
+		values = append(values, common.BigToHash(big.NewInt(int64(i+1)))) // don't put 0 value because otherwise nothing will be set (if 0 is prev value), see state_object.go line 279
 	}
 	addr := common.HexToAddress("0x75acef12a01883c2b3fc57957826df4e24e8baaa")
 	var addresses []common.Address
@@ -334,9 +334,9 @@ func TestAddBranch(t *testing.T) {
 	toBeModified := common.HexToHash("0x21")
 	v := common.BigToHash(big.NewInt(int64(17)))
 	trieMod := TrieModification{
-    	Type: StorageChanged,
-		Key: toBeModified,
-		Value: v,
+		Type:    StorageChanged,
+		Key:     toBeModified,
+		Value:   v,
 		Address: addr,
 	}
 	trieModifications := []TrieModification{trieMod}
@@ -371,9 +371,9 @@ func TestAddBranchLong(t *testing.T) {
 	toBeModified := common.HexToHash("0x21")
 	v := common.BigToHash(big.NewInt(int64(17)))
 	trieMod := TrieModification{
-    	Type: StorageChanged,
-		Key: toBeModified,
-		Value: v,
+		Type:    StorageChanged,
+		Key:     toBeModified,
+		Value:   v,
 		Address: addr,
 	}
 	trieModifications := []TrieModification{trieMod}
@@ -395,10 +395,10 @@ func TestDeleteBranch(t *testing.T) {
 		common.HexToHash("0x11dd2277"),
 		h, // this leaf turns into a branch
 	}
-	
+
 	var values []common.Hash
 	for i := 0; i < len(ks); i++ {
-		values = append(values, common.BigToHash(big.NewInt(int64(i + 1)))) // don't put 0 value because otherwise nothing will be set (if 0 is prev value), see state_object.go line 279
+		values = append(values, common.BigToHash(big.NewInt(int64(i+1)))) // don't put 0 value because otherwise nothing will be set (if 0 is prev value), see state_object.go line 279
 	}
 	addr := common.HexToAddress("0x75acef12a0188c32b36c57957826df4e24e8b19c")
 	var addresses []common.Address
@@ -409,9 +409,9 @@ func TestDeleteBranch(t *testing.T) {
 	toBeModified := h
 	v := common.Hash{} // empty value deletes the key
 	trieMod := TrieModification{
-    	Type: StorageChanged,
-		Key: toBeModified,
-		Value: v,
+		Type:    StorageChanged,
+		Key:     toBeModified,
+		Value:   v,
 		Address: addr,
 	}
 	trieModifications := []TrieModification{trieMod}
@@ -446,13 +446,13 @@ func TestDeleteBranchLong(t *testing.T) {
 	for i := 0; i < len(ks); i++ {
 		addresses = append(addresses, addr)
 	}
-	
+
 	toBeModified := h
 	v := common.Hash{} // empty value deletes the key
 	trieMod := TrieModification{
-    	Type: StorageChanged,
-		Key: toBeModified,
-		Value: v,
+		Type:    StorageChanged,
+		Key:     toBeModified,
+		Value:   v,
 		Address: addr,
 	}
 	trieModifications := []TrieModification{trieMod}
@@ -474,7 +474,7 @@ func TestAddBranchTwoLevels(t *testing.T) {
 	ks := []common.Hash{common.HexToHash(h)}
 	for i := 0; i < 33; i++ {
 		// just some values to get the added branch in second level (found out trying different values)
-		if i % 2 == 0 {
+		if i%2 == 0 {
 			a += 1
 		} else {
 			b += 1
@@ -485,10 +485,10 @@ func TestAddBranchTwoLevels(t *testing.T) {
 		h := fmt.Sprintf("0xaa%d%d", a, b)
 		ks = append(ks, common.HexToHash(h))
 	}
-	
+
 	var values []common.Hash
 	for i := 0; i < len(ks); i++ {
-		values = append(values, common.BigToHash(big.NewInt(int64(i + 1)))) // don't put 0 value because otherwise nothing will be set (if 0 is prev value), see state_object.go line 279
+		values = append(values, common.BigToHash(big.NewInt(int64(i+1)))) // don't put 0 value because otherwise nothing will be set (if 0 is prev value), see state_object.go line 279
 	}
 	addr := common.HexToAddress("0x75fbef12a0188c32b36c57957826df4e24e8b19c")
 	var addresses []common.Address
@@ -499,9 +499,9 @@ func TestAddBranchTwoLevels(t *testing.T) {
 	toBeModified := common.HexToHash("0xaa43")
 	v := common.BigToHash(big.NewInt(int64(17)))
 	trieMod := TrieModification{
-    	Type: StorageChanged,
-		Key: toBeModified,
-		Value: v,
+		Type:    StorageChanged,
+		Key:     toBeModified,
+		Value:   v,
 		Address: addr,
 	}
 	trieModifications := []TrieModification{trieMod}
@@ -516,7 +516,7 @@ func TestAddBranchTwoLevelsLong(t *testing.T) {
 	ks := []common.Hash{common.HexToHash(h)}
 	for i := 0; i < 33; i++ {
 		// just some values to get the added branch in second level (found out trying different values)
-		if i % 2 == 0 {
+		if i%2 == 0 {
 			a += 1
 		} else {
 			b += 1
@@ -527,7 +527,7 @@ func TestAddBranchTwoLevelsLong(t *testing.T) {
 		h := fmt.Sprintf("0xaa%d%d", a, b)
 		ks = append(ks, common.HexToHash(h))
 	}
-	
+
 	var values []common.Hash
 	v1 := common.FromHex("0xbbefaa12580138bc263c95757826df4e24eb81c9aaaaaaaaaaaaaaaaaaaaaaaa")
 	v2 := common.BytesToHash(v1)
@@ -543,9 +543,9 @@ func TestAddBranchTwoLevelsLong(t *testing.T) {
 	toBeModified := common.HexToHash("0xaa43")
 	v := common.BigToHash(big.NewInt(int64(17)))
 	trieMod := TrieModification{
-    	Type: StorageChanged,
-		Key: toBeModified,
-		Value: v,
+		Type:    StorageChanged,
+		Key:     toBeModified,
+		Value:   v,
 		Address: addr,
 	}
 	trieModifications := []TrieModification{trieMod}
@@ -560,7 +560,7 @@ func TestDeleteBranchTwoLevels(t *testing.T) {
 	ks := []common.Hash{common.HexToHash(h)}
 	for i := 0; i < 33; i++ {
 		// just some values to get the added branch in second level (found out trying different values)
-		if i % 2 == 0 {
+		if i%2 == 0 {
 			a += 1
 		} else {
 			b += 1
@@ -568,10 +568,10 @@ func TestDeleteBranchTwoLevels(t *testing.T) {
 		h := fmt.Sprintf("0xaa%d%d", a, b)
 		ks = append(ks, common.HexToHash(h))
 	}
-	
+
 	var values []common.Hash
 	for i := 0; i < len(ks); i++ {
-		values = append(values, common.BigToHash(big.NewInt(int64(i + 1)))) // don't put 0 value because otherwise nothing will be set (if 0 is prev value), see state_object.go line 279
+		values = append(values, common.BigToHash(big.NewInt(int64(i+1)))) // don't put 0 value because otherwise nothing will be set (if 0 is prev value), see state_object.go line 279
 	}
 	addr := common.HexToAddress("0x75fbef1250188c32b63c57957826df4e24eb81c9")
 	var addresses []common.Address
@@ -582,9 +582,9 @@ func TestDeleteBranchTwoLevels(t *testing.T) {
 	toBeModified := common.HexToHash("0xaa43")
 	v := common.Hash{}
 	trieMod := TrieModification{
-    	Type: StorageChanged,
-		Key: toBeModified,
-		Value: v,
+		Type:    StorageChanged,
+		Key:     toBeModified,
+		Value:   v,
 		Address: addr,
 	}
 	trieModifications := []TrieModification{trieMod}
@@ -599,7 +599,7 @@ func TestDeleteBranchTwoLevelsLong(t *testing.T) {
 	ks := []common.Hash{common.HexToHash(h)}
 	for i := 0; i < 33; i++ {
 		// just some values to get the added branch in second level (found out trying different values)
-		if i % 2 == 0 {
+		if i%2 == 0 {
 			a += 1
 		} else {
 			b += 1
@@ -607,7 +607,7 @@ func TestDeleteBranchTwoLevelsLong(t *testing.T) {
 		h := fmt.Sprintf("0xaa%d%d", a, b)
 		ks = append(ks, common.HexToHash(h))
 	}
-	
+
 	var values []common.Hash
 	v1 := common.FromHex("0xbbefaa12580138bc263c95757826df4e24eb81c9aaaaaaaaaaaaaaaaaaaaaaaa")
 	v2 := common.BytesToHash(v1)
@@ -623,9 +623,9 @@ func TestDeleteBranchTwoLevelsLong(t *testing.T) {
 	toBeModified := common.HexToHash("0xaa43")
 	v := common.Hash{}
 	trieMod := TrieModification{
-    	Type: StorageChanged,
-		Key: toBeModified,
-		Value: v,
+		Type:    StorageChanged,
+		Key:     toBeModified,
+		Value:   v,
 		Address: addr,
 	}
 	trieModifications := []TrieModification{trieMod}
@@ -668,20 +668,20 @@ func TestExtensionOneKeyByteSel1(t *testing.T) {
 
 	var values []common.Hash
 	for i := 0; i < len(ks); i++ {
-		values = append(values, common.BigToHash(big.NewInt(int64(i + 1)))) // don't put 0 value because otherwise nothing will be set (if 0 is prev value), see state_object.go line 279
+		values = append(values, common.BigToHash(big.NewInt(int64(i+1)))) // don't put 0 value because otherwise nothing will be set (if 0 is prev value), see state_object.go line 279
 	}
 	addr := common.HexToAddress("0x75fbef21508183c2b63c57957826df4e24eb81c9")
 	var addresses []common.Address
 	for i := 0; i < len(ks); i++ {
 		addresses = append(addresses, addr)
 	}
-	
+
 	toBeModified := ks[len(ks)-1]
 	val := common.BigToHash(big.NewInt(int64(17)))
 	trieMod := TrieModification{
-    	Type: StorageChanged,
-		Key: toBeModified,
-		Value: val,
+		Type:    StorageChanged,
+		Key:     toBeModified,
+		Value:   val,
 		Address: addr,
 	}
 	trieModifications := []TrieModification{trieMod}
@@ -696,7 +696,7 @@ func TestExtensionAddedOneKeyByteSel1(t *testing.T) {
 	ks := []common.Hash{common.HexToHash(h)}
 	for i := 0; i < 33; i++ {
 		// just some values to get the added branch in second level (found out trying different values)
-		if i % 2 == 0 {
+		if i%2 == 0 {
 			a += 1
 		} else {
 			b += 1
@@ -704,10 +704,10 @@ func TestExtensionAddedOneKeyByteSel1(t *testing.T) {
 		h := fmt.Sprintf("0x%d%d", a, b)
 		ks = append(ks, common.HexToHash(h))
 	}
-	
+
 	var values []common.Hash
 	for i := 0; i < len(ks); i++ {
-		values = append(values, common.BigToHash(big.NewInt(int64(i + 1)))) // don't put 0 value because otherwise nothing will be set (if 0 is prev value), see state_object.go line 279
+		values = append(values, common.BigToHash(big.NewInt(int64(i+1)))) // don't put 0 value because otherwise nothing will be set (if 0 is prev value), see state_object.go line 279
 	}
 	addr := common.HexToAddress("0x50efbf12580138bc263c95757826df4e24eb81c9")
 	var addresses []common.Address
@@ -718,9 +718,9 @@ func TestExtensionAddedOneKeyByteSel1(t *testing.T) {
 	toBeModified := common.HexToHash("0x1818")
 	val := common.BigToHash(big.NewInt(int64(17)))
 	trieMod := TrieModification{
-    	Type: StorageChanged,
-		Key: toBeModified,
-		Value: val,
+		Type:    StorageChanged,
+		Key:     toBeModified,
+		Value:   val,
 		Address: addr,
 	}
 	trieModifications := []TrieModification{trieMod}
@@ -735,7 +735,7 @@ func TestExtensionDeletedOneKeyByteSel1(t *testing.T) {
 	ks := []common.Hash{common.HexToHash(h)}
 	for i := 0; i < 33; i++ {
 		// just some values to get the added branch in second level (found out trying different values)
-		if i % 2 == 0 {
+		if i%2 == 0 {
 			a += 1
 		} else {
 			b += 1
@@ -745,10 +745,10 @@ func TestExtensionDeletedOneKeyByteSel1(t *testing.T) {
 	}
 	toBeModified := common.HexToHash("0x1818")
 	ks = append(ks, toBeModified)
-	
+
 	var values []common.Hash
 	for i := 0; i < len(ks); i++ {
-		values = append(values, common.BigToHash(big.NewInt(int64(i + 1)))) // don't put 0 value because otherwise nothing will be set (if 0 is prev value), see state_object.go line 279
+		values = append(values, common.BigToHash(big.NewInt(int64(i+1)))) // don't put 0 value because otherwise nothing will be set (if 0 is prev value), see state_object.go line 279
 	}
 	addr := common.HexToAddress("0x50efbf12580138bc263c95757826df4e24eb81c9")
 	var addresses []common.Address
@@ -758,9 +758,9 @@ func TestExtensionDeletedOneKeyByteSel1(t *testing.T) {
 
 	val := common.Hash{} // empty value deletes the key
 	trieMod := TrieModification{
-    	Type: StorageChanged,
-		Key: toBeModified,
-		Value: val,
+		Type:    StorageChanged,
+		Key:     toBeModified,
+		Value:   val,
 		Address: addr,
 	}
 	trieModifications := []TrieModification{trieMod}
@@ -777,10 +777,10 @@ func TestExtensionOneKeyByteSel2(t *testing.T) {
 		h := fmt.Sprintf("0xca%d", a)
 		ks = append(ks, common.HexToHash(h))
 	}
-	
+
 	var values []common.Hash
 	for i := 0; i < len(ks); i++ {
-		values = append(values, common.BigToHash(big.NewInt(int64(i + 1)))) // don't put 0 value because otherwise nothing will be set (if 0 is prev value), see state_object.go line 279
+		values = append(values, common.BigToHash(big.NewInt(int64(i+1)))) // don't put 0 value because otherwise nothing will be set (if 0 is prev value), see state_object.go line 279
 	}
 	addr := common.HexToAddress("0x75fbef2150818c32b36c57957226df4e24eb81c9")
 	var addresses []common.Address
@@ -791,9 +791,9 @@ func TestExtensionOneKeyByteSel2(t *testing.T) {
 	toBeModified := common.HexToHash("0xca644")
 	val := common.BigToHash(big.NewInt(int64(17)))
 	trieMod := TrieModification{
-    	Type: StorageChanged,
-		Key: toBeModified,
-		Value: val,
+		Type:    StorageChanged,
+		Key:     toBeModified,
+		Value:   val,
 		Address: addr,
 	}
 	trieModifications := []TrieModification{trieMod}
@@ -815,10 +815,10 @@ func TestExtensionAddedOneKeyByteSel2(t *testing.T) {
 		}
 		ks = append(ks, common.HexToHash(h))
 	}
-	
+
 	var values []common.Hash
 	for i := 0; i < len(ks); i++ {
-		values = append(values, common.BigToHash(big.NewInt(int64(i + 1)))) // don't put 0 value because otherwise nothing will be set (if 0 is prev value), see state_object.go line 279
+		values = append(values, common.BigToHash(big.NewInt(int64(i+1)))) // don't put 0 value because otherwise nothing will be set (if 0 is prev value), see state_object.go line 279
 	}
 	addr := common.HexToAddress("0x75fbef2150818c32b36c57957226df4e24eb81c9")
 	var addresses []common.Address
@@ -828,9 +828,9 @@ func TestExtensionAddedOneKeyByteSel2(t *testing.T) {
 
 	val := common.BigToHash(big.NewInt(int64(17)))
 	trieMod := TrieModification{
-    	Type: StorageChanged,
-		Key: toBeModified,
-		Value: val,
+		Type:    StorageChanged,
+		Key:     toBeModified,
+		Value:   val,
 		Address: addr,
 	}
 	trieModifications := []TrieModification{trieMod}
@@ -849,10 +849,10 @@ func TestExtensionDeletedOneKeyByteSel2(t *testing.T) {
 		h := fmt.Sprintf("0xca%d", a)
 		ks = append(ks, common.HexToHash(h))
 	}
-	
+
 	var values []common.Hash
 	for i := 0; i < len(ks); i++ {
-		values = append(values, common.BigToHash(big.NewInt(int64(i + 1)))) // don't put 0 value because otherwise nothing will be set (if 0 is prev value), see state_object.go line 279
+		values = append(values, common.BigToHash(big.NewInt(int64(i+1)))) // don't put 0 value because otherwise nothing will be set (if 0 is prev value), see state_object.go line 279
 	}
 	addr := common.HexToAddress("0x75fbef2150818c32b36c57957226df4e24eb81c9")
 	var addresses []common.Address
@@ -862,14 +862,14 @@ func TestExtensionDeletedOneKeyByteSel2(t *testing.T) {
 
 	val := common.Hash{} // empty value deletes the key
 	trieMod := TrieModification{
-    	Type: StorageChanged,
-		Key: toBeModified,
-		Value: val,
+		Type:    StorageChanged,
+		Key:     toBeModified,
+		Value:   val,
 		Address: addr,
 	}
 	trieModifications := []TrieModification{trieMod}
 
-	updateStateAndPrepareWitness("ExtensionDeletedOneKeyByteSel2", ks[:], values, addresses, trieModifications) 
+	updateStateAndPrepareWitness("ExtensionDeletedOneKeyByteSel2", ks[:], values, addresses, trieModifications)
 }
 
 func TestExtensionTwoKeyBytesSel1(t *testing.T) {
@@ -888,10 +888,10 @@ func TestExtensionTwoKeyBytesSel1(t *testing.T) {
 		h := fmt.Sprintf("0x%d", a)
 		ks = append(ks, common.HexToHash(h))
 	}
-	
+
 	var values []common.Hash
 	for i := 0; i < len(ks); i++ {
-		values = append(values, common.BigToHash(big.NewInt(int64(i + 1)))) // don't put 0 value because otherwise nothing will be set (if 0 is prev value), see state_object.go line 279
+		values = append(values, common.BigToHash(big.NewInt(int64(i+1)))) // don't put 0 value because otherwise nothing will be set (if 0 is prev value), see state_object.go line 279
 	}
 	addr := common.HexToAddress("0x75fbef21508183c2b63c59757826df4e24eb81c9")
 	var addresses []common.Address
@@ -902,9 +902,9 @@ func TestExtensionTwoKeyBytesSel1(t *testing.T) {
 	toBeModified := common.HexToHash("0x172")
 	val := common.BigToHash(big.NewInt(int64(17)))
 	trieMod := TrieModification{
-    	Type: StorageChanged,
-		Key: toBeModified,
-		Value: val,
+		Type:    StorageChanged,
+		Key:     toBeModified,
+		Value:   val,
 		Address: addr,
 	}
 	trieModifications := []TrieModification{trieMod}
@@ -927,10 +927,10 @@ func TestExtensionAddedTwoKeyBytesSel1(t *testing.T) {
 		}
 		ks = append(ks, common.HexToHash(h))
 	}
-	
+
 	var values []common.Hash
 	for i := 0; i < len(ks); i++ {
-		values = append(values, common.BigToHash(big.NewInt(int64(i + 1)))) // don't put 0 value because otherwise nothing will be set (if 0 is prev value), see state_object.go line 279
+		values = append(values, common.BigToHash(big.NewInt(int64(i+1)))) // don't put 0 value because otherwise nothing will be set (if 0 is prev value), see state_object.go line 279
 	}
 	addr := common.HexToAddress("0x75fbef21508183c2b63c59757826df4e24eb81c9")
 	var addresses []common.Address
@@ -940,9 +940,9 @@ func TestExtensionAddedTwoKeyBytesSel1(t *testing.T) {
 
 	val := common.BigToHash(big.NewInt(int64(17)))
 	trieMod := TrieModification{
-    	Type: StorageChanged,
-		Key: toBeModified,
-		Value: val,
+		Type:    StorageChanged,
+		Key:     toBeModified,
+		Value:   val,
 		Address: addr,
 	}
 	trieModifications := []TrieModification{trieMod}
@@ -962,10 +962,10 @@ func TestExtensionDeletedTwoKeyBytesSel1(t *testing.T) {
 		h := fmt.Sprintf("0x%d", a)
 		ks = append(ks, common.HexToHash(h))
 	}
-	
+
 	var values []common.Hash
 	for i := 0; i < len(ks); i++ {
-		values = append(values, common.BigToHash(big.NewInt(int64(i + 1)))) // don't put 0 value because otherwise nothing will be set (if 0 is prev value), see state_object.go line 279
+		values = append(values, common.BigToHash(big.NewInt(int64(i+1)))) // don't put 0 value because otherwise nothing will be set (if 0 is prev value), see state_object.go line 279
 	}
 	addr := common.HexToAddress("0x75fbef21508183c2b63c59757826df4e24eb81c9")
 	var addresses []common.Address
@@ -975,9 +975,9 @@ func TestExtensionDeletedTwoKeyBytesSel1(t *testing.T) {
 
 	val := common.Hash{} // empty value deletes the key
 	trieMod := TrieModification{
-    	Type: StorageChanged,
-		Key: toBeModified,
-		Value: val,
+		Type:    StorageChanged,
+		Key:     toBeModified,
+		Value:   val,
 		Address: addr,
 	}
 	trieModifications := []TrieModification{trieMod}
@@ -994,10 +994,10 @@ func TestExtensionTwoKeyBytesSel2(t *testing.T) {
 		h := fmt.Sprintf("0x2ea%d", a)
 		ks = append(ks, common.HexToHash(h))
 	}
-	
+
 	var values []common.Hash
 	for i := 0; i < len(ks); i++ {
-		values = append(values, common.BigToHash(big.NewInt(int64(i + 1)))) // don't put 0 value because otherwise nothing will be set (if 0 is prev value), see state_object.go line 279
+		values = append(values, common.BigToHash(big.NewInt(int64(i+1)))) // don't put 0 value because otherwise nothing will be set (if 0 is prev value), see state_object.go line 279
 	}
 	addr := common.HexToAddress("0x75fbef2150818c32b36c57957226df4e24eb81c9")
 	var addresses []common.Address
@@ -1008,9 +1008,9 @@ func TestExtensionTwoKeyBytesSel2(t *testing.T) {
 	toBeModified := common.HexToHash("0x2ea772")
 	val := common.BigToHash(big.NewInt(int64(17)))
 	trieMod := TrieModification{
-    	Type: StorageChanged,
-		Key: toBeModified,
-		Value: val,
+		Type:    StorageChanged,
+		Key:     toBeModified,
+		Value:   val,
 		Address: addr,
 	}
 	trieModifications := []TrieModification{trieMod}
@@ -1032,10 +1032,10 @@ func TestExtensionAddedTwoKeyBytesSel2(t *testing.T) {
 		}
 		ks = append(ks, common.HexToHash(h))
 	}
-	
+
 	var values []common.Hash
 	for i := 0; i < len(ks); i++ {
-		values = append(values, common.BigToHash(big.NewInt(int64(i + 1)))) // don't put 0 value because otherwise nothing will be set (if 0 is prev value), see state_object.go line 279
+		values = append(values, common.BigToHash(big.NewInt(int64(i+1)))) // don't put 0 value because otherwise nothing will be set (if 0 is prev value), see state_object.go line 279
 	}
 	addr := common.HexToAddress("0x75fbef2150818c32b36c57957226df4e24eb81c9")
 	var addresses []common.Address
@@ -1045,9 +1045,9 @@ func TestExtensionAddedTwoKeyBytesSel2(t *testing.T) {
 
 	val := common.BigToHash(big.NewInt(int64(17)))
 	trieMod := TrieModification{
-    	Type: StorageChanged,
-		Key: toBeModified,
-		Value: val,
+		Type:    StorageChanged,
+		Key:     toBeModified,
+		Value:   val,
 		Address: addr,
 	}
 	trieModifications := []TrieModification{trieMod}
@@ -1066,10 +1066,10 @@ func TestExtensionDeletedTwoKeyBytesSel2(t *testing.T) {
 		h := fmt.Sprintf("0x2ea%d", a)
 		ks = append(ks, common.HexToHash(h))
 	}
-	
+
 	var values []common.Hash
 	for i := 0; i < len(ks); i++ {
-		values = append(values, common.BigToHash(big.NewInt(int64(i + 1)))) // don't put 0 value because otherwise nothing will be set (if 0 is prev value), see state_object.go line 279
+		values = append(values, common.BigToHash(big.NewInt(int64(i+1)))) // don't put 0 value because otherwise nothing will be set (if 0 is prev value), see state_object.go line 279
 	}
 	addr := common.HexToAddress("0x75fbef2150818c32b36c57957226df4e24eb81c9")
 	var addresses []common.Address
@@ -1079,9 +1079,9 @@ func TestExtensionDeletedTwoKeyBytesSel2(t *testing.T) {
 
 	val := common.Hash{} // empty value deletes the key
 	trieMod := TrieModification{
-    	Type: StorageChanged,
-		Key: toBeModified,
-		Value: val,
+		Type:    StorageChanged,
+		Key:     toBeModified,
+		Value:   val,
 		Address: addr,
 	}
 	trieModifications := []TrieModification{trieMod}
@@ -1096,10 +1096,10 @@ func TestExtensionInFirstStorageLevel(t *testing.T) {
 		h := fmt.Sprintf("0x%d", i)
 		ks = append(ks, common.HexToHash(h))
 	}
-	
+
 	var values []common.Hash
 	for i := 0; i < len(ks); i++ {
-		values = append(values, common.BigToHash(big.NewInt(int64(i + 1)))) // don't put 0 value because otherwise nothing will be set (if 0 is prev value), see state_object.go line 279
+		values = append(values, common.BigToHash(big.NewInt(int64(i+1)))) // don't put 0 value because otherwise nothing will be set (if 0 is prev value), see state_object.go line 279
 	}
 	addr := common.HexToAddress("0x75fbef2150818c32b36c57957226df4e24eb81c9")
 	var addresses []common.Address
@@ -1110,9 +1110,9 @@ func TestExtensionInFirstStorageLevel(t *testing.T) {
 	toBeModified := common.HexToHash("0x1")
 	val := common.BigToHash(big.NewInt(int64(17)))
 	trieMod := TrieModification{
-    	Type: StorageChanged,
-		Key: toBeModified,
-		Value: val,
+		Type:    StorageChanged,
+		Key:     toBeModified,
+		Value:   val,
 		Address: addr,
 	}
 	trieModifications := []TrieModification{trieMod}
@@ -1143,9 +1143,9 @@ func TestExtensionInFirstStorageLevelOneKeyByte(t *testing.T) {
 	toBeModified := common.HexToHash("0x1")
 	val := common.BigToHash(big.NewInt(int64(17)))
 	trieMod := TrieModification{
-    	Type: StorageChanged,
-		Key: toBeModified,
-		Value: val,
+		Type:    StorageChanged,
+		Key:     toBeModified,
+		Value:   val,
 		Address: addr,
 	}
 	trieModifications := []TrieModification{trieMod}
@@ -1173,9 +1173,9 @@ func TestExtensionAddedInFirstStorageLevelOneKeyByte(t *testing.T) {
 	statedb.IntermediateRoot(false)
 	val := common.BigToHash(big.NewInt(int64(17)))
 	trieMod := TrieModification{
-    	Type: StorageChanged,
-		Key: toBeModified,
-		Value: val,
+		Type:    StorageChanged,
+		Key:     toBeModified,
+		Value:   val,
 		Address: addr,
 	}
 	trieModifications := []TrieModification{trieMod}
@@ -1204,9 +1204,9 @@ func TestExtensionInFirstStorageLevelTwoKeyBytes(t *testing.T) {
 
 	val := common.BigToHash(big.NewInt(int64(17)))
 	trieMod := TrieModification{
-    	Type: StorageChanged,
-		Key: toBeModified,
-		Value: val,
+		Type:    StorageChanged,
+		Key:     toBeModified,
+		Value:   val,
 		Address: addr,
 	}
 	trieModifications := []TrieModification{trieMod}
@@ -1235,9 +1235,9 @@ func TestExtensionAddedInFirstStorageLevelTwoKeyBytes(t *testing.T) {
 
 	val := common.BigToHash(big.NewInt(int64(17)))
 	trieMod := TrieModification{
-    	Type: StorageChanged,
-		Key: toBeModified,
-		Value: val,
+		Type:    StorageChanged,
+		Key:     toBeModified,
+		Value:   val,
 		Address: addr,
 	}
 	trieModifications := []TrieModification{trieMod}
@@ -1268,9 +1268,9 @@ func TestExtensionThreeKeyBytesSel2(t *testing.T) {
 
 	val := common.BigToHash(big.NewInt(int64(17)))
 	trieMod := TrieModification{
-    	Type: StorageChanged,
-		Key: toBeModified,
-		Value: val,
+		Type:    StorageChanged,
+		Key:     toBeModified,
+		Value:   val,
 		Address: addr,
 	}
 	trieModifications := []TrieModification{trieMod}
@@ -1299,9 +1299,9 @@ func TestExtensionAddedThreeKeyBytesSel2(t *testing.T) {
 
 	val := common.BigToHash(big.NewInt(int64(17)))
 	trieMod := TrieModification{
-    	Type: StorageChanged,
-		Key: toBeModified,
-		Value: val,
+		Type:    StorageChanged,
+		Key:     toBeModified,
+		Value:   val,
 		Address: addr,
 	}
 	trieModifications := []TrieModification{trieMod}
@@ -1332,9 +1332,9 @@ func TestExtensionDeletedThreeKeyBytesSel2(t *testing.T) {
 
 	val := common.Hash{} // empty value deletes the key
 	trieMod := TrieModification{
-    	Type: StorageChanged,
-		Key: toBeModified,
-		Value: val,
+		Type:    StorageChanged,
+		Key:     toBeModified,
+		Value:   val,
 		Address: addr,
 	}
 	trieModifications := []TrieModification{trieMod}
@@ -1375,9 +1375,9 @@ func TestExtensionThreeKeyBytes(t *testing.T) {
 	toBeModified := common.HexToHash("0x333")
 	val := common.BigToHash(big.NewInt(int64(17)))
 	trieMod := TrieModification{
-    	Type: StorageChanged,
-		Key: toBeModified,
-		Value: val,
+		Type:    StorageChanged,
+		Key:     toBeModified,
+		Value:   val,
 		Address: addr,
 	}
 	trieModifications := []TrieModification{trieMod}
@@ -1393,7 +1393,7 @@ func TestOnlyLeafInStorageProof(t *testing.T) {
 	statedb, _ := state.New(blockHeaderParent.Root, database, nil)
 
 	statedb.DisableLoadingRemoteAccounts()
-	
+
 	h := fmt.Sprintf("0x%d", 0)
 	addr := common.HexToAddress(h)
 	// statedb.IntermediateRoot(false)
@@ -1401,7 +1401,7 @@ func TestOnlyLeafInStorageProof(t *testing.T) {
 
 	accountProof, _, _, _, err := statedb.GetProof(addr)
 	fmt.Println(len(accountProof))
-	check(err)	
+	check(err)
 
 	h = fmt.Sprintf("0x2111d%d", 0)
 	key2 := common.HexToHash(h)
@@ -1414,9 +1414,9 @@ func TestOnlyLeafInStorageProof(t *testing.T) {
 
 	val := common.BigToHash(big.NewInt(int64(17)))
 	trieMod := TrieModification{
-    	Type: StorageChanged,
-		Key: key2,
-		Value: val,
+		Type:    StorageChanged,
+		Key:     key2,
+		Value:   val,
 		Address: addr,
 	}
 	trieModifications := []TrieModification{trieMod}
@@ -1432,7 +1432,7 @@ func TestStorageLeafInFirstLevelAfterPlaceholder(t *testing.T) {
 	statedb, _ := state.New(blockHeaderParent.Root, database, nil)
 
 	statedb.DisableLoadingRemoteAccounts()
-	
+
 	h := fmt.Sprintf("0x%d", 0)
 	addr := common.HexToAddress(h)
 	// statedb.IntermediateRoot(false)
@@ -1440,7 +1440,7 @@ func TestStorageLeafInFirstLevelAfterPlaceholder(t *testing.T) {
 
 	accountProof, _, _, _, err := statedb.GetProof(addr)
 	fmt.Println(len(accountProof))
-	check(err)	
+	check(err)
 
 	h1 := fmt.Sprintf("0x2111d%d", 0)
 	key1 := common.HexToHash(h1)
@@ -1456,9 +1456,9 @@ func TestStorageLeafInFirstLevelAfterPlaceholder(t *testing.T) {
 
 	val := common.BigToHash(big.NewInt(int64(17)))
 	trieMod := TrieModification{
-    	Type: StorageChanged,
-		Key: key2,
-		Value: val,
+		Type:    StorageChanged,
+		Key:     key2,
+		Value:   val,
 		Address: addr,
 	}
 	trieModifications := []TrieModification{trieMod}
@@ -1474,7 +1474,7 @@ func TestLeafAddedToEmptyTrie(t *testing.T) {
 	statedb, _ := state.New(blockHeaderParent.Root, database, nil)
 
 	statedb.DisableLoadingRemoteAccounts()
-	
+
 	h := fmt.Sprintf("0x%d", 0)
 	addr := common.HexToAddress(h)
 	// statedb.IntermediateRoot(false)
@@ -1486,7 +1486,7 @@ func TestLeafAddedToEmptyTrie(t *testing.T) {
 
 	// emptyTrieHash := statedb.StorageTrie(addr).Hash()
 	// fmt.Println(emptyTrieHash.Bytes())
-	
+
 	h = fmt.Sprintf("0x2111d%d", 0)
 	key2 := common.HexToHash(h)
 	// val1 := common.BigToHash(big.NewInt(int64(1)))
@@ -1498,9 +1498,9 @@ func TestLeafAddedToEmptyTrie(t *testing.T) {
 
 	val := common.BigToHash(big.NewInt(int64(17)))
 	trieMod := TrieModification{
-    	Type: StorageChanged,
-		Key: key2,
-		Value: val,
+		Type:    StorageChanged,
+		Key:     key2,
+		Value:   val,
 		Address: addr,
 	}
 	trieModifications := []TrieModification{trieMod}
@@ -1516,7 +1516,7 @@ func TestDeleteToEmptyTrie(t *testing.T) {
 	statedb, _ := state.New(blockHeaderParent.Root, database, nil)
 
 	statedb.DisableLoadingRemoteAccounts()
-	
+
 	h := fmt.Sprintf("0x%d", 0)
 	addr := common.HexToAddress(h)
 	// statedb.IntermediateRoot(false)
@@ -1537,9 +1537,9 @@ func TestDeleteToEmptyTrie(t *testing.T) {
 
 	val := common.Hash{} // empty value deletes the key
 	trieMod := TrieModification{
-    	Type: StorageChanged,
-		Key: key2,
-		Value: val,
+		Type:    StorageChanged,
+		Key:     key2,
+		Value:   val,
 		Address: addr,
 	}
 	trieModifications := []TrieModification{trieMod}
@@ -1551,7 +1551,7 @@ func TestUpdateTwoModifications(t *testing.T) {
 	ks := [...]common.Hash{common.HexToHash("0x12"), common.HexToHash("0x21")}
 	var values []common.Hash
 	for i := 0; i < len(ks); i++ {
-		values = append(values, common.BigToHash(big.NewInt(int64(i + 1)))) // don't put 0 value because otherwise nothing will be set (if 0 is prev value), see state_object.go line 279
+		values = append(values, common.BigToHash(big.NewInt(int64(i+1)))) // don't put 0 value because otherwise nothing will be set (if 0 is prev value), see state_object.go line 279
 	}
 	addr := common.HexToAddress("0xaaaccf12580138bc2bbceeeaa111df4e42ab81ff")
 	var addresses []common.Address
@@ -1563,15 +1563,15 @@ func TestUpdateTwoModifications(t *testing.T) {
 	v2 := common.BigToHash(big.NewInt(int64(17)))
 
 	trieMod1 := TrieModification{
-    	Type: StorageChanged,
-		Key: ks[0],
-		Value: v1,
+		Type:    StorageChanged,
+		Key:     ks[0],
+		Value:   v1,
 		Address: addr,
 	}
 	trieMod2 := TrieModification{
-    	Type: StorageChanged,
-		Key: ks[1],
-		Value: v2,
+		Type:    StorageChanged,
+		Key:     ks[1],
+		Value:   v2,
 		Address: addr,
 	}
 
@@ -1589,8 +1589,8 @@ func TestNonceModCShort(t *testing.T) {
 	addr := common.HexToAddress("0x68D5a6E78BD8734B7d190cbD98549B72bFa0800B")
 
 	trieMod := TrieModification{
-    	Type: NonceChanged,
-		Nonce: 33,
+		Type:    NonceChanged,
+		Nonce:   33,
 		Address: addr,
 	}
 	trieModifications := []TrieModification{trieMod}
@@ -1607,8 +1607,8 @@ func TestNonceModCLong(t *testing.T) {
 	addr := common.HexToAddress("0x68D5a6E78BD8734B7d190cbD98549B72bFa0800B")
 
 	trieMod := TrieModification{
-    	Type: NonceChanged,
-		Nonce: 142, // for long needs to be >= 128
+		Type:    NonceChanged,
+		Nonce:   142, // for long needs to be >= 128
 		Address: addr,
 	}
 	trieModifications := []TrieModification{trieMod}
@@ -1625,7 +1625,7 @@ func TestBalanceModCShort(t *testing.T) {
 	addr := common.HexToAddress("0x68D5a6E78BD8734B7d190cbD98549B72bFa0800B")
 
 	trieMod := TrieModification{
-    	Type: BalanceChanged,
+		Type:    BalanceChanged,
 		Balance: big.NewInt(98),
 		Address: addr,
 	}
@@ -1643,7 +1643,7 @@ func TestBalanceModCLong(t *testing.T) {
 	addr := common.HexToAddress("0x68D5a6E78BD8734B7d190cbD98549B72bFa0800B")
 
 	trieMod := TrieModification{
-    	Type: BalanceChanged,
+		Type:    BalanceChanged,
 		Balance: big.NewInt(439),
 		Address: addr,
 	}
@@ -1658,13 +1658,13 @@ func TestAddAccount(t *testing.T) {
 	blockHeaderParent := oracle.PrefetchBlock(blockNumberParent, true, nil)
 	database := state.NewDatabase(blockHeaderParent)
 	statedb, _ := state.New(blockHeaderParent.Root, database, nil)
-	
+
 	addr := common.HexToAddress("0xaaaccf12580138bc2bbceeeaa111df4e42ab81ab")
 	statedb.IntermediateRoot(false)
 
 	trieMod := TrieModification{
 		Address: addr,
-    	Type: AccountCreate,
+		Type:    AccountCreate,
 	}
 	trieModifications := []TrieModification{trieMod}
 
@@ -1677,14 +1677,14 @@ func TestDeleteAccount(t *testing.T) {
 	blockHeaderParent := oracle.PrefetchBlock(blockNumberParent, true, nil)
 	database := state.NewDatabase(blockHeaderParent)
 	statedb, _ := state.New(blockHeaderParent.Root, database, nil)
-	
+
 	addr := common.HexToAddress("0xaaaccf12580138bc2bbceeeaa111df4e42ab81ab")
 	statedb.CreateAccount(addr)
 	statedb.IntermediateRoot(false)
 
 	trieMod := TrieModification{
 		Address: addr,
-    	Type: AccountDestructed,
+		Type:    AccountDestructed,
 	}
 	trieModifications := []TrieModification{trieMod}
 
@@ -1701,12 +1701,12 @@ func TestImplicitlyCreateAccountWithNonce(t *testing.T) {
 	blockHeaderParent := oracle.PrefetchBlock(blockNumberParent, true, nil)
 	database := state.NewDatabase(blockHeaderParent)
 	statedb, _ := state.New(blockHeaderParent.Root, database, nil)
-	
+
 	addr := common.HexToAddress("0xaabccf12580138bc2bbceeeaa111df4e42ab81ab")
 
 	trieMod := TrieModification{
-    	Type: NonceChanged,
-		Nonce: 142,
+		Type:    NonceChanged,
+		Nonce:   142,
 		Address: addr,
 	}
 	trieModifications := []TrieModification{trieMod}
@@ -1720,11 +1720,11 @@ func TestImplicitlyCreateAccountWithBalance(t *testing.T) {
 	blockHeaderParent := oracle.PrefetchBlock(blockNumberParent, true, nil)
 	database := state.NewDatabase(blockHeaderParent)
 	statedb, _ := state.New(blockHeaderParent.Root, database, nil)
-	
+
 	addr := common.HexToAddress("0xaabccf12580138bc2bbceeeaa111df4e42ab81ab")
 
 	trieMod := TrieModification{
-    	Type: BalanceChanged,
+		Type:    BalanceChanged,
 		Balance: big.NewInt(7),
 		Address: addr,
 	}
@@ -1739,14 +1739,14 @@ func TestImplicitlyCreateAccountWithCodeHash(t *testing.T) {
 	blockHeaderParent := oracle.PrefetchBlock(blockNumberParent, true, nil)
 	database := state.NewDatabase(blockHeaderParent)
 	statedb, _ := state.New(blockHeaderParent.Root, database, nil)
-	
+
 	addr := common.HexToAddress("0xaabccf12580138bc2bbceeeaa111df4e42ab81ab")
 	codeHash := []byte{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}
 
 	trieMod := TrieModification{
-    	Type: BalanceChanged,
+		Type:     BalanceChanged,
 		CodeHash: codeHash,
-		Address: addr,
+		Address:  addr,
 	}
 	trieModifications := []TrieModification{trieMod}
 
@@ -1759,14 +1759,14 @@ func TestAccountAddPlaceholderBranch(t *testing.T) {
 	blockHeaderParent := oracle.PrefetchBlock(blockNumberParent, true, nil)
 	database := state.NewDatabase(blockHeaderParent)
 	statedb, _ := state.New(blockHeaderParent.Root, database, nil)
-	
+
 	// We need an account that doesn't exist yet.
 	i := 21
 	h := fmt.Sprintf("0x%d", i)
 	addr := common.HexToAddress(h)
 
 	trieMod := TrieModification{
-    	Type: BalanceChanged, // implicitly creating account
+		Type:    BalanceChanged, // implicitly creating account
 		Balance: big.NewInt(23),
 		Address: addr,
 	}
@@ -1781,7 +1781,7 @@ func TestAccountDeletePlaceholderBranch(t *testing.T) {
 	blockHeaderParent := oracle.PrefetchBlock(blockNumberParent, true, nil)
 	database := state.NewDatabase(blockHeaderParent)
 	statedb, _ := state.New(blockHeaderParent.Root, database, nil)
-	
+
 	i := 21
 	h := fmt.Sprintf("0x%d", i)
 	addr := common.HexToAddress(h)
@@ -1789,7 +1789,7 @@ func TestAccountDeletePlaceholderBranch(t *testing.T) {
 	statedb.CreateAccount(addr)
 
 	trieMod := TrieModification{
-    	Type: AccountDestructed,
+		Type:    AccountDestructed,
 		Address: addr,
 	}
 	trieModifications := []TrieModification{trieMod}
@@ -1803,14 +1803,14 @@ func TestAccountAddPlaceholderExtension(t *testing.T) {
 	blockHeaderParent := oracle.PrefetchBlock(blockNumberParent, true, nil)
 	database := state.NewDatabase(blockHeaderParent)
 	statedb, _ := state.New(blockHeaderParent.Root, database, nil)
-	
+
 	// We need an account that doesn't exist yet.
 	i := 40
 	h := fmt.Sprintf("0x%d", i)
 	addr := common.HexToAddress(h)
 
 	trieMod := TrieModification{
-    	Type: BalanceChanged, // implicitly creating account
+		Type:    BalanceChanged, // implicitly creating account
 		Balance: big.NewInt(23),
 		Address: addr,
 	}
@@ -1825,7 +1825,7 @@ func TestAccountDeletePlaceholderExtension(t *testing.T) {
 	blockHeaderParent := oracle.PrefetchBlock(blockNumberParent, true, nil)
 	database := state.NewDatabase(blockHeaderParent)
 	statedb, _ := state.New(blockHeaderParent.Root, database, nil)
-	
+
 	i := 40
 	h := fmt.Sprintf("0x%d", i)
 	addr := common.HexToAddress(h)
@@ -1833,7 +1833,7 @@ func TestAccountDeletePlaceholderExtension(t *testing.T) {
 	statedb.CreateAccount(addr)
 
 	trieMod := TrieModification{
-    	Type: AccountDestructed,
+		Type:    AccountDestructed,
 		Address: addr,
 	}
 	trieModifications := []TrieModification{trieMod}
@@ -1849,13 +1849,13 @@ func TestNonExistingAccountNilObject(t *testing.T) {
 	blockHeaderParent := oracle.PrefetchBlock(blockNumberParent, true, nil)
 	database := state.NewDatabase(blockHeaderParent)
 	statedb, _ := state.New(blockHeaderParent.Root, database, nil)
-	
+
 	addr := common.HexToAddress("0xaaaccf12580138bc2bbceeeaa111df4e42ab81ab")
 	statedb.IntermediateRoot(false)
 
 	trieMod := TrieModification{
 		Address: addr,
-    	Type: AccountDoesNotExist,
+		Type:    AccountDoesNotExist,
 	}
 	trieModifications := []TrieModification{trieMod}
 
@@ -1879,7 +1879,7 @@ func TestNonExistingAccount(t *testing.T) {
 
 	trieMod := TrieModification{
 		Address: addr,
-    	Type: AccountDoesNotExist,
+		Type:    AccountDoesNotExist,
 	}
 	trieModifications := []TrieModification{trieMod}
 
@@ -1900,7 +1900,7 @@ func TestAccountBranchPlaceholderDeeper(t *testing.T) {
 	// Implicitly create account such that the account from the first level will be
 	// replaced by a branch.
 	trieMod := TrieModification{
-    	Type: BalanceChanged,
+		Type:    BalanceChanged,
 		Balance: big.NewInt(23),
 		Address: addr,
 	}
@@ -1911,31 +1911,31 @@ func TestAccountBranchPlaceholderDeeper(t *testing.T) {
 
 func TestLeafInLastLevel(t *testing.T) {
 	/*
-	We have an extension node as a root. This extension node key in compact form
-	is an array of length 32 (160 - 128): 16, 0, 0, ..., 0.
-	That means 63 nibbles that are all zero: 0 (16 - 16), 0, ..., 0.
-	The last nibble of key1 (1) and key2 (3) presents the position in branch.
-	In this case, in a leaf, there is only one key byte: 32.
+		We have an extension node as a root. This extension node key in compact form
+		is an array of length 32 (160 - 128): 16, 0, 0, ..., 0.
+		That means 63 nibbles that are all zero: 0 (16 - 16), 0, ..., 0.
+		The last nibble of key1 (1) and key2 (3) presents the position in branch.
+		In this case, in a leaf, there is only one key byte: 32.
 
-	storageProof[0]
-		[]uint8 len: 56, cap: 56, [247,160,16,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,213,128,194,32,1,128,194,32,1,128,128,128,128,128,128,128,128,128,128,128,128,128]
-	storageProof[1]
-		[]uint8 len: 22, cap: 22, [213,128,194,32,1,128,194,32,1,128,128,128,128,128,128,128,128,128,128,128,128,128]
-	storageProof[2]
-		[]uint8 len: 3, cap: 3, [194,32,1]
+		storageProof[0]
+			[]uint8 len: 56, cap: 56, [247,160,16,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,213,128,194,32,1,128,194,32,1,128,128,128,128,128,128,128,128,128,128,128,128,128]
+		storageProof[1]
+			[]uint8 len: 22, cap: 22, [213,128,194,32,1,128,194,32,1,128,128,128,128,128,128,128,128,128,128,128,128,128]
+		storageProof[2]
+			[]uint8 len: 3, cap: 3, [194,32,1]
 
-	Other examples:
-	last level, long value
-	[]uint8 len: 36, cap: 36, [227,32,161,160,187,239,170,18,88,1,56,188,38,60,149,117,120,38,223,78,36,235,129,201,170,170,170,170,170,170,170,170,170,170,170,170]
-	not last level, short value
-	[]uint8 len: 5, cap: 5, [196,130,32,0,1]
+		Other examples:
+		last level, long value
+		[]uint8 len: 36, cap: 36, [227,32,161,160,187,239,170,18,88,1,56,188,38,60,149,117,120,38,223,78,36,235,129,201,170,170,170,170,170,170,170,170,170,170,170,170]
+		not last level, short value
+		[]uint8 len: 5, cap: 5, [196,130,32,0,1]
 
-	Note: the "normal" leaf looks like:
-	short:
-	[226,160,59,138,106,70,105,186,37,13,38,205,122,69,158,202,157,33,95,131,7,227,58,235,229,3,121,188,90,54,23,236,52,68,1]
+		Note: the "normal" leaf looks like:
+		short:
+		[226,160,59,138,106,70,105,186,37,13,38,205,122,69,158,202,157,33,95,131,7,227,58,235,229,3,121,188,90,54,23,236,52,68,1]
 
-	long:
-	[248,67,160,59,138,106,70,105,186,37,13,38,205,122,69,158,202,157,33,95,131,7,227,58,235,229,3,121,188,90,54,23,236,52,68,161,160,...
+		long:
+		[248,67,160,59,138,106,70,105,186,37,13,38,205,122,69,158,202,157,33,95,131,7,227,58,235,229,3,121,188,90,54,23,236,52,68,161,160,...
 	*/
 	blockNum := 0
 	blockNumberParent := big.NewInt(int64(blockNum))
@@ -1945,7 +1945,7 @@ func TestLeafInLastLevel(t *testing.T) {
 	addr := common.HexToAddress("0x50efbf12580138bc623c95757286df4e24eb81c9")
 
 	statedb.DisableLoadingRemoteAccounts()
-	
+
 	statedb.CreateAccount(addr)
 
 	oracle.PreventHashingInSecureTrie = true // to store the unchanged key
@@ -1959,9 +1959,9 @@ func TestLeafInLastLevel(t *testing.T) {
 	statedb.SetState(addr, key2, val1)
 	statedb.IntermediateRoot(false)
 	/*
-	The two keys are the same except in the last nibble:
-	key1 = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1]
-	key2 = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,3]
+		The two keys are the same except in the last nibble:
+		key1 = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1]
+		key2 = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,3]
 	*/
 
 	storageProof, _, _, _, err := statedb.GetStorageProof(addr, key1)
@@ -1971,9 +1971,9 @@ func TestLeafInLastLevel(t *testing.T) {
 
 	val := common.BigToHash(big.NewInt(int64(17)))
 	trieMod := TrieModification{
-    	Type: StorageChanged,
-		Key: key1,
-		Value: val,
+		Type:    StorageChanged,
+		Key:     key1,
+		Value:   val,
 		Address: addr,
 	}
 	trieModifications := []TrieModification{trieMod}
@@ -1992,7 +1992,7 @@ func TestLeafWithOneNibble(t *testing.T) {
 	addr := common.HexToAddress("0x50efbf12580138bc623c95757286df4e24eb81c9")
 
 	statedb.DisableLoadingRemoteAccounts()
-	
+
 	statedb.CreateAccount(addr)
 
 	oracle.PreventHashingInSecureTrie = true // to store the unchanged key
@@ -2013,9 +2013,9 @@ func TestLeafWithOneNibble(t *testing.T) {
 
 	val := common.BigToHash(big.NewInt(int64(17)))
 	trieMod := TrieModification{
-    	Type: StorageChanged,
-		Key: key1,
-		Value: val,
+		Type:    StorageChanged,
+		Key:     key1,
+		Value:   val,
 		Address: addr,
 	}
 	trieModifications := []TrieModification{trieMod}
@@ -2035,7 +2035,7 @@ storageProof[2]
 */
 func TestLeafWithMoreNibbles(t *testing.T) {
 	// non-hashed leaf, leaf not in last level
-	
+
 	blockNum := 0
 	blockNumberParent := big.NewInt(int64(blockNum))
 	blockHeaderParent := oracle.PrefetchBlock(blockNumberParent, true, nil)
@@ -2044,14 +2044,14 @@ func TestLeafWithMoreNibbles(t *testing.T) {
 	addr := common.HexToAddress("0x50efbf12580138bc623c95757286df4e24eb81c9")
 
 	statedb.DisableLoadingRemoteAccounts()
-	
+
 	statedb.CreateAccount(addr)
 
 	oracle.PreventHashingInSecureTrie = true
 
 	// Let us make the extension node shorter than 55 (although this than causes branch to be hashed):
 	key1 := common.HexToHash("0x100000000000000000000000")
-	
+
 	val1 := common.BigToHash(big.NewInt(int64(17)))
 
 	statedb.SetState(addr, key1, val1)
@@ -2067,9 +2067,9 @@ func TestLeafWithMoreNibbles(t *testing.T) {
 
 	val := common.BigToHash(big.NewInt(int64(17)))
 	trieMod := TrieModification{
-    	Type: StorageChanged,
-		Key: key1,
-		Value: val,
+		Type:    StorageChanged,
+		Key:     key1,
+		Value:   val,
 		Address: addr,
 	}
 	trieModifications := []TrieModification{trieMod}
@@ -2090,15 +2090,15 @@ func TestNonHashedBranchInBranch(t *testing.T) {
 	addr := common.HexToAddress("0x50efbf12580138bc623c95757286df4e24eb81c9")
 
 	statedb.DisableLoadingRemoteAccounts()
-	
+
 	statedb.CreateAccount(addr)
 
 	oracle.PreventHashingInSecureTrie = true // to store the unchanged key
 
 	val1 := common.BigToHash(big.NewInt(int64(1)))
 
-	key1Hex := "0x1000000000000000000000000000000000000000000000000000000000000000" 
-	key2Hex := "0x2000000000000000000000000000000000000000000000000000000000000000" 
+	key1Hex := "0x1000000000000000000000000000000000000000000000000000000000000000"
+	key2Hex := "0x2000000000000000000000000000000000000000000000000000000000000000"
 	key1 := common.HexToHash(key1Hex)
 	key2 := common.HexToHash(key2Hex)
 	fmt.Println(key2)
@@ -2152,15 +2152,15 @@ func TestNonHashedExtensionNodeInBranch(t *testing.T) {
 	addr := common.HexToAddress("0x50efbf12580138bc623c95757286df4e24eb81c9")
 
 	statedb.DisableLoadingRemoteAccounts()
-	
+
 	statedb.CreateAccount(addr)
 
 	oracle.PreventHashingInSecureTrie = true // to store the unchanged key
 
 	val1 := common.BigToHash(big.NewInt(int64(1)))
 
-	key1Hex := "0x1000000000000000000000000000000000000000000000000000000000000000" 
-	key2Hex := "0x2000000000000000000000000000000000000000000000000000000000000000" 
+	key1Hex := "0x1000000000000000000000000000000000000000000000000000000000000000"
+	key2Hex := "0x2000000000000000000000000000000000000000000000000000000000000000"
 	key1 := common.HexToHash(key1Hex)
 	key2 := common.HexToHash(key2Hex)
 	fmt.Println(key2)
@@ -2181,11 +2181,11 @@ func TestNonHashedExtensionNodeInBranch(t *testing.T) {
 		}
 
 		if !makeExtension {
-			key1Hex = replaceAtIndex(key1Hex, 49, i + 3) 
+			key1Hex = replaceAtIndex(key1Hex, 49, i + 3)
 		} else {
 			key1Hex = replaceAtIndex(key1Hex, 49, i + 1 + 3)
 		}
-	
+
 		key1 = common.HexToHash(key1Hex)
 	}
 
@@ -2215,15 +2215,15 @@ func TestNonHashedExtensionNodeInBranchTwoNibbles(t *testing.T) {
 	addr := common.HexToAddress("0x50efbf12580138bc623c95757286df4e24eb81c9")
 
 	statedb.DisableLoadingRemoteAccounts()
-	
+
 	statedb.CreateAccount(addr)
 
 	oracle.PreventHashingInSecureTrie = true // to store the unchanged key
 
 	val1 := common.BigToHash(big.NewInt(int64(1)))
 
-	key1Hex := "0x1000000000000000000000000000000000000000000000000000000000000000" 
-	key2Hex := "0x2000000000000000000000000000000000000000000000000000000000000000" 
+	key1Hex := "0x1000000000000000000000000000000000000000000000000000000000000000"
+	key2Hex := "0x2000000000000000000000000000000000000000000000000000000000000000"
 	key1 := common.HexToHash(key1Hex)
 	key2 := common.HexToHash(key2Hex)
 	fmt.Println(key2)
@@ -2244,11 +2244,11 @@ func TestNonHashedExtensionNodeInBranchTwoNibbles(t *testing.T) {
 		}
 
 		if !makeExtension {
-			key1Hex = replaceAtIndex(key1Hex, 49, i + 3) 
+			key1Hex = replaceAtIndex(key1Hex, 49, i + 3)
 		} else {
-			key1Hex = replaceAtIndex(key1Hex, 49, i + 2 + 3) // +2 to have two nibbles 
+			key1Hex = replaceAtIndex(key1Hex, 49, i + 2 + 3) // +2 to have two nibbles
 		}
-	
+
 		key1 = common.HexToHash(key1Hex)
 	}
 
@@ -2278,13 +2278,13 @@ func TestBranchAfterExtNode(t *testing.T) {
 	addr := common.HexToAddress("0x40efbf12580138bc623c95757286df4e24eb81c9")
 
 	statedb.DisableLoadingRemoteAccounts()
-	
+
 	statedb.CreateAccount(addr)
 
 	oracle.PreventHashingInSecureTrie = true // to store the unchanged key
 
-	key1Hex := "0x1000000000000000000000000" 
-	key2Hex := "0x2000000000000000000000000" 
+	key1Hex := "0x1000000000000000000000000"
+	key2Hex := "0x2000000000000000000000000"
 	key1 := common.HexToHash(key1Hex)
 	key2 := common.HexToHash(key2Hex)
 
@@ -2308,9 +2308,9 @@ func TestBranchAfterExtNode(t *testing.T) {
 
 	val := common.BigToHash(big.NewInt(int64(17)))
 	trieMod := TrieModification{
-    	Type: StorageChanged,
-		Key: key1,
-		Value: val,
+		Type:    StorageChanged,
+		Key:     key1,
+		Value:   val,
 		Address: addr,
 	}
 	trieModifications := []TrieModification{trieMod}
@@ -2330,7 +2330,7 @@ func TestNonExistingStorage(t *testing.T) {
 
 	var values []common.Hash
 	for i := 0; i < len(ks); i++ {
-		values = append(values, common.BigToHash(big.NewInt(int64(i + 1)))) // don't put 0 value because otherwise nothing will be set (if 0 is prev value), see state_object.go line 279
+		values = append(values, common.BigToHash(big.NewInt(int64(i+1)))) // don't put 0 value because otherwise nothing will be set (if 0 is prev value), see state_object.go line 279
 	}
 	addr := common.HexToAddress("0x75acef12a01883c2b3fc57957826df4e24e8baaa")
 	var addresses []common.Address
@@ -2341,8 +2341,8 @@ func TestNonExistingStorage(t *testing.T) {
 	// This key is not in the trie yet, its nibbles:
 	// [3,10,6,3,5,7,...
 	trieMod := TrieModification{
-    	Type: StorageDoesNotExist,
-		Key: common.HexToHash("0x21"),
+		Type:    StorageDoesNotExist,
+		Key:     common.HexToHash("0x21"),
 		Address: addr,
 	}
 	trieModifications := []TrieModification{trieMod}
@@ -2352,7 +2352,7 @@ func TestNonExistingStorage(t *testing.T) {
 
 func TestNonExistingStorageLong(t *testing.T) {
 	ks := [...]common.Hash{common.HexToHash("0x11"), common.HexToHash("0x12")}
-	
+
 	var values []common.Hash
 	v1 := common.FromHex("0xbbefaa12580138bc263c95757826df4e24eb81c9aaaaaaaaaaaaaaaaaaaaaaaa")
 	v2 := common.BytesToHash(v1)
@@ -2366,8 +2366,8 @@ func TestNonExistingStorageLong(t *testing.T) {
 	}
 
 	trieMod := TrieModification{
-    	Type: StorageDoesNotExist,
-		Key: common.HexToHash("0x21"),
+		Type:    StorageDoesNotExist,
+		Key:     common.HexToHash("0x21"),
 		Address: addr,
 	}
 	trieModifications := []TrieModification{trieMod}
@@ -2386,7 +2386,7 @@ func TestNonExistingStorageNil(t *testing.T) {
 
 	var values []common.Hash
 	for i := 0; i < len(ks); i++ {
-		values = append(values, common.BigToHash(big.NewInt(int64(i + 1)))) // don't put 0 value because otherwise nothing will be set (if 0 is prev value), see state_object.go line 279
+		values = append(values, common.BigToHash(big.NewInt(int64(i+1)))) // don't put 0 value because otherwise nothing will be set (if 0 is prev value), see state_object.go line 279
 	}
 	addr := common.HexToAddress("0x75acef12a01883c2b3fc57957826df4e24e8baaa")
 	var addresses []common.Address
@@ -2397,8 +2397,8 @@ func TestNonExistingStorageNil(t *testing.T) {
 	// This key is not in the trie yet, its nibbles:
 	// [3,10,6,3,5,7,...
 	trieMod := TrieModification{
-    	Type: StorageDoesNotExist,
-		Key: common.HexToHash("0x22"),
+		Type:    StorageDoesNotExist,
+		Key:     common.HexToHash("0x22"),
 		Address: addr,
 	}
 	trieModifications := []TrieModification{trieMod}
