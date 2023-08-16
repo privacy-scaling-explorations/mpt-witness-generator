@@ -9,52 +9,52 @@ import (
 )
 
 type BranchNode struct {
-    ModifiedIndex int
-    DriftedIndex int
-    ListRlpBytes [2][]byte
+	ModifiedIndex int
+	DriftedIndex  int
+	ListRlpBytes  [2][]byte
 }
 
 func (n *BranchNode) MarshalJSON() ([]byte, error) {
-    listRlpBytes1 := base64ToString(n.ListRlpBytes[0]) 
-    listRlpBytes2 := base64ToString(n.ListRlpBytes[1]) 
-    jsonResult := fmt.Sprintf(`{"modified_index": %d, "drifted_index": %d, "list_rlp_bytes":[%s,%s]}`,
-        n.ModifiedIndex, n.DriftedIndex, listRlpBytes1, listRlpBytes2)
-    return []byte(jsonResult), nil
+	listRlpBytes1 := base64ToString(n.ListRlpBytes[0])
+	listRlpBytes2 := base64ToString(n.ListRlpBytes[1])
+	jsonResult := fmt.Sprintf(`{"modified_index": %d, "drifted_index": %d, "list_rlp_bytes":[%s,%s]}`,
+		n.ModifiedIndex, n.DriftedIndex, listRlpBytes1, listRlpBytes2)
+	return []byte(jsonResult), nil
 }
 
 type ExtensionNode struct {
-   ListRlpBytes []byte
+	ListRlpBytes []byte
 }
 
 func (n *ExtensionNode) MarshalJSON() ([]byte, error) {
-    listRlpBytes := base64ToString(n.ListRlpBytes) 
-    jsonResult := fmt.Sprintf(`{"list_rlp_bytes":%s}`, listRlpBytes)
-    return []byte(jsonResult), nil
+	listRlpBytes := base64ToString(n.ListRlpBytes)
+	jsonResult := fmt.Sprintf(`{"list_rlp_bytes":%s}`, listRlpBytes)
+	return []byte(jsonResult), nil
 }
 
 // When marshalling, []byte encodes as a base64-encoded string.
 func base64ToString(bs []byte) string {
-    var s string
-    if bs == nil {
-        f := make([]string, valueLen)
-        s = "["
-        for i := 0; i < len(f); i++ {
-            if i != len(f) - 1 {
-                s += "0, "
-            } else {
-                s += "0]"
-            }
-          }
-    } else {
-        s = strings.Join(strings.Fields(fmt.Sprintf("%d", bs)), ",")
-    }
+	var s string
+	if bs == nil {
+		f := make([]string, valueLen)
+		s = "["
+		for i := 0; i < len(f); i++ {
+			if i != len(f)-1 {
+				s += "0, "
+			} else {
+				s += "0]"
+			}
+		}
+	} else {
+		s = strings.Join(strings.Fields(fmt.Sprintf("%d", bs)), ",")
+	}
 
-    return s
+	return s
 }
 
 type StartNode struct {
-    DisablePreimageCheck bool `json:"disable_preimage_check"`
-    ProofType string `json:"proof_type"`
+	DisablePreimageCheck bool   `json:"disable_preimage_check"`
+	ProofType            string `json:"proof_type"`
 }
 
 type ExtensionBranchNode struct {
@@ -92,8 +92,8 @@ func (n *AccountNode) MarshalJSON() ([]byte, error) {
     valueListRlpBytes2 := base64ToString(n.ValueListRlpBytes[1]) 
     driftedRlpBytes := base64ToString(n.DriftedRlpBytes) 
     wrongRlpBytes := base64ToString(n.WrongRlpBytes) 
-    modListRlpBytes1 := base64ToString(n.ListRlpBytes[0])
-    modListRlpBytes2 := base64ToString(n.ListRlpBytes[1]) 
+    modListRlpBytes1 := base64ToString(n.ModListRlpBytes[0])
+    modListRlpBytes2 := base64ToString(n.ModListRlpBytes[1]) 
     jsonResult := fmt.Sprintf(`{"address":%s, "key":%s, "list_rlp_bytes":[%s,%s], "value_rlp_bytes":[%s,%s], "value_list_rlp_bytes":[%s,%s], "drifted_rlp_bytes":%s, "wrong_rlp_bytes":%s, "is_mod_extension": [%t, %t], "mod_list_rlp_bytes":[%s,%s]}`,
         address, key, listRlpBytes1, listRlpBytes2, valueRlpBytes1, valueRlpBytes2, valueListRlpBytes1, valueListRlpBytes2,
         driftedRlpBytes, wrongRlpBytes, n.IsModExtension[0], n.IsModExtension[1], modListRlpBytes1, modListRlpBytes2)
@@ -120,8 +120,8 @@ func (n *StorageNode) MarshalJSON() ([]byte, error) {
     valueRlpBytes2 := base64ToString(n.ValueRlpBytes[1]) 
     driftedRlpBytes := base64ToString(n.DriftedRlpBytes) 
     wrongRlpBytes := base64ToString(n.WrongRlpBytes) 
-    modListRlpBytes1 := base64ToString(n.ListRlpBytes[0])
-    modListRlpBytes2 := base64ToString(n.ListRlpBytes[1]) 
+    modListRlpBytes1 := base64ToString(n.ModListRlpBytes[0])
+    modListRlpBytes2 := base64ToString(n.ModListRlpBytes[1]) 
     jsonResult := fmt.Sprintf(`{"address":%s, "key":%s, "list_rlp_bytes":[%s,%s], "value_rlp_bytes":[%s,%s], "drifted_rlp_bytes":%s, "wrong_rlp_bytes":%s, "is_mod_extension": [%t, %t], "mod_list_rlp_bytes":[%s,%s]}`,
         address, key, listRlpBytes1, listRlpBytes2, valueRlpBytes1, valueRlpBytes2, driftedRlpBytes, wrongRlpBytes, n.IsModExtension[0], n.IsModExtension[1],
         modListRlpBytes1, modListRlpBytes2)
@@ -131,13 +131,13 @@ func (n *StorageNode) MarshalJSON() ([]byte, error) {
 type JSONableValues [][]byte
 
 func (u JSONableValues) MarshalJSON() ([]byte, error) {
-    var result string
-    if u == nil {
-        result = "[]"
-    } else {
-        result = strings.Join(strings.Fields(fmt.Sprintf("%d", u)), ",")
-    }
-    return []byte(result), nil
+	var result string
+	if u == nil {
+		result = "[]"
+	} else {
+		result = strings.Join(strings.Fields(fmt.Sprintf("%d", u)), ",")
+	}
+	return []byte(result), nil
 }
 
 /*
@@ -154,9 +154,9 @@ type Node struct {
 }
 
 func GetStartNode(proofType string, sRoot, cRoot common.Hash, specialTest byte) Node {
-    s := StartNode {
-        DisablePreimageCheck: oracle.PreventHashingInSecureTrie || specialTest == 5,
-		ProofType: proofType,
+	s := StartNode{
+		DisablePreimageCheck: oracle.PreventHashingInSecureTrie || specialTest == 5,
+		ProofType:            proofType,
 	}
 	var values [][]byte
 	var values1 []byte
@@ -171,24 +171,24 @@ func GetStartNode(proofType string, sRoot, cRoot common.Hash, specialTest byte) 
 	values = append(values, values1)
 	values = append(values, values2)
 
-	return Node {
-		Start: &s,
+	return Node{
+		Start:  &s,
 		Values: values,
 	}
 }
 
 func GetEndNode() Node {
-    e := StartNode {
-        DisablePreimageCheck: false,
-		ProofType: "Disabled",
+	e := StartNode{
+		DisablePreimageCheck: false,
+		ProofType:            "Disabled",
 	}
 
-    endValues1, endValues2 := make([]byte, valueLen), make([]byte, valueLen)
-    endValues1[0], endValues2[0] = 160, 160
-    endValues := [][]byte{endValues1, endValues2}
+	endValues1, endValues2 := make([]byte, valueLen), make([]byte, valueLen)
+	endValues1[0], endValues2[0] = 160, 160
+	endValues := [][]byte{endValues1, endValues2}
 
-	return Node {
-		Start: &e,
+	return Node{
+		Start:  &e,
 		Values: endValues,
 	}
 }

@@ -7,17 +7,17 @@ import (
 	"github.com/privacy-scaling-explorations/mpt-witness-generator/trie"
 )
 
-func prepareEmptyNonExistingStorageRow() []byte {	
+func prepareEmptyNonExistingStorageRow() []byte {
 	// nonExistingStorageRow is used only for proof that nothing is stored at a particular storage key
 	nonExistingStorageRow := make([]byte, valueLen)
 
 	return nonExistingStorageRow
 }
 
-func prepareNonExistingStorageRow(leafC, keyNibbles []byte, noLeaf bool) ([]byte, []byte) {	
+func prepareNonExistingStorageRow(leafC, keyNibbles []byte, noLeaf bool) ([]byte, []byte) {
 	// nonExistingStorageRow is used only for proof that nothing is stored at a particular storage key
 	nonExistingStorageRow := prepareEmptyNonExistingStorageRow()
-	
+
 	var wrongRlpBytes []byte
 	wrongRlpBytes = append(wrongRlpBytes, leafC[0])
 	start := 2
@@ -28,24 +28,24 @@ func prepareNonExistingStorageRow(leafC, keyNibbles []byte, noLeaf bool) ([]byte
 	keyLenC := int(leafC[start-1]) - 128
 	keyRowC := make([]byte, valueLen)
 	for i := 0; i < keyLenC; i++ {
-		keyRowC[i] = leafC[start - 1 + i]
+		keyRowC[i] = leafC[start-1+i]
 	}
 
-	offset := 0	
+	offset := 0
 	nibblesNum := (keyLenC - 1) * 2
 
-	nonExistingStorageRow[0] = leafC[start - 1]
+	nonExistingStorageRow[0] = leafC[start-1]
 	if keyRowC[1] != 32 { // odd number of nibbles
 		nibblesNum = nibblesNum + 1
-		nonExistingStorageRow[1] = keyNibbles[64 - nibblesNum] + 48 
+		nonExistingStorageRow[1] = keyNibbles[64-nibblesNum] + 48
 		offset = 1
 	} else {
 		nonExistingStorageRow[1] = 32
 	}
 	// Get the last nibblesNum of address:
-	remainingNibbles := keyNibbles[64 - nibblesNum:64] // exclude the last one as it is not a nibble
+	remainingNibbles := keyNibbles[64-nibblesNum : 64] // exclude the last one as it is not a nibble
 	for i := 0; i < keyLenC-1; i++ {
-		nonExistingStorageRow[2+i] = remainingNibbles[2*i + offset] * 16 + remainingNibbles[2*i+1 + offset]
+		nonExistingStorageRow[2+i] = remainingNibbles[2*i+offset]*16 + remainingNibbles[2*i+1+offset]
 	}
 
 	return wrongRlpBytes, nonExistingStorageRow
@@ -121,7 +121,7 @@ func getStorageRootCodeHashValue(leaf []byte, storageStart int) ([]byte, []byte)
 	return storageRootValue, codeHashValue
 }
 
-func prepareAccountLeafNode(addr common.Address, addrh []byte, leafS, leafC, neighbourNode, addressNibbles []byte, isPlaceholder, isSModExtension, isCModExtension bool) Node {	
+func prepareAccountLeafNode(addr common.Address, addrh []byte, leafS, leafC, neighbourNode, addressNibbles []byte, isPlaceholder, isSModExtension, isCModExtension bool) Node {
 	// For non existing account proof there are two cases:
 	// 1. A leaf is returned that is not at the required address (wrong leaf).
 	// 2. A branch is returned as the last element of getProof and
@@ -172,23 +172,23 @@ func prepareAccountLeafNode(addr common.Address, addrh []byte, leafS, leafC, nei
 	// in nonExistingAccountRow.
 
 	// wrongValue is used only for proof that account doesn't exist
-	
-	offset := 0	
+
+	offset := 0
 	nibblesNum := (keyLenC - 1) * 2
 	wrongRlpBytes[0] = leafC[0]
 	wrongRlpBytes[1] = leafC[1]
 	wrongValue[0] = leafC[2] // length
-	if leafC[3] != 32 { // odd number of nibbles
+	if leafC[3] != 32 {      // odd number of nibbles
 		nibblesNum = nibblesNum + 1
-		wrongValue[1] = addressNibbles[64 - nibblesNum] + 48
+		wrongValue[1] = addressNibbles[64-nibblesNum] + 48
 		offset = 1
 	} else {
 		wrongValue[1] = 32
 	}
 	// Get the last nibblesNum of address:
-	remainingNibbles := addressNibbles[64 - nibblesNum:64] // exclude the last one as it is not a nibble
+	remainingNibbles := addressNibbles[64-nibblesNum : 64] // exclude the last one as it is not a nibble
 	for i := 0; i < keyLenC-1; i++ {
-		wrongValue[2+i] = remainingNibbles[2*i + offset] * 16 + remainingNibbles[2*i+1 + offset]
+		wrongValue[2+i] = remainingNibbles[2*i+offset]*16 + remainingNibbles[2*i+1+offset]
 	}
 
 	rlpStringSecondPartLenS := leafS[3+keyLenS] - 183
@@ -275,23 +275,23 @@ func prepareAccountLeafNode(addr common.Address, addrh []byte, leafS, leafC, nei
 	values[AccountDrifted] = keyDrifted
 	values[AccountWrong] = wrongValue
 
-	leaf := AccountNode {
-		Address: addr,
-		Key: addrh,
-		ListRlpBytes: listRlpBytes,
-		ValueRlpBytes: valueRlpBytes,
+	leaf := AccountNode{
+		Address:           addr,
+		Key:               addrh,
+		ListRlpBytes:      listRlpBytes,
+		ValueRlpBytes:     valueRlpBytes,
 		ValueListRlpBytes: valueListRlpBytes,
-		DriftedRlpBytes: driftedRlpBytes,
-		WrongRlpBytes: wrongRlpBytes,
-		IsModExtension: [2]bool{isSModExtension, isCModExtension},
+		DriftedRlpBytes:   driftedRlpBytes,
+		WrongRlpBytes:     wrongRlpBytes,
+		IsModExtension:    [2]bool{isSModExtension, isCModExtension},
 	}
 	keccakData := [][]byte{leafS, leafC, addr.Bytes()}
 	if neighbourNode != nil {
 		keccakData = append(keccakData, neighbourNode)
 	}
-	node := Node {
-		Account: &leaf,
-		Values: values,
+	node := Node{
+		Account:    &leaf,
+		Values:     values,
 		KeccakData: keccakData,
 	}
 
@@ -340,13 +340,13 @@ func prepareLeafAndPlaceholderNode(addr common.Address, addrh []byte, proof1, pr
 // getLeafKeyLen returns the leaf key length given the key index (how many key nibbles have
 // been used in the branches / extension nodes above the leaf).
 func getLeafKeyLen(keyIndex int) int {
-	return int(math.Floor(float64(64-keyIndex) / float64(2))) + 1
+	return int(math.Floor(float64(64-keyIndex)/float64(2))) + 1
 }
 
 // setStorageLeafKeyRLP sets the RLP byte that encodes key length of the storage leaf
 // to correspond to the number of keys used in the branches / extension nodes above the placeholder leaf.
 func setStorageLeafKeyRLP(leaf *[]byte, key []byte, keyIndex int) {
-	isEven := keyIndex % 2 == 0 
+	isEven := keyIndex%2 == 0
 	remainingNibbles := key[keyIndex:]
 	keyLen := getLeafKeyLen(keyIndex)
 	(*leaf)[1] = byte(keyLen) + 128
@@ -358,25 +358,25 @@ func setStorageLeafKeyRLP(leaf *[]byte, key []byte, keyIndex int) {
 }
 
 func prepareAccountLeafPlaceholderNode(addr common.Address, addrh, key []byte, keyIndex int) Node {
-	isEven := keyIndex % 2 == 0 
-	keyLen := int(math.Floor(float64(64-keyIndex) / float64(2))) + 1
+	isEven := keyIndex%2 == 0
+	keyLen := int(math.Floor(float64(64-keyIndex)/float64(2))) + 1
 	remainingNibbles := key[keyIndex:]
 	offset := 0
 	leaf := make([]byte, rowLen)
 	leaf[0] = 248
 	leaf[1] = byte(keyLen) + 73
 	leaf[2] = byte(keyLen) + 128
-	leaf[3 + keyLen] = 184
-	leaf[3 + keyLen + 1 + 1] = 248
-	leaf[3 + keyLen + 1 + 1 + 1] = leaf[3 + keyLen + 1] - 2
+	leaf[3+keyLen] = 184
+	leaf[3+keyLen+1+1] = 248
+	leaf[3+keyLen+1+1+1] = leaf[3+keyLen+1] - 2
 	if isEven {
 		leaf[3] = 32
 	} else {
 		leaf[3] = remainingNibbles[0] + 48
 		offset = 1
 	}
-	for i := 0; i < keyLen - 1; i++ {
-		leaf[4+i] = remainingNibbles[2*i + offset] * 16 + remainingNibbles[2*i + 1 + offset]
+	for i := 0; i < keyLen-1; i++ {
+		leaf[4+i] = remainingNibbles[2*i+offset]*16 + remainingNibbles[2*i+1+offset]
 	}
 
 	node := prepareAccountLeafNode(addr, addrh, leaf, leaf, nil, key, true, false, false)
@@ -391,10 +391,10 @@ func prepareAccountLeafPlaceholderNode(addr common.Address, addrh, key []byte, k
 	node.Account.ValueListRlpBytes[1][0] = 248
 	node.Account.ValueListRlpBytes[1][1] = 68
 
-	node.Values[AccountStorageS][0] = 160 
-	node.Values[AccountStorageC][0] = 160 
-	node.Values[AccountCodehashS][0] = 160 
-	node.Values[AccountCodehashC][0] = 160 
+	node.Values[AccountStorageS][0] = 160
+	node.Values[AccountStorageC][0] = 160
+	node.Values[AccountCodehashS][0] = 160
+	node.Values[AccountCodehashC][0] = 160
 
 	return node
 }
@@ -420,7 +420,7 @@ func prepareStorageLeafInfo(row []byte, valueIsZero, isPlaceholder bool) ([]byte
 
 	var setValue = func(keyLen, offset byte) {
 		if !isPlaceholder {
-			valueRlp = row[keyLen+offset:keyLen+offset+valueRlpLen]
+			valueRlp = row[keyLen+offset : keyLen+offset+valueRlpLen]
 			if !valueIsZero {
 				copy(value, row[keyLen+offset+valueRlpLen:])
 			}
@@ -443,13 +443,13 @@ func prepareStorageLeafInfo(row []byte, valueIsZero, isPlaceholder bool) ([]byte
 			valueRlpLen = 1
 			offset := byte(1)
 			// If placeholder, we leave the value to be 0.
-			setValue(keyLen, offset)	
+			setValue(keyLen, offset)
 		} else {
 			// [196,130,32,0,1]
 			/*
-			keyLen := row[1] - 128
-			copy(key, row[:keyLen+2])
-			copy(value, row[keyLen+2:])
+				keyLen := row[1] - 128
+				copy(key, row[:keyLen+2])
+				copy(value, row[keyLen+2:])
 			*/
 			keyRlpLen = 1
 			keyLen := row[1] - 128
@@ -458,19 +458,19 @@ func prepareStorageLeafInfo(row []byte, valueIsZero, isPlaceholder bool) ([]byte
 			valueRlpLen = 1
 			offset := byte(2)
 			// If placeholder, we leave the value to be 0.
-			setValue(keyLen, offset)	
-		}	
+			setValue(keyLen, offset)
+		}
 	} else if row[0] == 248 {
 		// [248,67,160,59,138,106,70,105,186,37,13,38,205,122,69,158,202,157,33,95,131,7,227,58,235,229,3,121,188,90,54,23,236,52,68,161,160,...
 		keyRlpLen = 2
 		keyLen := row[2] - 128
-		keyRlp = row[:keyRlpLen]	
+		keyRlp = row[:keyRlpLen]
 		copy(key, row[keyRlpLen:keyLen+3])
 		valueRlpLen = 1
 		offset := byte(3)
 		// there are two RLP meta data bytes which are put in s_rlp1 and s_rlp2,
 		// value starts in s_advices[0]
-		setValue(keyLen, offset)	
+		setValue(keyLen, offset)
 	} else {
 		if row[1] < 128 {
 			// last level:
@@ -483,7 +483,7 @@ func prepareStorageLeafInfo(row []byte, valueIsZero, isPlaceholder bool) ([]byte
 			offset := byte(0)
 			valueRlpLen = 1
 			// If placeholder, we leave the value to be 0.
-			setValue(keyLen, offset)	
+			setValue(keyLen, offset)
 		} else {
 			// [226,160,59,138,106,70,105,186,37,13,38[227,32,161,160,187,239,170,18,88,1,56,188,38,60,149,117,120,38,223,78,36,235,129,201,170,170,170,170,170,170,170,170,170,170,170,170]
 			keyRlpLen = 1
@@ -493,7 +493,7 @@ func prepareStorageLeafInfo(row []byte, valueIsZero, isPlaceholder bool) ([]byte
 			valueRlpLen = 1
 			offset := byte(2)
 			// If placeholder, we leave the value to be 0.
-			setValue(keyLen, offset)	
+			setValue(keyLen, offset)
 		}
 	}
 
@@ -510,8 +510,8 @@ func prepareStorageLeafNode(leafS, leafC, neighbourNode []byte, storage_key comm
 
 	keyC, valueC, listRlpBytes2, valueRlpBytes2 := prepareStorageLeafInfo(leafC, false, isCPlaceholder)
 
-	rows = append(rows, keyC)	
-	rows = append(rows, valueC)	
+	rows = append(rows, keyC)
+	rows = append(rows, valueC)
 
 	var listRlpBytes [2][]byte
 	listRlpBytes[0] = listRlpBytes1
@@ -536,24 +536,24 @@ func prepareStorageLeafNode(leafS, leafC, neighbourNode []byte, storage_key comm
 	} else {
 		nonExistingStorageRow = prepareEmptyNonExistingStorageRow()
 	}
-	rows = append(rows, nonExistingStorageRow)	
+	rows = append(rows, nonExistingStorageRow)
 
-	leaf := StorageNode {
-		Address: storage_key,
-		Key: trie.HexToKeybytes(key),
-		ListRlpBytes: listRlpBytes,
+	leaf := StorageNode{
+		Address:         storage_key,
+		Key:             trie.HexToKeybytes(key),
+		ListRlpBytes:    listRlpBytes,
 		DriftedRlpBytes: driftedRlpBytes,
-		WrongRlpBytes: wrongRlpBytes,
-		ValueRlpBytes: valueRlpBytes,
-		IsModExtension: [2]bool{isSModExtension, isCModExtension},
+		WrongRlpBytes:   wrongRlpBytes,
+		ValueRlpBytes:   valueRlpBytes,
+		IsModExtension:  [2]bool{isSModExtension, isCModExtension},
 	}
 	keccakData := [][]byte{leafS, leafC, storage_key.Bytes()}
 	if neighbourNode != nil {
 		keccakData = append(keccakData, neighbourNode)
 	}
-	node := Node {
-		Values: rows,
-		Storage: &leaf,
+	node := Node{
+		Values:     rows,
+		Storage:    &leaf,
 		KeccakData: keccakData,
 	}
 

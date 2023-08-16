@@ -436,11 +436,12 @@ func (st *StackTrie) extNodeToHasher(doUpdate bool) *hasher {
 // hash() hashes the node 'st' and converts it into 'hashedNode', if possible.
 // Possible outcomes:
 // 1. The rlp-encoded value was >= 32 bytes:
-//  - Then the 32-byte `hash` will be accessible in `st.val`.
-//  - And the 'st.type' will be 'hashedNode'
+//   - Then the 32-byte `hash` will be accessible in `st.val`.
+//   - And the 'st.type' will be 'hashedNode'
+//
 // 2. The rlp-encoded value was < 32 bytes
-//  - Then the <32 byte rlp-encoded value will be accessible in 'st.val'.
-//  - And the 'st.type' will be 'hashedNode' AGAIN
+//   - Then the <32 byte rlp-encoded value will be accessible in 'st.val'.
+//   - And the 'st.type' will be 'hashedNode' AGAIN
 //
 // This method will also:
 // set 'st.type' to hashedNode
@@ -558,12 +559,12 @@ func (st *StackTrie) getNodeFromBranchRLP(branch []byte, ind byte) []byte {
 	if branch[0] == 249 {
 		start = 3
 	}
-	
+
 	i := 0
 	insideInd := -1
 	cInd := byte(0)
 	for {
-		if (start + i == len(branch) - 1) { // -1 because of the last 128 (branch value)
+		if start+i == len(branch)-1 { // -1 because of the last 128 (branch value)
 			return []byte{0}
 		}
 		b := branch[start+i]
@@ -576,13 +577,13 @@ func (st *StackTrie) getNodeFromBranchRLP(branch []byte, ind byte) []byte {
 		} else if insideInd == -1 && b != 128 {
 			if b == 160 {
 				if cInd == ind {
-					return branch[start + i + 1: start + i + 1 + 32]
+					return branch[start+i+1 : start+i+1+32]
 				}
 				insideInd = 32
 			} else {
 				// non-hashed node
 				if cInd == ind {
-					return branch[start + i + 1: start + i + 1 + int(b) - 192]
+					return branch[start+i+1 : start+i+1+int(b)-192]
 				}
 				insideInd = int(b) - 192
 			}
@@ -593,15 +594,15 @@ func (st *StackTrie) getNodeFromBranchRLP(branch []byte, ind byte) []byte {
 			} else {
 				insideInd--
 			}
-		}	
+		}
 
 		i++
 	}
 }
 
 type StackProof struct {
-	proofS       [][]byte
-	proofC       [][]byte
+	proofS [][]byte
+	proofC [][]byte
 }
 
 func (st *StackTrie) UpdateAndGetProof(db ethdb.KeyValueReader, indexBuf, value []byte) (StackProof, error) {
@@ -679,7 +680,7 @@ func (st *StackTrie) GetProof(db ethdb.KeyValueReader, key []byte) ([][]byte, er
 
 	var proof [][]byte
 
-	var nodes []*StackTrie	
+	var nodes []*StackTrie
 
 	c := st
 	isHashed := false
@@ -708,21 +709,21 @@ func (st *StackTrie) GetProof(db ethdb.KeyValueReader, key []byte) ([][]byte, er
 
 			proof = append(proof, c_rlp)
 
-			for i < len(k) - 1 {
+			for i < len(k)-1 {
 				node := st.getNodeFromBranchRLP(c_rlp, k[i])
 				i += 1
 				fmt.Println(node)
-	
+
 				if len(node) == 1 && node[0] == 128 { // no child at this position
 					break
-				}	
-		
+				}
+
 				c_rlp, error = db.Get(node)
 				if error != nil {
 					fmt.Println(error)
 					panic(error)
 				}
-				fmt.Println(c_rlp)	
+				fmt.Println(c_rlp)
 
 				proof = append(proof, c_rlp)
 			}

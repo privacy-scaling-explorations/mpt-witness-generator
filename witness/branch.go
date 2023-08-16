@@ -31,7 +31,7 @@ func prepareBranchWitness(rows [][]byte, branch []byte, branchStart int, branchR
 	i := 0
 	insideInd := -1
 	for {
-		if (branchRLPOffset + i == len(branch) - 1) { // -1 because of the last 128 (branch value)
+		if branchRLPOffset+i == len(branch)-1 { // -1 because of the last 128 (branch value)
 			break
 		}
 		b := branch[branchRLPOffset+i]
@@ -47,10 +47,10 @@ func prepareBranchWitness(rows [][]byte, branch []byte, branchStart int, branchR
 				insideInd = int(b) - 192
 				colInd = branchNodeRLPLen - 2
 			}
-			rows[rowInd][branchStart + colInd] = b
+			rows[rowInd][branchStart+colInd] = b
 		} else {
 			colInd++
-			rows[rowInd][branchStart + colInd] = b
+			rows[rowInd][branchStart+colInd] = b
 			if insideInd == 1 {
 				insideInd = -1
 				rowInd++
@@ -58,15 +58,15 @@ func prepareBranchWitness(rows [][]byte, branch []byte, branchStart int, branchR
 			} else {
 				insideInd--
 			}
-		}	
+		}
 
 		i++
-	}	
+	}
 }
 
 func prepareBranchNode(branch1, branch2, extNode1, extNode2, extListRlpBytes []byte, extValues [][]byte, key, driftedInd,
 	branchC16, branchC1 byte, isBranchSPlaceholder, isBranchCPlaceholder, isExtension, isSModExtension, isCModExtension bool) Node {
-	extensionNode := ExtensionNode {
+	extensionNode := ExtensionNode{
 		ListRlpBytes: extListRlpBytes,
 	}
 
@@ -81,7 +81,7 @@ func prepareBranchNode(branch1, branch2, extNode1, extNode2, extListRlpBytes []b
 	} else if branch1[0] == 249 { // three RLP bytes
 		branch1RLPOffset = 3
 	}
-	
+
 	if branch2[0] == 248 { // two RLP bytes
 		branch2RLPOffset = 2
 	} else if branch2[0] == 249 { // three RLP bytes
@@ -97,7 +97,7 @@ func prepareBranchNode(branch1, branch2, extNode1, extNode2, extListRlpBytes []b
 
 	if branch1[0] == 249 {
 		listRlpBytes1 = append(listRlpBytes1, branch1[2])
-	} 
+	}
 	if branch2[0] == 249 {
 		listRlpBytes2 = append(listRlpBytes2, branch2[2])
 	}
@@ -105,18 +105,18 @@ func prepareBranchNode(branch1, branch2, extNode1, extNode2, extListRlpBytes []b
 	listRlpBytes[0] = listRlpBytes1
 	listRlpBytes[1] = listRlpBytes2
 
-	branchNode := BranchNode {
+	branchNode := BranchNode{
 		ModifiedIndex: int(key),
-		DriftedIndex: int(driftedInd),
-		ListRlpBytes: listRlpBytes,
+		DriftedIndex:  int(driftedInd),
+		ListRlpBytes:  listRlpBytes,
 	}
 
-	extensionBranch := ExtensionBranchNode {
-		IsExtension: isExtension,
+	extensionBranch := ExtensionBranchNode{
+		IsExtension:    isExtension,
 		IsModExtension: [2]bool{isSModExtension, isCModExtension},
-		IsPlaceholder: [2]bool{isBranchSPlaceholder, isBranchCPlaceholder},
-		Extension: extensionNode,
-		Branch: branchNode,
+		IsPlaceholder:  [2]bool{isBranchSPlaceholder, isBranchCPlaceholder},
+		Extension:      extensionNode,
+		Branch:         branchNode,
 	}
 
 	values := make([][]byte, 17)
@@ -131,7 +131,7 @@ func prepareBranchNode(branch1, branch2, extNode1, extNode2, extListRlpBytes []b
 		rows[i] = make([]byte, valueLen)
 	}
 	prepareBranchWitness(rows, branch2, 0, branch2RLPOffset)
-	values[0] = rows[1 + key]
+	values[0] = rows[1+key]
 
 	values = append(values, extValues...)
 
@@ -140,10 +140,10 @@ func prepareBranchNode(branch1, branch2, extNode1, extNode2, extListRlpBytes []b
 		keccakData = append(keccakData, extNode1)
 		keccakData = append(keccakData, extNode2)
 	}
-	node := Node {
+	node := Node{
 		ExtensionBranch: &extensionBranch,
-		Values: values,
-		KeccakData: keccakData,
+		Values:          values,
+		KeccakData:      keccakData,
 	}
 
 	return node
@@ -157,15 +157,15 @@ func getDriftedPosition(leafKeyRow []byte, numberOfNibbles int) byte {
 		keyLen := int(leafKeyRow[1] - 128)
 		if (leafKeyRow[2] != 32) && (leafKeyRow[2] != 0) { // second term is for extension node
 			if leafKeyRow[2] < 32 { // extension node
-				nibbles = append(nibbles, leafKeyRow[2] - 16)
+				nibbles = append(nibbles, leafKeyRow[2]-16)
 			} else { // leaf
-				nibbles = append(nibbles, leafKeyRow[2] - 48)
+				nibbles = append(nibbles, leafKeyRow[2]-48)
 			}
 		}
-		for i := 0; i < keyLen - 1; i++ { // -1 because the first byte doesn't have any nibbles
-			b := leafKeyRow[3 + i]
+		for i := 0; i < keyLen-1; i++ { // -1 because the first byte doesn't have any nibbles
+			b := leafKeyRow[3+i]
 			n1 := b / 16
-			n2 := b - n1 * 16
+			n2 := b - n1*16
 			nibbles = append(nibbles, n1)
 			nibbles = append(nibbles, n2)
 		}
@@ -173,15 +173,15 @@ func getDriftedPosition(leafKeyRow []byte, numberOfNibbles int) byte {
 		keyLen := int(leafKeyRow[2] - 128)
 		if (leafKeyRow[3] != 32) && (leafKeyRow[3] != 0) { // second term is for extension node
 			if leafKeyRow[3] < 32 { // extension node
-				nibbles = append(nibbles, leafKeyRow[3] - 16)
+				nibbles = append(nibbles, leafKeyRow[3]-16)
 			} else { // leaf
-				nibbles = append(nibbles, leafKeyRow[3] - 48)
+				nibbles = append(nibbles, leafKeyRow[3]-48)
 			}
 		}
-		for i := 0; i < keyLen - 1; i++ { // -1 because the first byte doesn't have any nibbles
-			b := leafKeyRow[4 + i]
+		for i := 0; i < keyLen-1; i++ { // -1 because the first byte doesn't have any nibbles
+			b := leafKeyRow[4+i]
 			n1 := b / 16
-			n2 := b - n1 * 16
+			n2 := b - n1*16
 			nibbles = append(nibbles, n1)
 			nibbles = append(nibbles, n2)
 		}
@@ -193,11 +193,11 @@ func getDriftedPosition(leafKeyRow []byte, numberOfNibbles int) byte {
 // addBranchAndPlaceholder adds to the rows a branch and its placeholder counterpart
 // (used when one of the proofs have one branch more than the other).
 func addBranchAndPlaceholder(proof1, proof2,
-		extNibblesS, extNibblesC [][]byte,
-		leafRow0, key, neighbourNode []byte,
-		keyIndex, extensionNodeInd int,
-		additionalBranch, isAccountProof, nonExistingAccountProof,
-		isShorterProofLastLeaf bool, branchC16, branchC1 byte, toBeHashed *[][]byte) (bool, bool, int, byte, Node) {
+	extNibblesS, extNibblesC [][]byte,
+	leafRow0, key, neighbourNode []byte,
+	keyIndex, extensionNodeInd int,
+	additionalBranch, isAccountProof, nonExistingAccountProof,
+	isShorterProofLastLeaf bool, branchC16, branchC1 byte, toBeHashed *[][]byte) (bool, bool, int, byte, Node) {
 	len1 := len(proof1)
 	len2 := len(proof2)
 
@@ -210,7 +210,7 @@ func addBranchAndPlaceholder(proof1, proof2,
 		extValues = append(extValues, make([]byte, valueLen))
 	}
 
-	isExtension := (len1 == len2 + 2) || (len2 == len1 + 2)
+	isExtension := (len1 == len2+2) || (len2 == len1+2)
 	if !isExtension {
 		if branchC16 == 1 {
 			branchC16 = 0
@@ -222,13 +222,13 @@ func addBranchAndPlaceholder(proof1, proof2,
 	} else {
 		var numNibbles byte
 		if len1 > len2 {
-			numNibbles, extListRlpBytes, extValues = prepareExtensions(extNibblesS, extensionNodeInd, proof1[len1 - 3], proof1[len1 - 3])
+			numNibbles, extListRlpBytes, extValues = prepareExtensions(extNibblesS, extensionNodeInd, proof1[len1-3], proof1[len1-3])
 		} else {
-			numNibbles, extListRlpBytes, extValues = prepareExtensions(extNibblesC, extensionNodeInd, proof2[len2 - 3], proof2[len2 - 3])
+			numNibbles, extListRlpBytes, extValues = prepareExtensions(extNibblesC, extensionNodeInd, proof2[len2-3], proof2[len2-3])
 		}
 		numberOfNibbles = int(numNibbles)
 
-		if numberOfNibbles % 2 == 0 {
+		if numberOfNibbles%2 == 0 {
 			if branchC16 == 1 {
 				branchC16 = 0
 				branchC1 = 1
@@ -240,43 +240,43 @@ func addBranchAndPlaceholder(proof1, proof2,
 	}
 
 	/*
-	For special cases when a new extension node is inserted.
+		For special cases when a new extension node is inserted.
 
-	Imagine you have an extension node at n1 n2 n3 n4 (where each of these is a nibble).
-	Let's say this extension node has the following nibbles as the extension: n5 n6 n7.
-	So at position n1 n2 n3 n4 n5 n6 n7 there is some branch.
-	Now we want to add a leaf at position n1 n2 n3 n4 n5 m1 where m1 != n6.
-	The adding algorithm walks through the trie, but it bumps into an extension node where
-	it should put this leaf. So a new extension node is added at position n1 n2 n3 n4 which only
-	has one nibble: n5. So at n1 n2 n3 n4 n5 we have a branch now. In this brach, at position m we
-	have a leaf, while at position n6 we have another extension node with one extension nibble: n7.
-	At this position (n7) we have the branch from the original extension node.
+		Imagine you have an extension node at n1 n2 n3 n4 (where each of these is a nibble).
+		Let's say this extension node has the following nibbles as the extension: n5 n6 n7.
+		So at position n1 n2 n3 n4 n5 n6 n7 there is some branch.
+		Now we want to add a leaf at position n1 n2 n3 n4 n5 m1 where m1 != n6.
+		The adding algorithm walks through the trie, but it bumps into an extension node where
+		it should put this leaf. So a new extension node is added at position n1 n2 n3 n4 which only
+		has one nibble: n5. So at n1 n2 n3 n4 n5 we have a branch now. In this brach, at position m we
+		have a leaf, while at position n6 we have another extension node with one extension nibble: n7.
+		At this position (n7) we have the branch from the original extension node.
 
-	When an extension node is inserted because of the added key, C proof will contain this new
-	extension node and the underlying branch. However, S proof will stop at the old extension node. 
-	This old extension node is not part of the C proof, but we need to ensure that it is in the C trie.
-	We need to take into accout that in the C trie the old extension node has a shortened extension.
+		When an extension node is inserted because of the added key, C proof will contain this new
+		extension node and the underlying branch. However, S proof will stop at the old extension node.
+		This old extension node is not part of the C proof, but we need to ensure that it is in the C trie.
+		We need to take into accout that in the C trie the old extension node has a shortened extension.
 
-	The problem is where to store the old extension node. Note that in the above code the new
-	extension node and the underlying branch rows are prepared. For example, when len2 > len1 we
-	take extension node from proof2[len2 - 3] and branch from proof2[len2 - 2]. In this case,
-	the old extension node in proof1[len1 - 1] has been ignored. For this reason we store it
-	in the rows before we add a leaf.
+		The problem is where to store the old extension node. Note that in the above code the new
+		extension node and the underlying branch rows are prepared. For example, when len2 > len1 we
+		take extension node from proof2[len2 - 3] and branch from proof2[len2 - 2]. In this case,
+		the old extension node in proof1[len1 - 1] has been ignored. For this reason we store it
+		in the rows before we add a leaf.
 	*/
 	var longExtNode []byte
 	if len1 > len2 {
-		longExtNode = proof2[len2 - 1]
+		longExtNode = proof2[len2-1]
 	} else {
-		longExtNode = proof1[len1 - 1]
+		longExtNode = proof1[len1-1]
 	}
 
 	// TODO: fix
 	var extNode []byte
 	if isExtension {
 		if len1 > len2 {
-			extNode = proof1[len1 - 3]
+			extNode = proof1[len1-3]
 		} else {
-			extNode = proof2[len2 - 3]
+			extNode = proof2[len2-3]
 		}
 	}
 
@@ -297,9 +297,9 @@ func addBranchAndPlaceholder(proof1, proof2,
 		// This first nibble presents the position of the leaf once it moved
 		// into the new branch.
 		driftedInd := getDriftedPosition(leafRow0, numberOfNibbles)
-		
+
 		node = prepareBranchNode(proof1[len1-2], proof1[len1-2], extNode, extNode, extListRlpBytes, extValues,
-			key[keyIndex + numberOfNibbles], driftedInd,
+			key[keyIndex+numberOfNibbles], driftedInd,
 			branchC16, branchC1, false, true, isExtension, isSModifiedExtNode, isCModifiedExtNode)
 
 		// We now get the first nibble of the leaf that was turned into branch.
@@ -312,7 +312,7 @@ func addBranchAndPlaceholder(proof1, proof2,
 		driftedInd := getDriftedPosition(leafRow0, numberOfNibbles)
 
 		node = prepareBranchNode(proof2[len2-2], proof2[len2-2], extNode, extNode, extListRlpBytes, extValues,
-			key[keyIndex + numberOfNibbles], driftedInd,
+			key[keyIndex+numberOfNibbles], driftedInd,
 			branchC16, branchC1, true, false, isExtension, isSModifiedExtNode, isCModifiedExtNode)
 	}
 

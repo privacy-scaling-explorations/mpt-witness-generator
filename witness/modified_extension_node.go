@@ -21,9 +21,9 @@ func equipLeafWithModExtensionNode(statedb *state.StateDB, leafNode Node, addr c
 
 	var longExtNode []byte
 	if len1 > len2 {
-		longExtNode = proof2[len2 - 1]
+		longExtNode = proof2[len2-1]
 	} else {
-		longExtNode = proof1[len1 - 1]
+		longExtNode = proof1[len1-1]
 	}
 
 	var extNibbles [][]byte
@@ -31,7 +31,7 @@ func equipLeafWithModExtensionNode(statedb *state.StateDB, leafNode Node, addr c
 		extNibbles = extNibblesC
 	} else {
 		extNibbles = extNibblesS
-	}			
+	}
 
 	numberOfNibbles0, extensionRowS, extensionRowC :=
 		prepareExtensionRows(extNibbles, extensionNodeInd, longExtNode, longExtNode, true, false)
@@ -42,9 +42,9 @@ func equipLeafWithModExtensionNode(statedb *state.StateDB, leafNode Node, addr c
 
 	_, extListRlpBytesS, extValuesS := prepareExtensions(extNibbles, extensionNodeInd, longExtNode, longExtNode)
 	/*
-	b := []byte{249, 1, 49, 128} // We don't really need a branch info (only extension node).
-	longNode := prepareBranchNode(b, b, longExtNode, longExtNode, extListRlpBytes, extValues,
-		key[keyIndex], key[keyIndex], branchC16, branchC1, false, false, true, false, false)
+		b := []byte{249, 1, 49, 128} // We don't really need a branch info (only extension node).
+		longNode := prepareBranchNode(b, b, longExtNode, longExtNode, extListRlpBytes, extValues,
+			key[keyIndex], key[keyIndex], branchC16, branchC1, false, false, true, false, false)
 	*/
 
 	var extRows [][]byte
@@ -67,9 +67,9 @@ func equipLeafWithModExtensionNode(statedb *state.StateDB, leafNode Node, addr c
 	// We would like to retrieve the shortened extension node from the trie via GetProof or
 	// GetStorageProof (depending whether it is an account proof or storage proof),
 	// the key where we find its underlying branch is `oldExtNodeKey`.
-	for j := ind; int(j) < keyIndex + len(longNibbles); j++ {
+	for j := ind; int(j) < keyIndex+len(longNibbles); j++ {
 		// keyIndex is where the nibbles of the old and new extension node start
-		longExtNodeKey[j] = longNibbles[j - byte(keyIndex)]	
+		longExtNodeKey[j] = longNibbles[j-byte(keyIndex)]
 	}
 
 	k := trie.HexToKeybytes(longExtNodeKey)
@@ -85,25 +85,25 @@ func equipLeafWithModExtensionNode(statedb *state.StateDB, leafNode Node, addr c
 
 	// There is no short extension node when `len(longNibbles) - numberOfNibbles = 1`, in this case there
 	// is simply a branch instead.
-	shortExtNodeIsBranch := len(longNibbles) - numberOfNibbles == 1
+	shortExtNodeIsBranch := len(longNibbles)-numberOfNibbles == 1
 	if shortExtNodeIsBranch {
 		(*rows)[len(*rows)-branchRows-9][isShortExtNodeBranch] = 1
 	}
 
 	var shortExtNode []byte
 	/*
-	extNodeSelectors1 := make([]byte, rowLen)
-	emptyExtRows := prepareEmptyExtensionRows(false, true)
-	extensionRowS1 := emptyExtRows[0]
-	extensionRowC1 := emptyExtRows[1]
+		extNodeSelectors1 := make([]byte, rowLen)
+		emptyExtRows := prepareEmptyExtensionRows(false, true)
+		extensionRowS1 := emptyExtRows[0]
+		extensionRowC1 := emptyExtRows[1]
 	*/
 
-	var extListRlpBytesC []byte 
+	var extListRlpBytesC []byte
 	var extValuesC [][]byte
 
 	if !shortExtNodeIsBranch {
 		if len2 > len1 {
-			isItBranch := isBranch(proof[len(proof) - 1])
+			isItBranch := isBranch(proof[len(proof)-1])
 
 			// Note that `oldExtNodeKey` has nibbles properly set only up to the end of nibbles,
 			// this is enough to get the old extension node by `GetProof` or `GetStorageProof` -
@@ -112,9 +112,9 @@ func equipLeafWithModExtensionNode(statedb *state.StateDB, leafNode Node, addr c
 			// `keyIndex + len(oldNibbles)` the same as the nibbles in the new extension node).
 
 			if isItBranch { // last element in a proof is a branch
-				shortExtNode = proof[len(proof) - 2]
+				shortExtNode = proof[len(proof)-2]
 			} else { // last element in a proof is a leaf
-				shortExtNode = proof[len(proof) - 3]
+				shortExtNode = proof[len(proof)-3]
 			}
 		} else {
 			// Needed only for len1 > len2
@@ -128,7 +128,7 @@ func equipLeafWithModExtensionNode(statedb *state.StateDB, leafNode Node, addr c
 				// add RLP2:
 				compact = append([]byte{128 + byte(len(compact))}, compact...)
 			}
-			
+
 			shortExtNode = append(compact, longExtNode[longStartBranch:]...)
 
 			// add RLP1:
@@ -142,20 +142,20 @@ func equipLeafWithModExtensionNode(statedb *state.StateDB, leafNode Node, addr c
 		extNibbles = append(extNibbles, nibbles)
 
 		/*
-		var numberOfNibbles1 byte
-		numberOfNibbles1, extensionRowS1, extensionRowC1 =
-			prepareExtensionRows(extNibbles, extensionNodeInd + 1, shortExtNode, shortExtNode, false, true)
+			var numberOfNibbles1 byte
+			numberOfNibbles1, extensionRowS1, extensionRowC1 =
+				prepareExtensionRows(extNibbles, extensionNodeInd + 1, shortExtNode, shortExtNode, false, true)
 		*/
 
-		_, extListRlpBytesC, extValuesC = prepareExtensions(extNibbles, extensionNodeInd + 1, shortExtNode, shortExtNode)
+		_, extListRlpBytesC, extValuesC = prepareExtensions(extNibbles, extensionNodeInd+1, shortExtNode, shortExtNode)
 		/*
-		shortNode = prepareBranchNode(b, b, shortExtNode, shortExtNode, extListRlpBytes, extValues,
-			key[keyIndex], key[keyIndex], branchC16, branchC1, false, false, true, false, false)
+			shortNode = prepareBranchNode(b, b, shortExtNode, shortExtNode, extListRlpBytes, extValues,
+				key[keyIndex], key[keyIndex], branchC16, branchC1, false, false, true, false, false)
 
-		setExtNodeSelectors(extNodeSelectors1, shortExtNode, int(numberOfNibbles1), branchC16)
+			setExtNodeSelectors(extNodeSelectors1, shortExtNode, int(numberOfNibbles1), branchC16)
 		*/
 		// extNodeSelectors1 = append(extNodeSelectors1, 25)
-	}/* else {
+	} /* else {
 		if len1 > len2 {
 			// Needed only for len1 > len2
 			(*rows)[len(*rows)-branchRows-9][driftedPos] = longNibbles[numberOfNibbles]
@@ -172,7 +172,7 @@ func equipLeafWithModExtensionNode(statedb *state.StateDB, leafNode Node, addr c
 	*rows = append(*rows, extNodeSelectors1)
 	*rows = append(*rows, extensionRowS1)
 	*rows = append(*rows, extensionRowC1)
-	*/
+	 */
 
 	listRlpBytes := [2][]byte{extListRlpBytesS, extListRlpBytesC}
 

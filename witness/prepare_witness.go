@@ -19,6 +19,7 @@ const rowLen = branch2start + 2 + 32 + 1 // +1 is for info about what type of ro
 const valueLen = 34
 const driftedPos = 13
 const isExtensionPos = 14
+
 // extension key even or odd is about nibbles - that determines whether the first byte (not
 // considering RLP bytes) is 0 or 1 (see encoding.go hexToCompact)
 const isExtShortC16Pos = 21
@@ -27,6 +28,7 @@ const isExtLongEvenC16Pos = 23
 const isExtLongEvenC1Pos = 24
 const isExtLongOddC16Pos = 25
 const isExtLongOddC1Pos = 26
+
 // short/long means having one or more than one nibbles
 const isSExtLongerThan55Pos = 27
 const isExtNodeSNonHashedPos = 31
@@ -35,31 +37,33 @@ const isExtNodeSNonHashedPos = 31
 const isShortExtNodeBranch = 36
 
 type AccountRowType int64
+
 const (
 	AccountKeyS AccountRowType = iota
-    AccountKeyC
-    AccountNonceS
-    AccountBalanceS
-    AccountStorageS
-    AccountCodehashS
-    AccountNonceC
-    AccountBalanceC
-    AccountStorageC
-    AccountCodehashC
-    AccountDrifted
-    AccountWrong	
+	AccountKeyC
+	AccountNonceS
+	AccountBalanceS
+	AccountStorageS
+	AccountCodehashS
+	AccountNonceC
+	AccountBalanceC
+	AccountStorageC
+	AccountCodehashC
+	AccountDrifted
+	AccountWrong
 )
 
 type ProofType int64
+
 const (
-    Disabled ProofType = iota
-    NonceChanged
-    BalanceChanged
-    CodeHashChanged
-    AccountDestructed
-    AccountDoesNotExist
-    StorageChanged
-    StorageDoesNotExist
+	Disabled ProofType = iota
+	NonceChanged
+	BalanceChanged
+	CodeHashChanged
+	AccountDestructed
+	AccountDoesNotExist
+	StorageChanged
+	StorageDoesNotExist
 	AccountCreate
 )
 
@@ -73,7 +77,7 @@ type TrieModification struct {
 	CodeHash []byte
 }
 
-// GetWitness is to be used by external programs to generate the witness. 
+// GetWitness is to be used by external programs to generate the witness.
 func GetWitness(nodeUrl string, blockNum int, trieModifications []TrieModification) []Node {
 	blockNumberParent := big.NewInt(int64(blockNum))
 	oracle.NodeUrl = nodeUrl
@@ -131,12 +135,12 @@ func obtainAccountProofAndConvertToWitness(i int, tMod TrieModification, tModsLe
 	statedb.IntermediateRoot(false)
 
 	cRoot := statedb.GetTrie().Hash()
-	
+
 	accountProof1, aNeighbourNode2, aExtNibbles2, isLastLeaf2, err := statedb.GetProof(addr)
 	check(err)
 
 	if tMod.Type == AccountDoesNotExist && len(accountProof) == 0 {
-		// If there is only one account in the state trie and we want to prove for some 
+		// If there is only one account in the state trie and we want to prove for some
 		// other account that it doesn't exist.
 		// We get the root node (the only account) and put it as the only element of the proof,
 		// it will act as a "wrong" leaf.
@@ -148,7 +152,6 @@ func obtainAccountProofAndConvertToWitness(i int, tMod TrieModification, tModsLe
 		accountProof1[0] = account
 	}
 
-	
 	addrh, accountAddr, accountProof, accountProof1, sRoot, cRoot = modifyAccountProofSpecialTests(addrh, accountAddr, sRoot, cRoot, accountProof, accountProof1, aNeighbourNode2, specialTest)
 	aNode := aNeighbourNode2
 	isShorterProofLastLeaf := isLastLeaf1
@@ -157,7 +160,7 @@ func obtainAccountProofAndConvertToWitness(i int, tMod TrieModification, tModsLe
 		aNode = aNeighbourNode1
 		isShorterProofLastLeaf = isLastLeaf2
 	}
-	
+
 	proofType := "NonceChanged"
 	if tMod.Type == BalanceChanged {
 		proofType = "BalanceChanged"
@@ -168,7 +171,7 @@ func obtainAccountProofAndConvertToWitness(i int, tMod TrieModification, tModsLe
 	} else if tMod.Type == CodeHashChanged {
 		proofType = "CodeHashExists" // TODO: change when it changes in the circuit
 	}
-		
+
 	nodes = append(nodes, GetStartNode(proofType, sRoot, cRoot, specialTest))
 
 	nodesAccount :=
@@ -206,7 +209,7 @@ func obtainTwoProofsAndConvertToWitness(trieModifications []TrieModification, st
 			if specialTest == 1 {
 				statedb.CreateAccount(addr)
 			}
-	
+
 			accountProof, aNeighbourNode1, aExtNibbles1, aIsLastLeaf1, err := statedb.GetProof(addr)
 			check(err)
 			storageProof, neighbourNode1, extNibbles1, isLastLeaf1, err := statedb.GetStorageProof(addr, tMod.Key)
@@ -225,7 +228,7 @@ func obtainTwoProofsAndConvertToWitness(trieModifications []TrieModification, st
 			if tMod.Type == StorageDoesNotExist {
 				proofType = "StorageDoesNotExist"
 			}
-			
+
 			accountProof1, aNeighbourNode2, aExtNibbles2, aIsLastLeaf2, err := statedb.GetProof(addr)
 			check(err)
 
@@ -248,7 +251,7 @@ func obtainTwoProofsAndConvertToWitness(trieModifications []TrieModification, st
 				isLastLeaf = isLastLeaf2
 			}
 
-			if (specialTest == 1) {
+			if specialTest == 1 {
 				if len(accountProof1) != 2 {
 					panic("account should be in the second level (one branch above it)")
 				}
@@ -257,10 +260,10 @@ func obtainTwoProofsAndConvertToWitness(trieModifications []TrieModification, st
 
 			// Needs to be after `specialTest == 1` preparation:
 			nodes = append(nodes, GetStartNode(proofType, sRoot, cRoot, specialTest))
-			
+
 			// In convertProofToWitness, we can't use account address in its original form (non-hashed), because
 			// of the "special" test for which we manually manipulate the "hashed" address and we don't have a preimage.
-			// TODO: addr is used for calling GetProof for modified extension node only, might be done in a different way 
+			// TODO: addr is used for calling GetProof for modified extension node only, might be done in a different way
 			nodesAccount :=
 				convertProofToWitness(statedb, addr, addrh, accountProof, accountProof1, aExtNibbles1, aExtNibbles2, tMod.Key, accountAddr, aNode, true, tMod.Type == AccountDoesNotExist, false, aIsLastLeaf)
 			nodes = append(nodes, nodesAccount...)
@@ -299,7 +302,7 @@ func prepareWitnessSpecial(testName string, trieModifications []TrieModification
 // This function is used when some specific trie state needs to be prepared before the actual modifications
 // take place and for which the witness is needed.
 func updateStateAndPrepareWitness(testName string, keys, values []common.Hash, addresses []common.Address,
-		trieModifications []TrieModification) {
+	trieModifications []TrieModification) {
 	blockNum := 13284469
 	blockNumberParent := big.NewInt(int64(blockNum))
 	blockHeaderParent := oracle.PrefetchBlock(blockNumberParent, true, nil)
@@ -320,7 +323,7 @@ func updateStateAndPrepareWitness(testName string, keys, values []common.Hash, a
 // a witness for the MPT circuit. Alongside, it prepares the byte streams that need to be hashed
 // and inserted into the Keccak lookup table.
 func convertProofToWitness(statedb *state.StateDB, addr common.Address, addrh []byte, proof1, proof2, extNibblesS, extNibblesC [][]byte, storage_key common.Hash, key []byte, neighbourNode []byte,
-		isAccountProof, nonExistingAccountProof, nonExistingStorageProof, isShorterProofLastLeaf bool) []Node {
+	isAccountProof, nonExistingAccountProof, nonExistingStorageProof, isShorterProofLastLeaf bool) []Node {
 	rows := make([][]byte, 0)
 	toBeHashed := make([][]byte, 0)
 
@@ -344,9 +347,9 @@ func convertProofToWitness(statedb *state.StateDB, addr common.Address, addrh []
 	if len1 < len2 && len1 > 0 { // len = 0 when trie trie is empty
 		// Check if the last proof element in the shorter proof is a leaf -
 		// if it is, then there is an additional branch.
-		additionalBranch = !isBranch(proof1[len1 - 1])
+		additionalBranch = !isBranch(proof1[len1-1])
 	} else if len2 < len1 && len2 > 0 {
-		additionalBranch = !isBranch(proof2[len2 - 1])
+		additionalBranch = !isBranch(proof2[len2-1])
 	}
 
 	upTo := minLen
@@ -365,11 +368,11 @@ func convertProofToWitness(statedb *state.StateDB, addr common.Address, addrh []
 
 	var nodes []Node
 
-	branchC16 := byte(0); 
-	branchC1 := byte(1);
+	branchC16 := byte(0)
+	branchC1 := byte(1)
 	for i := 0; i < upTo; i++ {
 		if !isBranch(proof1[i]) {
-			if i != len1 - 1 { // extension node
+			if i != len1-1 { // extension node
 				var numberOfNibbles byte
 				isExtension = true
 				numberOfNibbles, extListRlpBytes, extValues = prepareExtensions(extNibblesS, extensionNodeInd, proof1[i], proof2[i])
@@ -425,15 +428,15 @@ func convertProofToWitness(statedb *state.StateDB, addr common.Address, addrh []
 
 			isExtension = false
 		}
-	}	
-	
+	}
+
 	if len1 != len2 {
-		if additionalBranch {		
+		if additionalBranch {
 			leafRow0 := proof1[len1-1] // To compute the drifted position.
 			if len1 > len2 {
 				leafRow0 = proof2[len2-1]
 			}
-			
+
 			isModifiedExtNode, _, numberOfNibbles, branchC16, bNode := addBranchAndPlaceholder(proof1, proof2, extNibblesS, extNibblesC,
 				leafRow0, key, neighbourNode,
 				keyIndex, extensionNodeInd, additionalBranch,

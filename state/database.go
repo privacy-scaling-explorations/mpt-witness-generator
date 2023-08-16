@@ -100,7 +100,7 @@ type Trie interface {
 
 	GetNodeByNibbles(key []byte) ([]byte, error)
 
-	GetRoot() (trie.Node)
+	GetRoot() trie.Node
 }
 
 // stubbed: we don't prefetch
