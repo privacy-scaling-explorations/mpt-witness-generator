@@ -20,7 +20,7 @@ func setExtNodeSelectors(row, proofEl []byte, numberOfNibbles int, branchC16 byt
 			row[isExtShortC1Pos] = 1
 		}
 	} else {
-		if numberOfNibbles % 2 == 0 {
+		if numberOfNibbles%2 == 0 {
 			if branchC16 == 1 {
 				row[isExtLongEvenC16Pos] = 1
 			} else {
@@ -54,7 +54,7 @@ func prepareEmptyExtensionRows(beforeModification, afterModification bool) [][]b
 }
 
 // TODO: remove when Nodes are fully implemented
-func prepareExtensionRows(extNibbles[][]byte, extensionNodeInd int, proofEl1, proofEl2 []byte, beforeModification, afterModification bool) (byte, []byte, []byte) {
+func prepareExtensionRows(extNibbles [][]byte, extensionNodeInd int, proofEl1, proofEl2 []byte, beforeModification, afterModification bool) (byte, []byte, []byte) {
 	var extensionRowS []byte
 	var extensionRowC []byte
 
@@ -84,7 +84,7 @@ func prepareExtensionRows(extNibbles[][]byte, extensionNodeInd int, proofEl1, pr
 	}
 	ind := 0
 	for j := startNibblePos; j < len(extNibbles[extensionNodeInd]); j += 2 {
-		extensionRowC[branchNodeRLPLen + ind] =
+		extensionRowC[branchNodeRLPLen+ind] =
 			extNibbles[extensionNodeInd][j]
 		ind++
 	}
@@ -92,7 +92,7 @@ func prepareExtensionRows(extNibbles[][]byte, extensionNodeInd int, proofEl1, pr
 	return numberOfNibbles, extensionRowS, extensionRowC
 }
 
-func prepareExtensions(extNibbles[][]byte, extensionNodeInd int, proofEl1, proofEl2 []byte) (byte, []byte, [][]byte) {
+func prepareExtensions(extNibbles [][]byte, extensionNodeInd int, proofEl1, proofEl2 []byte) (byte, []byte, [][]byte) {
 	var values [][]byte
 	v1 := make([]byte, valueLen)
 	v2 := make([]byte, valueLen)
@@ -123,7 +123,7 @@ func prepareExtensions(extNibbles[][]byte, extensionNodeInd int, proofEl1, proof
 	}
 	ind := 0
 	for j := startNibblePos; j < len(extNibbles[extensionNodeInd]); j += 2 {
-		v3[2 + ind] = // TODO: check 2 + ind
+		v3[2+ind] = // TODO: check 2 + ind
 			extNibbles[extensionNodeInd][j]
 		ind++
 	}
@@ -173,7 +173,7 @@ func getExtensionNumberOfNibbles(proofEl []byte) byte {
 	} else if keyLen > 1 && evenNumberOfNibbles {
 		numberOfNibbles = (keyLen - 1) * 2
 	} else if keyLen > 1 && !evenNumberOfNibbles {
-		numberOfNibbles = (keyLen - 1) * 2 + 1
+		numberOfNibbles = (keyLen-1)*2 + 1
 	}
 
 	return numberOfNibbles
@@ -184,12 +184,12 @@ func getExtensionNodeNibbles(proofEl []byte) []byte {
 
 	var nibbles []byte
 	if proofEl[startKey] != 0 {
-		nibbles = append(nibbles, proofEl[startKey] - 16)
+		nibbles = append(nibbles, proofEl[startKey]-16)
 	}
-	for i := 0; i < lenKey - 1; i++ { // -1 because the first byte doesn't have any nibbles
-		b := proofEl[startKey + 1 + i]
+	for i := 0; i < lenKey-1; i++ { // -1 because the first byte doesn't have any nibbles
+		b := proofEl[startKey+1+i]
 		n1 := b / 16
-		n2 := b - n1 * 16
+		n2 := b - n1*16
 		nibbles = append(nibbles, n1)
 		nibbles = append(nibbles, n2)
 	}
@@ -197,7 +197,7 @@ func getExtensionNodeNibbles(proofEl []byte) []byte {
 	return nibbles
 }
 
-// TODO: remove when Nodes are fully implemented 
+// TODO: remove when Nodes are fully implemented
 func prepareExtensionRow(witnessRow, proofEl []byte, setKey bool) {
 	// storageProof[i]:
 	// [228,130,0,149,160,114,253,150,133,18,192,156,19,241,162,51,210,24,1,151,16,48,7,177,42,60,49,34,230,254,242,79,132,165,90,75,249]
@@ -224,16 +224,16 @@ func prepareExtensionRow(witnessRow, proofEl []byte, setKey bool) {
 	// Note: branch contains at least 26 bytes. 192 + 26 = 218
 
 	/*
-	If proofEl[0] <= 247 (length at most 55, so proofEl[1] doesn't specify the length of the whole
-		remaining stream, only of the next substream)
-	  If proofEl[1] <= 128:
-	    There is only 1 byte for nibbles (keyLen = 1) and this is proofEl[1].
-	  Else:
-	    Nibbles are stored in more than 1 byte, proofEl[1] specifies the length of bytes.
-	Else:
-	  proofEl[1] contains the length of the remaining stream.
-	  proofEl[2] specifies the length of the bytes (for storing nibbles).
-	  Note that we can't have only one nibble in this case.
+		If proofEl[0] <= 247 (length at most 55, so proofEl[1] doesn't specify the length of the whole
+			remaining stream, only of the next substream)
+		  If proofEl[1] <= 128:
+		    There is only 1 byte for nibbles (keyLen = 1) and this is proofEl[1].
+		  Else:
+		    Nibbles are stored in more than 1 byte, proofEl[1] specifies the length of bytes.
+		Else:
+		  proofEl[1] contains the length of the remaining stream.
+		  proofEl[2] specifies the length of the bytes (for storing nibbles).
+		  Note that we can't have only one nibble in this case.
 	*/
 
 	if setKey {
@@ -294,16 +294,16 @@ func prepareExtension(v1, v2, proofEl []byte, setKey bool) []byte {
 	// Note: branch contains at least 26 bytes. 192 + 26 = 218
 
 	/*
-	If proofEl[0] <= 247 (length at most 55, so proofEl[1] doesn't specify the length of the whole
-		remaining stream, only of the next substream)
-	  If proofEl[1] <= 128:
-	    There is only 1 byte for nibbles (keyLen = 1) and this is proofEl[1].
-	  Else:
-	    Nibbles are stored in more than 1 byte, proofEl[1] specifies the length of bytes.
-	Else:
-	  proofEl[1] contains the length of the remaining stream.
-	  proofEl[2] specifies the length of the bytes (for storing nibbles).
-	  Note that we can't have only one nibble in this case.
+		If proofEl[0] <= 247 (length at most 55, so proofEl[1] doesn't specify the length of the whole
+			remaining stream, only of the next substream)
+		  If proofEl[1] <= 128:
+		    There is only 1 byte for nibbles (keyLen = 1) and this is proofEl[1].
+		  Else:
+		    Nibbles are stored in more than 1 byte, proofEl[1] specifies the length of bytes.
+		Else:
+		  proofEl[1] contains the length of the remaining stream.
+		  proofEl[2] specifies the length of the bytes (for storing nibbles).
+		  Note that we can't have only one nibble in this case.
 	*/
 
 	var listRlpBytes []byte
@@ -315,7 +315,7 @@ func prepareExtension(v1, v2, proofEl []byte, setKey bool) []byte {
 		startKey = startKey - 1
 		lenKey = lenKey + 1
 	}
-	
+
 	// TODO
 	if startKey == 3 {
 		listRlpBytes = append(listRlpBytes, proofEl[1])
@@ -340,6 +340,6 @@ func prepareExtension(v1, v2, proofEl []byte, setKey bool) []byte {
 	for j := 0; j < int(nodeLen); j++ {
 		v2[1+j] = proofEl[startKey+lenKey+1+j]
 	}
-	
+
 	return listRlpBytes
 }

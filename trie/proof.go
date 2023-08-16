@@ -105,7 +105,7 @@ func (t *Trie) Prove(key []byte, fromLevel uint, proofDb ethdb.KeyValueWriter) (
 		// var hn Node
 
 		// We need nibbles in witness for extension keys.
- 		// copy n.Key before it gets changed in ProofHash
+		// copy n.Key before it gets changed in ProofHash
 		var nCopy []byte
 		if short, ok := n.(*ShortNode); ok {
 			if !hasTerm(short.Key) { // only for extension keys
@@ -118,16 +118,16 @@ func (t *Trie) Prove(key []byte, fromLevel uint, proofDb ethdb.KeyValueWriter) (
 		// n, hn = hasher.ProofHash(n)
 		n, _ = hasher.ProofHash(n)
 		// if hash, ok := hn.(HashNode); ok || i == 0 {
-			// If the node's database encoding is a hash (or is the
-			// root node), it becomes a proof element.
-			enc, _ := rlp.EncodeToBytes(n)
-			/*
+		// If the node's database encoding is a hash (or is the
+		// root node), it becomes a proof element.
+		enc, _ := rlp.EncodeToBytes(n)
+		/*
 			if !ok {
 				hash = hasher.HashData(enc)
 			}
-			*/
-			// proofDb.Put(hash, enc)
-			proofDb.Put([]byte{1, 1, 1}, enc)
+		*/
+		// proofDb.Put(hash, enc)
+		proofDb.Put([]byte{1, 1, 1}, enc)
 		// }
 	}
 
@@ -428,9 +428,9 @@ findFork:
 // unset removes all internal node references either the left most or right most.
 // It can meet these scenarios:
 //
-// - The given path is existent in the trie, unset the associated nodes with the
-//   specific direction
-// - The given path is non-existent in the trie
+//   - The given path is existent in the trie, unset the associated nodes with the
+//     specific direction
+//   - The given path is non-existent in the trie
 //   - the fork point is a fullnode, the corresponding child pointed by path
 //     is nil, return
 //   - the fork point is a shortnode, the shortnode is included in the range,

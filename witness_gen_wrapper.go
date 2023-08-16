@@ -10,11 +10,11 @@ import (
 )
 
 type Config struct {
-	NodeUrl string `json:"NodeUrl"`
-	BlockNum int `json:"BlockNum"`
-	Addr string `json:"Addr"`
-	Keys []string `json:"Keys"`
-	Values []string `json:"Values"`
+	NodeUrl  string   `json:"NodeUrl"`
+	BlockNum int      `json:"BlockNum"`
+	Addr     string   `json:"Addr"`
+	Keys     []string `json:"Keys"`
+	Values   []string `json:"Values"`
 }
 
 //export GetWitness
@@ -30,9 +30,9 @@ func GetWitness(proofConf *C.char) *C.char {
 	addr := common.HexToAddress(config.Addr)
 	for i := 0; i < len(config.Keys); i++ {
 		trieMod := witness.TrieModification{
-			Type: witness.StorageChanged,
-			Key: common.HexToHash(config.Keys[i]),
-			Value: common.HexToHash(config.Values[i]),
+			Type:    witness.StorageChanged,
+			Key:     common.HexToHash(config.Keys[i]),
+			Value:   common.HexToHash(config.Values[i]),
 			Address: addr,
 		}
 		trieModifications = append(trieModifications, trieMod)

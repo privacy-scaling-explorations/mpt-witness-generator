@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"strconv"
 	"path/filepath"
+	"strconv"
 )
 
 func check(err error) {
@@ -47,13 +47,13 @@ func StoreNodes(testName string, nodes []Node) {
 	path := "../generated_witnesses/" + name
 
 	// Create the directories if they do not exist yet
-    err := os.MkdirAll(filepath.Dir(path), 0755)
-    if err != nil {
-        log.Fatal(err)
-    }
+	err := os.MkdirAll(filepath.Dir(path), 0755)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	f, err := os.Create(path)
-    check(err)
+	check(err)
 	defer f.Close()
 	b, err := json.Marshal(nodes)
 	if err != nil {
@@ -63,6 +63,6 @@ func StoreNodes(testName string, nodes []Node) {
 	fmt.Println(string(b))
 
 	n3, err := f.WriteString(string(b))
-    check(err)
-    fmt.Printf("wrote %d bytes\n", n3)
+	check(err)
+	fmt.Printf("wrote %d bytes\n", n3)
 }

@@ -131,18 +131,18 @@ func New(root common.Hash, db Database, snaps *snapshot.Tree) (*StateDB, error) 
 		return nil, err
 	}
 	sdb := &StateDB{
-		Db:                  db,
-		trie:                tr,
-		originalRoot:        root,
-		snaps:               snaps,
-		stateObjects:        make(map[common.Address]*stateObject),
-		stateObjectsPending: make(map[common.Address]struct{}),
-		stateObjectsDirty:   make(map[common.Address]struct{}),
-		logs:                make(map[common.Hash][]*types.Log),
-		preimages:           make(map[common.Hash][]byte),
-		journal:             newJournal(),
-		accessList:          newAccessList(),
-		hasher:              crypto.NewKeccakState(),
+		Db:                                 db,
+		trie:                               tr,
+		originalRoot:                       root,
+		snaps:                              snaps,
+		stateObjects:                       make(map[common.Address]*stateObject),
+		stateObjectsPending:                make(map[common.Address]struct{}),
+		stateObjectsDirty:                  make(map[common.Address]struct{}),
+		logs:                               make(map[common.Hash][]*types.Log),
+		preimages:                          make(map[common.Hash][]byte),
+		journal:                            newJournal(),
+		accessList:                         newAccessList(),
+		hasher:                             crypto.NewKeccakState(),
 		loadRemoteAccountsIntoStateObjects: true,
 	}
 	/*if sdb.snaps != nil {
@@ -599,9 +599,9 @@ func (s *StateDB) setStateObjectFromEncoding(addr common.Address, enc []byte) er
 		return errors.New("encoding of account is of length 0")
 	}
 	data := new(Account)
-	keyLen := enc[2] - 128;
-	accData := enc[3 + keyLen + 2:]
-	
+	keyLen := enc[2] - 128
+	accData := enc[3+keyLen+2:]
+
 	if err := rlp.DecodeBytes(accData, data); err != nil {
 		// If it's not account RLP, nothing is set (in stateObjects) - this is to prevent
 		// the need of checking whether enc is account RLP or something else (like branch RLP).
@@ -659,8 +659,8 @@ func (s *StateDB) createObject(addr common.Address) (newobj, prev *stateObject) 
 // CreateAccount is called during the EVM CREATE operation. The situation might arise that
 // a contract does the following:
 //
-//   1. sends funds to sha(account ++ (nonce + 1))
-//   2. tx_create(sha(account ++ nonce)) (note that this gets the address of 1)
+//  1. sends funds to sha(account ++ (nonce + 1))
+//  2. tx_create(sha(account ++ nonce)) (note that this gets the address of 1)
 //
 // Carrying over the balance ensures that Ether doesn't disappear.
 func (s *StateDB) CreateAccount(addr common.Address) {
@@ -1105,6 +1105,6 @@ func (s *StateDB) SlotInAccessList(addr common.Address, slot common.Hash) (addre
 
 // MPT generator: used only because the tests have been written by creating a new account
 // for each address - changing this would mean the tests would change.
-func (s *StateDB) DisableLoadingRemoteAccounts() () {
+func (s *StateDB) DisableLoadingRemoteAccounts() {
 	s.loadRemoteAccountsIntoStateObjects = false
 }
