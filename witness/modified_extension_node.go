@@ -15,7 +15,7 @@ func equipLeafWithModExtensionNode(statedb *state.StateDB, leafNode Node, addr c
 		key, neighbourNode []byte,
 		keyIndex, extensionNodeInd, numberOfNibbles int,
 		additionalBranch, isAccountProof, nonExistingAccountProof,
-		isShorterProofLastLeaf bool, branchC16, branchC1 byte, toBeHashed *[][]byte) {
+		isShorterProofLastLeaf bool, branchC16, branchC1 byte, toBeHashed *[][]byte) Node {
 	len1 := len(proof1)
 	len2 := len(proof2)
 
@@ -192,6 +192,12 @@ func equipLeafWithModExtensionNode(statedb *state.StateDB, leafNode Node, addr c
 		leafNode.Account.ModListRlpBytes = listRlpBytes
 	}
 
-	leafNode.Values = append(leafNode.Values, values...)
+	l := len(leafNode.Values)
+	for i := 0; i < 6; i++ {
+		leafNode.Values[l - 6 + i] = values[i]
+	}
+
 	leafNode.KeccakData = append(leafNode.KeccakData, keccakData...)
+
+	return leafNode
 }
