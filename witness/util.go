@@ -60,9 +60,6 @@ func StoreNodes(testName string, nodes []Node) {
 		fmt.Println(err)
 	}
 
-	fmt.Println(string(b))
-
-	n3, err := f.WriteString(string(b))
+	_, err = f.WriteString(string(b))
 	check(err)
-	fmt.Printf("wrote %d bytes\n", n3)
 }
