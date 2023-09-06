@@ -3,6 +3,7 @@ package witness
 import (
 	"fmt"
 	"math/big"
+	"os"
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -10,7 +11,14 @@ import (
 	"github.com/privacy-scaling-explorations/mpt-witness-generator/state"
 )
 
+func SkipIfNoGeth(t *testing.T) {
+	if os.Getenv("NO_GETH") != "" {
+		t.Skip("Skipping test that requires geth")
+	}
+}
+
 func TestNonExistingAccountNilObjectInFirstLevel(t *testing.T) {
+	SkipIfNoGeth(t)
 	// geth --dev --http --ipcpath ~/Library/Ethereum/geth.ipc
 	oracle.NodeUrl = oracle.LocalUrl
 	blockNum := 0
@@ -36,6 +44,7 @@ func TestNonExistingAccountNilObjectInFirstLevel(t *testing.T) {
 }
 
 func TestNonExistingAccountInFirstLevel(t *testing.T) {
+	SkipIfNoGeth(t)
 	// Only one element in the trie - the account with "wrong" address.
 	// geth --dev --http --ipcpath ~/Library/Ethereum/geth.ipc
 	oracle.NodeUrl = oracle.LocalUrl
@@ -62,6 +71,7 @@ func TestNonExistingAccountInFirstLevel(t *testing.T) {
 }
 
 func TestNonExistingAccountAfterFirstLevel(t *testing.T) {
+	SkipIfNoGeth(t)
 	// geth --dev --http --ipcpath ~/Library/Ethereum/geth.ipc
 	oracle.NodeUrl = oracle.LocalUrl
 	blockNum := 0
@@ -87,6 +97,7 @@ func TestNonExistingAccountAfterFirstLevel(t *testing.T) {
 
 // Account leaf after one branch. No storage proof.
 func TestAccountAfterFirstLevel(t *testing.T) {
+	SkipIfNoGeth(t)
 	// geth --dev --http --ipcpath ~/Library/Ethereum/geth.ipc
 	oracle.NodeUrl = oracle.LocalUrl
 	blockNum := 0
@@ -113,6 +124,7 @@ func TestAccountAfterFirstLevel(t *testing.T) {
 
 // Account leaf in first level in C proof, placeholder leaf in S proof. No storage proof.
 func TestAccountInFirstLevel(t *testing.T) {
+	SkipIfNoGeth(t)
 	// geth --dev --http --ipcpath ~/Library/Ethereum/geth.ipc
 	oracle.NodeUrl = oracle.LocalUrl
 	blockNum := 0
@@ -138,6 +150,7 @@ func TestAccountInFirstLevel(t *testing.T) {
 }
 
 func TestAccountExtensionInFirstLevel(t *testing.T) {
+	SkipIfNoGeth(t)
 	// geth --dev --http --ipcpath ~/Library/Ethereum/geth.ipc
 	oracle.NodeUrl = oracle.LocalUrl
 	blockNum := 0
@@ -184,6 +197,7 @@ func TestAccountExtensionInFirstLevel(t *testing.T) {
 }
 
 func TestAccountBranchPlaceholder(t *testing.T) {
+	SkipIfNoGeth(t)
 	// geth --dev --http --ipcpath ~/Library/Ethereum/geth.ipc
 	oracle.NodeUrl = oracle.LocalUrl
 	blockNum := 0
@@ -209,6 +223,7 @@ func TestAccountBranchPlaceholder(t *testing.T) {
 }
 
 func TestAccountBranchPlaceholderInFirstLevel(t *testing.T) {
+	SkipIfNoGeth(t)
 	// geth --dev --http --ipcpath ~/Library/Ethereum/geth.ipc
 	oracle.NodeUrl = oracle.LocalUrl
 	blockNum := 0
@@ -273,6 +288,7 @@ func TestAccountBranchPlaceholderInFirstLevel(t *testing.T) {
 }
 
 func TestStorageInFirstAccountInFirstLevel(t *testing.T) {
+	SkipIfNoGeth(t)
 	// geth --dev --http --ipcpath ~/Library/Ethereum/geth.ipc
 	oracle.NodeUrl = oracle.LocalUrl
 	blockNum := 0
@@ -299,6 +315,7 @@ func TestStorageInFirstAccountInFirstLevel(t *testing.T) {
 }
 
 func TestExtensionTwoNibblesInEvenLevel(t *testing.T) {
+	SkipIfNoGeth(t)
 	// geth --dev --http --ipcpath ~/Library/Ethereum/geth.ipc
 	oracle.NodeUrl = oracle.LocalUrl
 	blockNum := 0
@@ -346,6 +363,7 @@ func TestExtensionTwoNibblesInEvenLevel(t *testing.T) {
 }
 
 func TestExtensionThreeNibblesInEvenLevel(t *testing.T) {
+	SkipIfNoGeth(t)
 	// geth --dev --http --ipcpath ~/Library/Ethereum/geth.ipc
 	oracle.NodeUrl = oracle.LocalUrl
 	blockNum := 0
@@ -393,6 +411,7 @@ func TestExtensionThreeNibblesInEvenLevel(t *testing.T) {
 }
 
 func TestExtensionThreeNibblesInOddLevel(t *testing.T) {
+	SkipIfNoGeth(t)
 	// geth --dev --http --ipcpath ~/Library/Ethereum/geth.ipc
 	oracle.NodeUrl = oracle.LocalUrl
 	blockNum := 0
@@ -440,6 +459,7 @@ func TestExtensionThreeNibblesInOddLevel(t *testing.T) {
 }
 
 func TestStorageInFirstLevelNonExisting(t *testing.T) {
+	SkipIfNoGeth(t)
 	// geth --dev --http --ipcpath ~/Library/Ethereum/geth.ipc
 	oracle.NodeUrl = oracle.LocalUrl
 	blockNum := 0
@@ -469,6 +489,7 @@ func TestStorageInFirstLevelNonExisting(t *testing.T) {
 }
 
 func TestStorageInFirstLevelNonExistingLong(t *testing.T) {
+	SkipIfNoGeth(t)
 	// geth --dev --http --ipcpath ~/Library/Ethereum/geth.ipc
 	oracle.NodeUrl = oracle.LocalUrl
 	blockNum := 0
