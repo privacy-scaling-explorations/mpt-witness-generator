@@ -1,8 +1,7 @@
-// use serde_json::{json, Value};
 use std::ffi::{CStr, CString};
-use std::os::raw::c_char;
 use std::fs::File;
 use std::io::Write;
+use std::os::raw::c_char;
 
 extern "C" {
     fn GetWitness(str: *const c_char) -> *const c_char;
@@ -22,9 +21,9 @@ fn main() {
 
     let result = unsafe { GetWitness(c_config.as_ptr()) };
     let c_str = unsafe { CStr::from_ptr(result) };
-    let string = c_str.to_str().expect("Error translating from library");
+    let string = c_str.to_str().expect("library translates");
     println!("{:?}", string);
 
-    let mut f = File::create("proof.json").expect("Unable to create file");
-    f.write_all(string.as_bytes()).expect("Unable to write data");
+    let mut f = File::create("proof.json").expect("file creates");
+    f.write_all(string.as_bytes()).expect("data writes");
 }
