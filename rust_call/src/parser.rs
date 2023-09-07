@@ -122,3 +122,31 @@ pub fn load_proof(path: &str) -> Vec<Node> {
     }
     nodes
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+
+    #[test]
+    fn test_loading_json() {
+        let path = "../generated_witnesses";
+        let files = fs::read_dir(path).unwrap();
+        files
+            .filter_map(Result::ok)
+            .filter(|d| {
+                if let Some(e) = d.path().extension() {
+                    e == "json"
+                } else {
+                    false
+                }
+            })
+            .enumerate()
+            .for_each(|(idx, f)| {
+                let path = f.path();
+                let path = path.to_str().unwrap();
+                println!("{} {}", idx, path);
+                load_proof(path);
+            });
+    }
+}
