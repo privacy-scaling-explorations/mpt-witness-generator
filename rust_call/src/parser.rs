@@ -1,4 +1,7 @@
 use serde::{Deserialize, Serialize};
+use serde_json::from_reader;
+use std::fs::File;
+use std::io::{BufReader, Error};
 use strum_macros::EnumIter;
 
 /// Tag for an AccountField in RwTable
@@ -102,25 +105,25 @@ pub struct Node {
 }
 
 /// Loads an MPT proof from disk
-pub fn load_proof(path: &str) -> Vec<Node> {
-    let file = std::fs::File::open(path);
-    let reader = std::io::BufReader::new(file.unwrap());
-    let mut nodes: Vec<Node> = serde_json::from_reader(reader).unwrap();
+pub fn load_proof(path: &str) -> Result<Vec<Node>, Error> {
+    let file = File::open(path)?;
+    let reader = BufReader::new(file);
+    let mut nodes: Vec<Node> = from_reader(reader)?;
 
     // Add the address and the key to the list of values in the Account and Storage nodes
     for node in nodes.iter_mut() {
-        if node.account.is_some() {
-            let account = node.account.clone().unwrap();
-            node.values.push([vec![148], account.address].concat());
-            node.values.push([vec![160], account.key].concat());
+        if let Some(account) = &node.account {
+            node.values
+                .push([vec![148], account.address.clone()].concat());
+            node.values.push([vec![160], account.key.clone()].concat());
         }
-        if node.storage.is_some() {
-            let storage: StorageNode = node.storage.clone().unwrap();
-            node.values.push([vec![160], storage.address].concat());
-            node.values.push([vec![160], storage.key].concat());
+        if let Some(storage) = &node.storage {
+            node.values
+                .push([vec![160], storage.address.clone()].concat());
+            node.values.push([vec![160], storage.key.clone()].concat());
         }
     }
-    nodes
+    Ok(nodes)
 }
 
 #[cfg(test)]
@@ -134,19 +137,13 @@ mod tests {
         let files = fs::read_dir(path).unwrap();
         files
             .filter_map(Result::ok)
-            .filter(|d| {
-                if let Some(e) = d.path().extension() {
-                    e == "json"
-                } else {
-                    false
-                }
-            })
+            .filter(|d| d.path().extension().map(|e| e == "json").unwrap_or(false))
             .enumerate()
             .for_each(|(idx, f)| {
                 let path = f.path();
                 let path = path.to_str().unwrap();
                 println!("{} {}", idx, path);
-                load_proof(path);
+                load_proof(path).expect("file reads");
             });
     }
 }
